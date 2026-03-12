@@ -218,7 +218,7 @@
 ### 8.2 Deploy
 - [ ] Configurar Vercel (wildcard subdomains)
 - [ ] Configurar variables de entorno
-- [ ] Ejecutar `schema.sql` en Supabase
+- [ ] Ejecutar `02-schema.sql` en Supabase
 - [ ] Verificar que todo funcione en producción
 - [ ] Configurar PostHog (self-hosted)
 
