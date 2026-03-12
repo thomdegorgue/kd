@@ -1,0 +1,62 @@
+---
+alwaysApply: true
+description: Reglas globales y referencias para KitDigital.ar - Lee esto primero
+---
+
+# KitDigital.ar - Instrucciones para IA
+
+> **⚠️ PRIORIDAD MÁXIMA**: Este archivo se aplica a TODAS las conversaciones. Léelo primero.
+
+## Archivo principal de reglas
+
+**LEE PRIMERO**: [ai-instructions/00-skills.md](mdc:ai-instructions/00-skills.md)
+
+Este archivo contiene todas las reglas estrictas, anti-alucinación y convenciones del proyecto.
+
+## Fuentes de verdad (obligatorias)
+
+Antes de implementar cualquier feature, consulta estos archivos:
+
+1. **Master Document**: [ai-instructions/01-master-document.md](mdc:ai-instructions/01-master-document.md)
+   - Visión, arquitectura, multitenancy, módulos, estructura Next.js, flujos, deploy
+
+2. **Schema SQL**: [ai-instructions/02-schema.sql](mdc:ai-instructions/02-schema.sql)
+   - Tablas, RLS, funciones, triggers, índices completos
+
+3. **Orden de implementación**: [ai-instructions/04-implementation-order.md](mdc:ai-instructions/04-implementation-order.md)
+   - Fases secuenciales estrictas (no saltes pasos)
+
+4. **Estructura de carpetas**: [ai-instructions/05-project-structure.md](mdc:ai-instructions/05-project-structure.md)
+   - Árbol completo de directorios y archivos (usa exactamente estos nombres)
+
+5. **Referencias cruzadas**: [ai-instructions/03-references.md](mdc:ai-instructions/03-references.md)
+   - Mapa de navegación de todos los documentos
+
+## Reglas rápidas (resumen)
+
+- **Nunca alucines**: Si algo no está en los archivos de arriba, pregunta antes de continuar
+- **Sigue el orden**: Usa `04-implementation-order.md` estrictamente
+- **TypeScript estricto**: `strict: true`, nunca `any`, nunca `@ts-ignore`
+- **Multitenancy**: Siempre filtra por `tenant_id`, usa `current_tenant_id()` y `is_superadmin()`
+- **Mobile-first**: Todos los componentes deben ser 100% responsive
+- **Nombres exactos**: Usa exactamente los nombres de archivos/rutas de `05-project-structure.md`
+
+## Stack confirmado
+
+- Next.js 15 (App Router) + Tailwind + shadcn/ui + TanStack Query
+- Supabase (Postgres + Auth + Storage + Realtime + Edge Functions)
+- OpenAI GPT-4o-mini (vía Edge Function)
+- Mercado Pago (suscripciones)
+- PostHog (self-hosted)
+
+## Nombres oficiales
+
+- **Producto**: KitDigital.ar
+- **Catálogo público**: Mi Vitrina
+- **Banner principal**: Portada Principal
+- **Sección de módulos**: Módulos Potenciadores
+- **Onboarding IA**: Creá tu Kit en 60 segundos
+
+---
+
+**Recuerda**: Si tienes dudas, siempre prioriza lo que dice [ai-instructions/00-skills.md](mdc:ai-instructions/00-skills.md).
