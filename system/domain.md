@@ -11,6 +11,7 @@ Este archivo es el diccionario y la constitución del sistema. Todo nombre, toda
 | `store` | `stores` | Un negocio registrado. Unidad raíz de todo. |
 | `user` | `users` | Persona con cuenta en el sistema. |
 | `store_user` | `store_users` | Relación usuario↔tienda con rol. |
+| `store_invitation` | `store_invitations` | Invitación pendiente a unirse a una tienda (token, email, rol, expiración). |
 | `plan` | `plans` | Conjunto de límites y módulos. Definido por KitDigital. |
 | `product` | `products` | Artículo que la tienda ofrece. |
 | `category` | `categories` | Agrupación de productos. |
@@ -25,6 +26,7 @@ Este archivo es el diccionario y la constitución del sistema. Todo nombre, toda
 | `stock_item` | `stock_items` | Control de inventario por producto/variante. |
 | `wholesale_price` | `wholesale_prices` | Precio mayorista. |
 | `shipping_method` | `shipping_methods` | Opción de envío configurada. |
+| `shipment` | `shipments` | Envío con seguimiento asociado a un pedido. |
 | `finance_entry` | `finance_entries` | Movimiento de caja (ingreso o egreso). |
 | `expense` | `expenses` | Egreso detallado con categoría. |
 | `savings_account` | `savings_accounts` | Cuenta de ahorro virtual. |
@@ -112,6 +114,19 @@ Transiciones válidas: `pending → confirmed → preparing → delivered`. Cual
 
 ---
 
+## Estados de Envío (shipment.status)
+
+| Estado | Descripción |
+|--------|-------------|
+| `preparing` | Envío creado, preparando paquete. |
+| `in_transit` | Despachado, en camino. |
+| `delivered` | Entregado. Estado terminal. |
+| `cancelled` | Cancelado. Estado terminal. |
+
+Transiciones válidas: `preparing → in_transit → delivered`. Cualquier estado no terminal → `cancelled`.
+
+---
+
 ## Errores Canónicos del Executor
 
 | Código | Cuándo se usa |
@@ -176,7 +191,7 @@ created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 ```
 
-Entidades inmutables (events, order_items, assistant_messages, billing_payments): no tienen `updated_at`.
+Entidades inmutables (events, order_items, assistant_messages, billing_payments, store_invitations): no tienen `updated_at`.
 
 **Excepción documentada — `events.store_id` nullable:**
 La tabla `events` declara `store_id` como nullable. Esto es intencional y cubre dos casos:
@@ -215,13 +230,18 @@ Catálogo de eventos:
 | `payment_refunded` | status → refunded | payments |
 | `stock_updated` | `update_stock` | stock |
 | `stock_depleted` | quantity llega a 0 | stock |
+| `shipment_created` | `create_shipment` | shipping |
+| `shipment_status_updated` | `update_shipment_status` | shipping |
 | `subscription_created` | primer pago | billing |
 | `subscription_renewed` | cobro recurrente exitoso | billing |
 | `subscription_payment_failed` | cobro fallido | billing |
+| `billing_retry_queue_alert` | cola de reintentos de webhooks MP supera umbral | billing |
 | `store_user_invited` | `invite_store_user` | multiuser |
 | `store_user_role_updated` | `update_store_user_role` | multiuser |
 | `store_user_removed` | `remove_store_user` | multiuser |
 | `assistant_action_executed` | IA ejecuta action via executor | assistant |
+| `store_impersonated` | superadmin inicia impersonation | superadmin |
+| `invitation_cancelled` | `cancel_invitation` | multiuser |
 
 Reglas de eventos:
 - Inmutables. No se editan ni eliminan.

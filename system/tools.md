@@ -115,6 +115,7 @@ Genera el mensaje formateado para WhatsApp.
 - `shippingMethod?` — `{ name, price }`
 - `customerName?`
 - `customerNotes?`
+- `trackingUrl?` — URL de seguimiento de envío (si existe un shipment con tracking_code)
 
 **Output:**
 - `messageText` — texto plano formateado con emojis y precios
@@ -135,12 +136,16 @@ Genera el mensaje formateado para WhatsApp.
 👤 Nombre: Juan
 📝 Nota: Talle M en la remera
 
+📦 Seguimiento: https://kitdigital.ar/tracking/{code}
+
 _Enviado desde KitDigital.ar_
 ```
 
+La línea de seguimiento solo se incluye si `trackingUrl` está presente.
+
 **Lógica 100% client-side.** No toca backend. Usa datos del store de Zustand (carrito).
 
-**Usado en:** CartDrawer → WhatsAppCheckoutButton.
+**Usado en:** CartDrawer → WhatsAppCheckoutButton. También reutilizable desde el panel admin al notificar envío al cliente.
 
 ---
 

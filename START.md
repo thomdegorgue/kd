@@ -19,6 +19,8 @@ Ante conflicto entre documentos, la prioridad es:
 4. Implementar exactamente lo que el paso indica
 5. No avanzar al siguiente paso sin cumplir criterios de aceptación
 
+En el paso **0.4** (`PLAN.md`), ejecutar `schema.sql` completo en el SQL Editor de Supabase y verificar 30 tablas + RLS antes de **0.5** (generar tipos). Si el SQL falla, no avanzar hasta corregirlo.
+
 ## Protocolo de Fin de Sesión
 
 1. Verificar `pnpm build` y `pnpm exec tsc --noEmit` sin errores
@@ -43,6 +45,25 @@ Ante conflicto entre documentos, la prioridad es:
 - Un módulo solo escribe en sus propias tablas.
 - Los eventos son inmutables.
 - Mobile-first siempre.
+
+## Estrategia de Testing
+
+**Framework:** Vitest.
+
+| Qué testear | Tipo | Cuándo | Prioridad |
+|-------------|------|--------|-----------|
+| Executor: pipeline completo (validaciones de estado, módulos, límites, transiciones) | Unitario | F0.6 | Alta |
+| RLS: aislamiento multitenant (un store_user no puede leer datos de otra tienda) | Integración con Supabase local | F0.4 | Alta |
+| Webhooks MP: firma HMAC, idempotencia, transiciones de billing_status | Integración | F5 | Alta |
+| Server actions: validación de input, retorno correcto | Unitario | Incremental por fase | Media |
+| Zod schemas: edge cases de validación | Unitario | Incremental por fase | Media |
+
+**Reglas:**
+- Los tests del executor son obligatorios antes de avanzar de F0.
+- Los tests de RLS se corren contra un proyecto Supabase de test (o contenedor local con `supabase start`).
+- No se testea UI de forma obligatoria en el MVP, pero los componentes deben compilar sin errores de tipo.
+
+---
 
 ## Cómo Agregar una Feature Nueva
 

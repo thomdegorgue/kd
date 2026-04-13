@@ -94,6 +94,11 @@ El handler ejecuta sus validaciones específicas:
 - Si falla → ROLLBACK
 
 ### Paso 8 — Emitir evento (misma transacción)
+
+**IMPORTANTE:** El executor SIEMPRE usa `supabaseServiceRole` para insertar eventos. Nunca el cliente autenticado del usuario. Esto garantiza que:
+- Eventos con `store_id = NULL` (sistema, superadmin global) se inserten sin conflicto con RLS.
+- La política `events_insert` en RLS no bloquee inserciones legítimas del executor.
+
 ```sql
 INSERT INTO events (store_id, type, actor_type, actor_id, data)
 VALUES ($1, $2, $3, $4, $5)
@@ -131,6 +136,8 @@ type ActionHandler = {
   execute:     (input: unknown, context: StoreContext, db: Transaction) => Promise<unknown>
 }
 ```
+
+**El registry es la única fuente de verdad en código** para el mapa action → módulo → permisos → límites. Si una action no está registrada en el registry, el executor la rechaza con `SYSTEM_ERROR` en el paso 1. `system/modules.md` es la referencia humana de diseño; el registry es la referencia ejecutable. Ambos deben estar siempre alineados.
 
 ---
 

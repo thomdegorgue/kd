@@ -2,6 +2,8 @@
 -- KitDigital.ar — Schema SQL Centralizado
 -- Ejecutar en Supabase SQL Editor en una sola transacción
 -- gen_random_uuid() es nativo en Supabase (PostgreSQL 14+), no requiere extensión
+-- EXECUTE FUNCTION es la sintaxis estándar desde PostgreSQL 11.
+-- Supabase (PostgreSQL 15) lo soporta nativamente. No usar EXECUTE PROCEDURE.
 -- ============================================================
 
 BEGIN;
@@ -74,6 +76,7 @@ CREATE TABLE stores (
   custom_domain TEXT UNIQUE,
   custom_domain_verified BOOLEAN NOT NULL DEFAULT false,
   custom_domain_verified_at TIMESTAMPTZ,
+  custom_domain_verification_token TEXT,
   logo_url TEXT,
   cover_url TEXT,
   whatsapp TEXT,
@@ -143,6 +146,25 @@ CREATE TRIGGER trg_store_users_updated_at BEFORE UPDATE ON store_users
 
 -- ---
 
+CREATE TABLE store_invitations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('admin', 'collaborator')),
+  token TEXT NOT NULL UNIQUE,
+  invited_by UUID NOT NULL REFERENCES users(id),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '72 hours'),
+  accepted_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(store_id, email)
+);
+
+CREATE INDEX idx_store_invitations_token ON store_invitations(token);
+CREATE INDEX idx_store_invitations_email ON store_invitations(email);
+CREATE INDEX idx_store_invitations_store ON store_invitations(store_id);
+
+-- ---
+
 CREATE TABLE billing_payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id),
@@ -171,6 +193,8 @@ CREATE TABLE billing_webhook_log (
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processed', 'failed')),
   raw_payload JSONB NOT NULL,
   error TEXT,
+  processing_time_ms INTEGER,
+  result TEXT,
   processed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -427,6 +451,34 @@ CREATE INDEX idx_order_items_store_order ON order_items(store_id, order_id);
 CREATE INDEX idx_order_items_store_product ON order_items(store_id, product_id);
 
 -- ============================================================
+-- ENVÍOS CON SEGUIMIENTO
+-- ============================================================
+
+CREATE TABLE shipments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  order_id UUID NOT NULL REFERENCES orders(id),
+  tracking_code TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'preparing' CHECK (status IN ('preparing', 'in_transit', 'delivered', 'cancelled')),
+  shipping_method_id UUID REFERENCES shipping_methods(id),
+  recipient_name TEXT,
+  recipient_phone TEXT,
+  notes TEXT,
+  shipped_at TIMESTAMPTZ,
+  delivered_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_shipments_store ON shipments(store_id);
+CREATE INDEX idx_shipments_order ON shipments(store_id, order_id);
+CREATE INDEX idx_shipments_tracking ON shipments(tracking_code);
+CREATE INDEX idx_shipments_status ON shipments(store_id, status);
+
+CREATE TRIGGER trg_shipments_updated_at BEFORE UPDATE ON shipments
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================================
 -- PAGOS
 -- ============================================================
 
@@ -617,6 +669,7 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE store_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE store_invitations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE product_categories ENABLE ROW LEVEL SECURITY;
@@ -627,6 +680,7 @@ ALTER TABLE variant_values ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stock_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE wholesale_prices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shipping_methods ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shipments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
@@ -660,6 +714,16 @@ CREATE POLICY store_users_select ON store_users FOR SELECT
   USING (user_id = auth.uid() OR store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid()));
 CREATE POLICY store_users_insert ON store_users FOR INSERT
   WITH CHECK (store_id IN (SELECT su.store_id FROM store_users su WHERE su.user_id = auth.uid() AND su.role IN ('owner', 'admin')));
+
+-- Store invitations: owner y admin pueden ver, crear y eliminar
+CREATE POLICY store_invitations_select ON store_invitations FOR SELECT
+  USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin')));
+CREATE POLICY store_invitations_insert ON store_invitations FOR INSERT
+  WITH CHECK (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
+    AND store_allows_writes(store_id));
+CREATE POLICY store_invitations_delete ON store_invitations FOR DELETE
+  USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
+    AND store_allows_writes(store_id));
 
 -- Tablas de dominio: acceso por store_id del usuario
 -- Patrón genérico: SELECT/INSERT/UPDATE/DELETE donde store_id coincide con alguna tienda del usuario
@@ -783,6 +847,20 @@ CREATE POLICY shipping_methods_update ON shipping_methods FOR UPDATE
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
     AND store_allows_writes(store_id));
 CREATE POLICY shipping_methods_delete ON shipping_methods FOR DELETE
+  USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
+    AND store_allows_writes(store_id));
+
+-- Shipments (lectura pública por tracking_code: solo vía backend con service_role + DTO mínimo;
+-- no hay política SELECT anónima: USING (true) expondría todas las filas a cualquier cliente)
+CREATE POLICY shipments_select ON shipments FOR SELECT
+  USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid()));
+CREATE POLICY shipments_insert ON shipments FOR INSERT
+  WITH CHECK (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin', 'collaborator'))
+    AND store_allows_writes(store_id));
+CREATE POLICY shipments_update ON shipments FOR UPDATE
+  USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin', 'collaborator'))
+    AND store_allows_writes(store_id));
+CREATE POLICY shipments_delete ON shipments FOR DELETE
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
     AND store_allows_writes(store_id));
 

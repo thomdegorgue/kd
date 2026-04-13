@@ -53,7 +53,7 @@ Día 60  → 30 días en 'past_due' → billing_status → 'archived'. Datos con
 4. Dueño redirigido a MP para ingresar método de pago
 5. MP cobra primer mes y notifica vía webhook
 6. Webhook handler: `billing_status → 'active'`, registra `mp_subscription_id`
-7. Evento: `billing_activated`
+7. Evento: `subscription_created`
 
 ---
 
@@ -107,3 +107,11 @@ Día 60  → 30 días en 'past_due' → billing_status → 'archived'. Datos con
 3. Precios siempre de tabla `plans`. Nunca hardcodeados.
 4. Límites se aplican en tiempo de ejecución vía executor.
 5. Superadmin puede override de billing manualmente. Siempre con evento registrado.
+
+---
+
+## Observabilidad
+
+- Toda ejecución de webhook persiste en `billing_webhook_log` los campos: `mp_event_id`, `topic`, `store_id`, `raw_payload`, `status`, `error`, `processing_time_ms` (ms desde recepción hasta fin del handler), `result` (texto breve: ej. `subscription_renewed`, `ignored_duplicate`), `processed_at`.
+- Si la cola de reintentos en Redis supera 20 ítems pendientes: emitir evento `billing_retry_queue_alert` con `actor_type: 'system'` y notificar al superadmin en su dashboard.
+- Dashboard de superadmin muestra: webhooks procesados/fallidos en las últimas 24h, reintentos pendientes, tiempo promedio de procesamiento.

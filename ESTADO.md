@@ -43,7 +43,8 @@
 - [ ] 2.10 ModuleGate + PlanUpgradePrompt
 
 ### F3 — Vitrina Pública + Core
-- [ ] 3.1 Rutas públicas: /[slug], /[slug]/[category], /[slug]/p/[id]
+- [ ] 3.0 Onboarding wizard (4 pasos: nombre, logo, productos, compartir link)
+- [ ] 3.1 Rutas públicas: /[slug], /[slug]/[category], /[slug]/p/[id], /tracking/[code]
 - [ ] 3.2 Resolución de tienda por subdominio (middleware)
 - [ ] 3.3 Módulo catalog: get_store_public, StoreHeader, StoreCover
 - [ ] 3.4 Módulo products: list_products_public, ProductCard, ProductGrid
@@ -62,7 +63,7 @@
 - [ ] 4.6 Gestión de clientes (listado, detalle)
 - [ ] 4.7 Configuración de tienda (nombre, logo, WhatsApp, colores)
 - [ ] 4.8 Configuración de módulos (enable/disable)
-- [ ] 4.9 Módulos secundarios: stock, variantes, wholesale, shipping
+- [ ] 4.9 Módulos secundarios: stock, variantes, wholesale, shipping (métodos + envíos con tracking)
 - [ ] 4.10 Módulos de finanzas: finance, expenses, savings
 - [ ] 4.11 Módulo tareas
 - [ ] 4.12 Módulo multiuser (invitar, roles, remover)
@@ -114,6 +115,7 @@
 - [ ] UPSTASH_REDIS_REST_URL
 - [ ] UPSTASH_REDIS_REST_TOKEN
 - [ ] OPENAI_API_KEY
+- [ ] RESEND_API_KEY
 - [ ] NEXT_PUBLIC_APP_URL
 - [ ] NEXT_PUBLIC_APP_DOMAIN
 

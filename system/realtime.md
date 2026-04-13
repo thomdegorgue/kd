@@ -52,6 +52,7 @@ Cuánto tiempo el dato en caché se considera "fresco" (no se refetcha):
 | `['store-modules', storeId]` | 10min | 60min | Solo cambia al upgradear |
 | `['banners', storeId]` | 5min | 15min | |
 | `['shipping-methods', storeId]` | 5min | 15min | |
+| `['shipments', storeId]` | 30s | 5min | Crítico post-venta |
 | `['savings', storeId]` | 2min | 10min | |
 | `['plans']` | 30min | 60min | Casi nunca cambia |
 
@@ -130,6 +131,12 @@ revalidar vitrina: revalidatePath(`/${slug}`)
 invalidar: ['finance-entries', storeId]
 invalidar: ['expenses', storeId]
 invalidar: ['dashboard-stats', storeId]
+```
+
+### Envío creado/actualizado (`shipment_created`, `shipment_status_updated`)
+```
+invalidar: ['shipments', storeId]
+invalidar: ['orders', storeId, orderId]  (estado de envío visible en detalle de pedido)
 ```
 
 ### Tarea completada/actualizada

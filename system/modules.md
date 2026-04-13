@@ -321,12 +321,12 @@ Los 20 módulos con su especificación completa son:
 
 ## 10. `shipping`
 
-**Descripción:** Métodos de envío que el dueño ofrece. Se muestran en el carrito para que el cliente elija.
-**Depende de:** `catalog`
-**Tablas que posee:** `shipping_methods`
+**Descripción:** Métodos de envío y seguimiento de envíos internos. El dueño configura métodos de envío (se muestran en el carrito) y puede crear envíos con link de seguimiento público para sus clientes.
+**Depende de:** `catalog`, `orders`
+**Tablas que posee:** `shipping_methods`, `shipments`
 **Siempre activo:** no
 
-### Actions
+### Actions — Métodos de envío
 
 | Action | Actor | Permisos | Requiere módulo | Límite | Input | Output | Errores |
 |--------|-------|----------|-----------------|--------|-------|--------|---------|
@@ -335,17 +335,50 @@ Los 20 módulos con su especificación completa son:
 | `delete_shipping_method` | user | owner, admin | shipping | — | `{ id }` | `{ deleted: true }` | NOT_FOUND |
 | `list_shipping_methods` | user/system | todos | shipping | — | `{ store_id?, active_only? }` | shipping_method[] | — |
 
+### Actions — Envíos con seguimiento
+
+| Action | Actor | Permisos | Requiere módulo | Límite | Input | Output | Errores |
+|--------|-------|----------|-----------------|--------|-------|--------|---------|
+| `create_shipment` | user | owner, admin, collaborator | shipping | — | `{ order_id, shipping_method_id?, recipient_name?, recipient_phone?, notes? }` | shipment creado con `tracking_code` | NOT_FOUND, CONFLICT (pedido cancelado) |
+| `update_shipment_status` | user | owner, admin, collaborator | shipping | — | `{ id, status }` | shipment actualizado | NOT_FOUND, CONFLICT (transición inválida) |
+| `get_shipment` | user | owner, admin, collaborator | shipping | — | `{ id }` | shipment | NOT_FOUND |
+| `get_shipment_public` | system | — | shipping | — | `{ tracking_code }` | shipment público (status, timeline, nombre tienda) | NOT_FOUND |
+| `list_shipments` | user | owner, admin, collaborator | shipping | — | `{ order_id?, status?, page?, pageSize? }` | `{ items, total }` | — |
+
+### Transiciones de estado de envío
+
+| Estado | Descripción |
+|--------|-------------|
+| `preparing` | Envío creado, se está preparando el paquete. |
+| `in_transit` | Paquete despachado, en camino al destinatario. |
+| `delivered` | Entregado al destinatario. Estado terminal. |
+| `cancelled` | Envío cancelado. Estado terminal. |
+
+Transiciones válidas: `preparing → in_transit → delivered`. Cualquier estado no terminal → `cancelled`.
+Al cambiar a `in_transit` se llena `shipped_at`. Al cambiar a `delivered` se llena `delivered_at`.
+
 ### Componentes UI
 - `ShippingMethodList` — lista admin con toggle activo/inactivo
 - `ShippingMethodForm` — formulario crear/editar
 - `ShippingSelector` — selector en CartDrawer público
+- `ShipmentList` — lista de envíos en panel admin con filtros por estado
+- `ShipmentForm` — formulario rápido de creación (botón "Crear envío" en detalle de pedido)
+- `ShipmentStatusBadge` — badge de estado con color
+- `ShipmentTimeline` — timeline visual de estados (admin y público)
+- `ShipmentTrackingLink` — botón para copiar link de seguimiento al portapapeles
+- `TrackingPage` — landing pública de seguimiento (`/(public)/tracking/[code]`)
 
 ### Restricciones
-- `price` en centavos. Puede ser 0 (envío gratis).
+- `price` de shipping_method en centavos. Puede ser 0 (envío gratis).
 - El cart module incluye el shipping seleccionado en el mensaje de WhatsApp.
+- `tracking_code` se genera automáticamente al crear: formato `KD-` + 6 caracteres alfanuméricos en mayúscula. Es único a nivel global.
+- Un pedido puede tener múltiples envíos (envío parcial o re-envío).
 
 ### Edge cases
 - Si no hay métodos activos y el módulo está activo, el carrito no muestra selector de envío (lo ignora silenciosamente).
+- `get_shipment_public` bypasea RLS (service role). Solo expone datos mínimos: estado, timestamps de transiciones, nombre de la tienda. No expone notas internas ni datos del pedido.
+- Si el módulo se desactiva, los envíos existentes permanecen en DB pero no se consultan. Los links de tracking públicos dejan de funcionar (retornan NOT_FOUND).
+- Si el mensaje de WhatsApp incluye un envío con tracking, se agrega automáticamente el link de seguimiento.
 
 ---
 
@@ -531,32 +564,44 @@ Los 20 módulos con su especificación completa son:
 
 **Descripción:** Múltiples usuarios por tienda con roles diferenciados (owner, admin, collaborator).
 **Depende de:** `catalog`
-**Tablas que posee:** `store_users` (excepto el registro inicial del owner)
+**Tablas que posee:** `store_users` (excepto el registro inicial del owner), `store_invitations`
 **Siempre activo:** no
 
 ### Actions
 
 | Action | Actor | Permisos | Requiere módulo | Límite | Input | Output | Errores |
 |--------|-------|----------|-----------------|--------|-------|--------|---------|
-| `invite_store_user` | user | owner, admin | multiuser | — | `{ email, role }` | `{ invited: true }` | CONFLICT (ya existe), INVALID_INPUT |
+| `invite_store_user` | user | owner, admin | multiuser | — | `{ email, role }` | `{ invited: true, invitation_id }` | CONFLICT (ya existe), INVALID_INPUT |
 | `accept_invitation` | user | — | multiuser | — | `{ token }` | `{ accepted: true }` | NOT_FOUND (token expirado/inválido) |
+| `cancel_invitation` | user | owner, admin | multiuser | — | `{ invitation_id }` | `{ cancelled: true }` | NOT_FOUND |
 | `update_store_user_role` | user | owner | multiuser | — | `{ user_id, role }` | store_user actualizado | NOT_FOUND, UNAUTHORIZED (no puede cambiar owner) |
 | `remove_store_user` | user | owner, admin | multiuser | — | `{ user_id }` | `{ removed: true }` | NOT_FOUND, UNAUTHORIZED (no puede remover owner) |
-| `list_store_users` | user | owner, admin | multiuser | — | `{}` | store_user[] con user info | — |
+| `list_store_users` | user | owner, admin | multiuser | — | `{}` | store_user[] con user info + invitaciones pendientes | — |
+
+### Flujo de invitación
+
+1. `invite_store_user` crea un registro en `store_invitations` con token único y envía email vía Resend.
+2. El invitado recibe un link: `{APP_URL}/invite/{token}`.
+3. Si el invitado ya tiene cuenta → `accept_invitation` verifica token, crea `store_user`, marca `accepted_at`.
+4. Si no tiene cuenta → se registra en Supabase Auth y luego acepta la invitación en el mismo flujo.
+5. Invitaciones expiran en 72 horas (`expires_at`). Un token expirado retorna `NOT_FOUND`.
 
 ### Componentes UI
 - `StoreUserList` — lista de usuarios con roles y estado de invitación
 - `InviteUserForm` — formulario de invitación por email
+- `PendingInvitationList` — lista de invitaciones pendientes con opción de cancelar
 - `RoleSelect` — selector de rol en inline edit
 
 ### Restricciones
 - Invitaciones expiran en 72 horas.
 - El `owner` no puede ser removido ni degradado por ningún otro usuario.
 - Solo el `owner` puede cambiar roles. El `admin` solo puede invitar y remover collaborators.
+- Un email solo puede tener una invitación activa por tienda (`UNIQUE(store_id, email)`).
 
 ### Edge cases
 - Si el usuario invitado no tiene cuenta, se le envía email de registro + aceptación combinado.
 - Si el plan baja y ya no incluye `multiuser`, los usuarios existentes mantienen acceso hasta fin de período.
+- `cancel_invitation` elimina el registro de `store_invitations`. No afecta `store_users` existentes.
 
 ---
 
@@ -613,7 +658,7 @@ Los 20 módulos con su especificación completa son:
 - `TaskStatusToggle` — toggle completada/pendiente (con optimistic update)
 
 ### Restricciones
-- `status` enum: `pending`, `in_progress`, `completed`.
+- `status` enum: `pending`, `in_progress`, `done`, `cancelled` (alineado con `schema.sql`).
 - `assigned_to` es un `user_id` de `store_users`.
 
 ### Edge cases

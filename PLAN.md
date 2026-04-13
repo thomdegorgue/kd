@@ -11,7 +11,7 @@ Este documento define el orden exacto de implementación. Cada fase tiene pasos 
 ### 0.1 Crear proyecto Next.js + estructura
 
 ```bash
-npx create-next-app@latest kitdigital --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
+pnpm create next-app@latest kitdigital --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
 ```
 
 Estructura de carpetas a crear:
@@ -51,17 +51,17 @@ src/
 └── middleware.ts
 ```
 
-**Criterio:** `npm run dev` funciona. Estructura de carpetas existe.
+**Criterio:** `pnpm dev` funciona. Estructura de carpetas existe.
 
 ### 0.2 Instalar dependencias
 
 ```bash
-npm install @supabase/supabase-js @supabase/ssr @tanstack/react-query @tanstack/react-query-devtools zustand react-hook-form @hookform/resolvers zod lucide-react sonner next-themes
-npm install @upstash/redis @upstash/ratelimit mercadopago openai
-npm install -D supabase
+pnpm add @supabase/supabase-js @supabase/ssr @tanstack/react-query @tanstack/react-query-devtools zustand react-hook-form @hookform/resolvers zod lucide-react sonner next-themes
+pnpm add @upstash/redis @upstash/ratelimit mercadopago openai resend
+pnpm add -D supabase vitest
 ```
 
-**Criterio:** `npm run build` sin errores.
+**Criterio:** `pnpm build` sin errores.
 
 ### 0.3 Configurar Supabase clients
 
@@ -74,14 +74,14 @@ Crear tres clientes:
 
 ### 0.4 Ejecutar schema.sql en Supabase
 
-Ejecutar el archivo `schema.sql` completo en el SQL Editor de Supabase. Este archivo contiene las 28 tablas, índices, políticas RLS, trigger de updated_at y datos iniciales de plans.
+Ejecutar el archivo `schema.sql` completo en el SQL Editor de Supabase. Este archivo contiene las 30 tablas, índices, políticas RLS, trigger de updated_at y datos iniciales de plans.
 
-**Criterio:** las 28 tablas existen en Supabase. Las políticas RLS están habilitadas.
+**Criterio:** las 30 tablas existen en Supabase. Las políticas RLS están habilitadas.
 
 ### 0.5 Generar tipos TypeScript
 
 ```bash
-npx supabase gen types typescript --project-id <project-id> > src/lib/types/database.ts
+pnpm dlx supabase gen types typescript --project-id <project-id> > src/lib/types/database.ts
 ```
 
 Crear tipos derivados en `src/lib/types/index.ts`:
@@ -97,11 +97,14 @@ export type Category = Database['public']['Tables']['categories']['Row']
 export type Customer = Database['public']['Tables']['customers']['Row']
 export type Payment = Database['public']['Tables']['payments']['Row']
 export type StoreUser = Database['public']['Tables']['store_users']['Row']
+export type StoreInvitation = Database['public']['Tables']['store_invitations']['Row']
+export type Shipment = Database['public']['Tables']['shipments']['Row']
 export type FinanceEntry = Database['public']['Tables']['finance_entries']['Row']
 export type Event = Database['public']['Tables']['events']['Row']
 
 export type StoreStatus = 'demo' | 'active' | 'past_due' | 'suspended' | 'archived'
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'delivered' | 'cancelled'
+export type ShipmentStatus = 'preparing' | 'in_transit' | 'delivered' | 'cancelled'
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'refunded'
 export type PaymentMethod = 'cash' | 'transfer' | 'card' | 'mp' | 'other'
 export type StoreUserRole = 'owner' | 'admin' | 'collaborator'
@@ -125,7 +128,7 @@ export type ErrorCode =
   | 'CONFLICT' | 'EXTERNAL_ERROR' | 'SYSTEM_ERROR'
 ```
 
-**Criterio:** `npx tsc --noEmit` sin errores.
+**Criterio:** `pnpm exec tsc --noEmit` sin errores.
 
 ### 0.6 Implementar executor base
 
@@ -156,7 +159,7 @@ Crear `src/app/providers.tsx` con:
 - `ThemeProvider` (next-themes)
 - `Toaster` (sonner)
 
-**Criterio:** providers montados en el layout raíz. `npm run build` sin errores.
+**Criterio:** providers montados en el layout raíz. `pnpm build` sin errores.
 
 ---
 
@@ -167,7 +170,7 @@ Crear `src/app/providers.tsx` con:
 ### 1.1 Configurar shadcn/ui
 
 ```bash
-npx shadcn@latest init
+pnpm dlx shadcn@latest init
 ```
 
 Configuración: style `default`, baseColor `slate`, CSS variables activadas.
@@ -188,7 +191,7 @@ Los valores exactos los define el humano en la pausa de diseño.
 ### 1.3 Instalar componentes shadcn base
 
 ```bash
-npx shadcn@latest add button input label card badge skeleton dialog sheet select separator tabs textarea toast dropdown-menu avatar command popover table
+pnpm dlx shadcn@latest add button input label card badge skeleton dialog sheet select separator tabs textarea toast dropdown-menu avatar command popover table
 ```
 
 ### 1.4 Crear componentes compartidos
@@ -250,6 +253,18 @@ Ver `system/tools.md` para la especificación completa de cada herramienta. En e
 ## F3 — Vitrina Pública + Core
 
 **Objetivo:** La vitrina pública funcional con catálogo, productos, categorías, carrito y WhatsApp.
+
+### 3.0 Onboarding wizard
+
+Wizard de 4 pasos para tiendas nuevas:
+1. Nombre y WhatsApp
+2. Subir logo
+3. Agregar 3 productos
+4. Compartir link de vitrina
+
+Se muestra una sola vez al owner al crear la tienda. Progreso persistido en `stores.config.onboarding`. Al completar todos los pasos o al hacer skip, no se vuelve a mostrar.
+
+**Criterio:** wizard se muestra al primer login del owner. Permite skip. Al completar, la tienda tiene datos mínimos para funcionar.
 
 ### 3.1–3.9 (ver ESTADO.md para desglose)
 

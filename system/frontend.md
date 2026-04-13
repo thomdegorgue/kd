@@ -33,6 +33,10 @@ src/
 │   │   ├── page.tsx                → catálogo
 │   │   ├── [category]/page.tsx     → categoría
 │   │   └── p/[id]/page.tsx         → producto
+│   ├── (public)/tracking/
+│   │   └── [code]/page.tsx         → seguimiento de envío
+│   ├── (public)/invite/
+│   │   └── [token]/page.tsx        → aceptar invitación
 │   ├── (admin)/admin/
 │   │   ├── layout.tsx              → AdminLayout
 │   │   ├── page.tsx                → dashboard
@@ -109,6 +113,16 @@ src/
 14. **Textos en constantes** en `src/lib/copy/` para facilitar futuras traducciones. Locale: `es-AR`.
 
 15. **Guards de ruta en middleware.** No en componentes. Si el middleware permite el acceso, el componente asume autenticación.
+
+---
+
+## Rutas públicas con datos sensibles (`/tracking/[code]`, `/invite/[token]`)
+
+No hay política RLS que permita al cliente `anon` leer `shipments` ni `store_invitations` completos. Implementación obligatoria:
+
+- **Server Component o Route Handler** que llame solo a `get_shipment_public` / flujo de invitación usando **`supabaseServiceRole`** (o RPC `SECURITY DEFINER` que devuelva un DTO mínimo).
+- **Prohibido:** usar `createBrowserClient` + `anon` contra esas tablas.
+- La página solo renderiza el DTO (estado de envío, nombre tienda, etc.); nunca filas crudas ni columnas internas.
 
 ---
 

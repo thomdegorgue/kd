@@ -61,6 +61,8 @@ Vitrina pública: políticas adicionales que permiten SELECT sin autenticación 
 
 Superadmin: bypasea RLS usando `service_role` key.
 
+**Executor y eventos:** El executor SIEMPRE usa `supabaseServiceRole` para insertar en la tabla `events`. Esto es obligatorio porque `events.store_id` es nullable (eventos de sistema/superadmin global) y la política RLS de `events_insert` exige membresía en `store_users`. El service role bypasea esa restricción de forma segura.
+
 RLS es la última línea de defensa. El backend también filtra por `store_id` en todas las queries.
 
 ---
@@ -91,10 +93,16 @@ Solo se invalidan keys del `store_id` afectado.
 
 ## Invitaciones (módulo multiuser)
 
-1. Owner/admin invita por email con rol
-2. Se crea `store_user` con `accepted_at = null`
-3. Se genera token de invitación
-4. Invitado recibe email con link
-5. Al aceptar → `accepted_at = NOW()`
-6. Si el email no tiene cuenta, la invitación queda pendiente hasta que se registre
-7. Expiración: 72 horas
+Las invitaciones se almacenan en la tabla `store_invitations` (separada de `store_users`).
+
+1. Owner/admin invita por email con rol → se crea registro en `store_invitations` con token único
+2. Se envía email vía Resend con link `{APP_URL}/invite/{token}`
+3. Invitado abre el link → frontend verifica token contra `store_invitations`
+4. Si el invitado ya tiene cuenta → `accept_invitation` crea `store_user` y marca `accepted_at`
+5. Si no tiene cuenta → flujo de registro + aceptación combinado
+6. Expiración: 72 horas (`expires_at`). Token expirado → `NOT_FOUND`
+7. El `store_user` solo se crea al aceptar la invitación, nunca antes
+
+**Nota:** el executor usa `supabaseServiceRole` para insertar y verificar invitaciones, ya que el invitado podría no tener aún un `store_user` en la tienda.
+
+**`accept_invitation`:** debe ejecutarse solo en servidor (Server Action o API route) con **service role** o con una función SQL `SECURITY DEFINER` que valide el token, cree `store_user` y marque `accepted_at` en una transacción. El cliente nunca debe poder insertar en `store_users` ni leer tokens ajenos vía `anon`.

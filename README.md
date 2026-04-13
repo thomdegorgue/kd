@@ -53,6 +53,8 @@ SaaS multitenant modular para catálogos digitales + carrito WhatsApp, mobile-fi
 | `UPSTASH_REDIS_REST_URL` | Upstash |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash |
 | `OPENAI_API_KEY` | OpenAI |
+| `RESEND_API_KEY` | Resend (email transaccional) |
+| `SUPERADMIN_ALLOWED_IPS` | Opcional: IPs permitidas para `/superadmin/*` (lista separada por comas) |
 | `NEXT_PUBLIC_APP_URL` | App |
 | `NEXT_PUBLIC_APP_DOMAIN` | App (ej: kitdigital.ar) |
 

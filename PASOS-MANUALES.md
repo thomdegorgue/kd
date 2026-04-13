@@ -11,8 +11,8 @@ Estas son las tareas que solo un humano puede realizar. El agente IA no puede ej
 3. Copiar `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
 4. Copiar `anon public key` → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 5. Copiar `service_role secret key` → `SUPABASE_SERVICE_ROLE_KEY`
-6. Ir a SQL Editor → ejecutar `schema.sql` completo
-7. Verificar que las 28 tablas existen en Table Editor
+6. Ir a SQL Editor → ejecutar `schema.sql` completo (si Postgres rechaza la sintaxis de triggers, revisar versión; en Supabase hosted debe aplicar sin cambios)
+7. Verificar que las 30 tablas existen en Table Editor
 8. Verificar que RLS está habilitado en todas las tablas de dominio
 
 ## 2. Mercado Pago
@@ -47,15 +47,22 @@ Estas son las tareas que solo un humano puede realizar. El agente IA no puede ej
 2. Copiar → `OPENAI_API_KEY`
 3. Configurar límites de uso en el dashboard de OpenAI
 
-## 6. Vercel
+## 6. Resend (Email Transaccional)
+
+1. Crear cuenta en [resend.com](https://resend.com)
+2. Agregar y verificar dominio de envío (ej: `kitdigital.ar`) en Settings → Domains
+3. Crear API key → `RESEND_API_KEY`
+4. Usos: invitaciones multiusuario, confirmación de email, notificaciones de billing
+
+## 7. Vercel
 
 1. Conectar repositorio de GitHub
-2. Configurar variables de entorno (las 13 de arriba)
+2. Configurar en Vercel **las mismas variables** que en `.env.local` (sección 8), más las opcionales que documenta `README.md` (ej. `SUPERADMIN_ALLOWED_IPS`). No hay un número fijo: copiar el bloque completo al desplegar.
 3. Configurar dominio: `kitdigital.ar`
 4. Configurar wildcard DNS: `*.kitdigital.ar` → CNAME de Vercel
 5. Habilitar wildcard subdomains en Vercel (Settings → Domains)
 
-## 7. Variables de Entorno Locales
+## 8. Variables de Entorno Locales
 
 Crear `.env.local` en la raíz del proyecto:
 
@@ -71,11 +78,14 @@ NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 OPENAI_API_KEY=
+RESEND_API_KEY=
+# Opcional (ver README.md):
+# SUPERADMIN_ALLOWED_IPS=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_APP_DOMAIN=localhost:3000
 ```
 
-## 8. Para desarrollo local con webhooks
+## 9. Para desarrollo local con webhooks
 
 Usar ngrok o cloudflared para exponer el puerto local:
 
@@ -87,7 +97,7 @@ cloudflared tunnel --url http://localhost:3000
 
 Actualizar la URL del webhook de Mercado Pago con la URL temporal.
 
-## 9. Desarrollo Local — Resolución de Tiendas (sin subdominios)
+## 10. Desarrollo Local — Resolución de Tiendas (sin subdominios)
 
 En producción las tiendas se resuelven por subdominio (`{slug}.kitdigital.ar`) o dominio custom. En desarrollo local no se usan subdominios.
 
@@ -99,3 +109,14 @@ En producción las tiendas se resuelven por subdominio (`{slug}.kitdigital.ar`) 
 **No se necesita** configurar `/etc/hosts`, `lvh.me` ni nada externo. El middleware maneja todo.
 
 **En producción** (`NODE_ENV=production`): resolución por `Host` header → subdominio o `custom_domain`. El path-based no aplica.
+
+## 11. Legal y Cumplimiento
+
+Checklist obligatorio antes del lanzamiento público:
+
+- [ ] Redactar **Términos y Condiciones del Servicio** (KitDigital como plataforma SaaS)
+- [ ] Redactar **Política de Privacidad** (datos de usuarios, tiendas, clientes finales)
+- [ ] Incluir datos de contacto para reclamos según **Defensa del Consumidor Argentina** (Ley 24.240)
+- [ ] Evaluar si se necesita emitir **factura electrónica (AFIP)** por las suscripciones SaaS cobradas en ARS
+- [ ] Incluir cláusula de **procesamiento de datos por terceros** (Supabase, Cloudinary, Mercado Pago, OpenAI)
+- [ ] Páginas legales accesibles desde el footer del sitio institucional y la vitrina
