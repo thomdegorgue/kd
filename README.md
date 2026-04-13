@@ -1,122 +1,73 @@
 # KitDigital.ar
 
-SaaS multitenant modular para catálogos digitales + carrito WhatsApp, 100% mobile-first, pensado para emprendedores y pymes de Argentina y Latam.
+SaaS multitenant modular para catálogos digitales + carrito WhatsApp, mobile-first, para emprendedores y PyMEs de Argentina y Latinoamérica.
 
-## 🚀 Inicio rápido
+## Stack Tecnológico
 
-### Prerequisitos
-- Node.js 18+
-- Supabase account
-- Vercel account (para deploy)
+| Capa | Tecnología |
+|------|------------|
+| Runtime | Node 22 + pnpm (lockfile: `pnpm-lock.yaml`, siempre commitear) |
+| Framework | Next.js 15 (App Router), TypeScript estricto |
+| UI | Tailwind CSS v3, shadcn/ui, next-themes |
+| Data fetching | TanStack Query v5 |
+| Estado UI | Zustand |
+| Formularios | React Hook Form + Zod |
+| Íconos | Lucide React |
+| Base de datos | Supabase (PostgreSQL + Auth + RLS + Realtime) |
+| Caché | Upstash Redis |
+| Imágenes | Cloudinary (upload unsigned) |
+| Billing SaaS | Mercado Pago Suscripciones |
+| Deploy | Vercel (wildcard subdomains) |
 
-### Instalación
+## Navegación del Repo
 
-```bash
-# Clonar repositorio
-git clone <repo-url>
-cd kitdigital.ar
+| Si necesitás... | Leé... |
+|----------------|--------|
+| Empezar a trabajar como agente IA | `START.md` |
+| Saber en qué fase/paso estamos | `ESTADO.md` |
+| Entender qué construir y en qué orden | `PLAN.md` |
+| Configurar servicios externos manualmente | `PASOS-MANUALES.md` |
+| Ejecutar el SQL en Supabase | `schema.sql` |
+| Entender el dominio, reglas y naming | `system/domain.md` |
+| Ver los 20 módulos del sistema | `system/modules.md` |
+| Ver herramientas reutilizables | `system/tools.md` |
+| Entender la reactividad y caché | `system/realtime.md` |
+| Entender el executor (motor central) | `system/executor.md` |
+| Reglas de frontend y estructura | `system/frontend.md` |
+| Billing, planes y Mercado Pago | `system/billing.md` |
+| Roles, permisos y autenticación | `system/auth.md` |
+| Panel de superadmin | `system/superadmin.md` |
 
-# Instalar dependencias
-npm install
+## Variables de Entorno
 
-# Configurar variables de entorno
-cp .env.example .env.local
-# Editar .env.local con tus credenciales
+| Variable | Servicio |
+|----------|---------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase |
+| `MP_ACCESS_TOKEN` | Mercado Pago |
+| `MP_PUBLIC_KEY` | Mercado Pago |
+| `MP_WEBHOOK_SECRET` | Mercado Pago |
+| `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` | Cloudinary |
+| `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` | Cloudinary |
+| `UPSTASH_REDIS_REST_URL` | Upstash |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash |
+| `OPENAI_API_KEY` | OpenAI |
+| `NEXT_PUBLIC_APP_URL` | App |
+| `NEXT_PUBLIC_APP_DOMAIN` | App (ej: kitdigital.ar) |
 
-# Ejecutar en desarrollo
-npm run dev
-```
-
-## 📚 Documentación
-
-### Para desarrolladores
-
-- **[DEVELOPMENT.md](./DEVELOPMENT.md)**: Guía completa de cómo desarrollar con IA
-- **[Documento Técnico](./docs/Documento-Tecnico-Fundamental.md)**: Arquitectura y diseño completo
-- **[Schema SQL](./docs/schema.sql)**: Esquema de base de datos
-
-### Para IA (instrucciones automáticas)
-
-- **[ai-instructions/](./ai-instructions/)**: Carpeta con todas las instrucciones para IA
-  - `00-skills.md`: Reglas globales y constitución
-  - `01-master-document.md`: Documento técnico (formato IA)
-  - `02-schema.sql`: Schema SQL (formato IA)
-  - `04-implementation-order.md`: Orden de implementación
-  - `05-project-structure.md`: Estructura de carpetas
-
-## 🏗️ Stack Tecnológico
-
-- **Frontend**: Next.js 15 (App Router) + Tailwind + shadcn/ui + TanStack Query
-- **Backend**: Supabase (Postgres + Auth + Storage + Realtime + Edge Functions)
-- **IA**: OpenAI GPT-4o-mini (vía Edge Function)
-- **Pagos**: Mercado Pago (suscripciones)
-- **Analytics**: PostHog (self-hosted)
-- **Hosting**: Vercel (wildcard subdomains)
-
-## 📁 Estructura del Proyecto
-
-```
-kitdigital.ar/
-├── ai-instructions/     # Instrucciones para IA
-├── docs/                # Documentación para humanos
-├── app/                 # Next.js App Router
-├── components/          # Componentes React
-├── lib/                 # Utilidades y helpers
-├── hooks/               # React Hooks
-└── types/               # Tipos TypeScript
-```
-
-Ver estructura completa en: [`ai-instructions/05-project-structure.md`](./ai-instructions/05-project-structure.md)
-
-## 🎯 Características Principales
-
-- **Multitenancy**: Una sola base de datos con aislamiento por tenant
-- **Onboarding con IA**: "Creá tu Kit en 60 segundos"
-- **Módulos Potenciadores**: Sistema modular con toggles
-- **Vitrina Pública**: Catálogo público por tenant (subdominio o dominio custom)
-- **Carrito WhatsApp**: Pedidos directos por WhatsApp
-- **Mobile-first**: 100% responsive, optimizado para celular
-
-## 🔐 Variables de Entorno
-
-Ver `.env.example` para todas las variables necesarias:
-
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `OPENAI_API_KEY`
-- `MP_ACCESS_TOKEN`
-- Y más...
-
-## 🚢 Deploy
-
-Ver sección 8 del [Documento Técnico](./docs/Documento-Tecnico-Fundamental.md) para instrucciones completas de deploy.
-
-### Checklist rápido:
-- [ ] Configurar wildcard subdomain en Vercel (`*.kitdigital.ar`)
-- [ ] Ejecutar `schema.sql` en Supabase
-- [ ] Configurar variables de entorno en Vercel
-- [ ] Configurar Edge Functions en Supabase
-- [ ] Configurar PostHog (self-hosted)
-
-## 📖 Nombres Oficiales
+## Nombres Oficiales del Producto
 
 - **Producto**: KitDigital.ar
-- **Catálogo público**: Mi Vitrina
-- **Banner principal**: Portada Principal
-- **Sección de módulos**: Módulos Potenciadores
-- **Onboarding IA**: Creá tu Kit en 60 segundos
+- **Catálogo público**: Vitrina
+- **Banner principal**: Portada
+- **Módulos activables**: Módulos
+- **Panel de gestión**: Panel
 
-## 🤝 Contribuir
+## Estado Actual
 
-Este es un proyecto privado. Para más información sobre cómo trabajar con IA en este proyecto, ver [DEVELOPMENT.md](./DEVELOPMENT.md).
+Ver `ESTADO.md` para el estado actualizado del proyecto.
 
-## 📄 Licencia
+## Licencia
 
-Privado - Todos los derechos reservados
-
----
-
-**Versión**: 1.0  
-**Última actualización**: Marzo 2026
-
+Privado — Todos los derechos reservados.
