@@ -1,153 +1,136 @@
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   KitDigital.ar — Design System
+   Paleta: #1b1b1b (primary) / #f6f6f6 (secondary)
+   Estética: minimalista moderna / Apple-style
+   ============================================================ */
+
 @layer base {
-  .theme {
-
-    --font-heading: var(--font-sans);
-
-    --font-sans: var(--font-sans)
-  }
   :root {
+    /* Superficies */
+    --background: #ffffff;
+    --foreground: #1b1b1b;
 
-    --background: oklch(1 0 0);
+    --card: #ffffff;
+    --card-foreground: #1b1b1b;
 
-    --foreground: oklch(0.145 0 0);
+    --popover: #ffffff;
+    --popover-foreground: #1b1b1b;
 
-    --card: oklch(1 0 0);
+    /* Acción principal */
+    --primary: #1b1b1b;
+    --primary-foreground: #ffffff;
 
-    --card-foreground: oklch(0.145 0 0);
+    /* Acción secundaria */
+    --secondary: #f6f6f6;
+    --secondary-foreground: #1b1b1b;
 
-    --popover: oklch(1 0 0);
+    /* Texto apagado / fondos sutiles */
+    --muted: #f6f6f6;
+    --muted-foreground: #6e6e73;
 
-    --popover-foreground: oklch(0.145 0 0);
+    /* Acento */
+    --accent: #f6f6f6;
+    --accent-foreground: #1b1b1b;
 
-    --primary: oklch(0.205 0 0);
+    /* Destructivo */
+    --destructive: #d93025;
+    --destructive-foreground: #ffffff;
 
-    --primary-foreground: oklch(0.985 0 0);
+    /* Bordes e inputs — muy sutiles */
+    --border: #e0e0e0;
+    --input: #e0e0e0;
+    --ring: #1b1b1b;
 
-    --secondary: oklch(0.97 0 0);
+    /* Border radius — Apple usa redondeo suave */
+    --radius: 0.5rem;
 
-    --secondary-foreground: oklch(0.205 0 0);
-
-    --muted: oklch(0.97 0 0);
-
-    --muted-foreground: oklch(0.556 0 0);
-
-    --accent: oklch(0.97 0 0);
-
-    --accent-foreground: oklch(0.205 0 0);
-
-    --destructive: oklch(0.577 0.245 27.325);
-
-    --border: oklch(0.922 0 0);
-
-    --input: oklch(0.922 0 0);
-
-    --ring: oklch(0.708 0 0);
-
-    --chart-1: oklch(0.87 0 0);
-
-    --chart-2: oklch(0.556 0 0);
-
-    --chart-3: oklch(0.439 0 0);
-
-    --chart-4: oklch(0.371 0 0);
-
-    --chart-5: oklch(0.269 0 0);
-
-    --radius: 0.625rem;
-
-    --sidebar: oklch(0.985 0 0);
-
-    --sidebar-foreground: oklch(0.145 0 0);
-
-    --sidebar-primary: oklch(0.205 0 0);
-
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-
-    --sidebar-accent: oklch(0.97 0 0);
-
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-
-    --sidebar-border: oklch(0.922 0 0);
-
-    --sidebar-ring: oklch(0.708 0 0)
+    /* Sidebar */
+    --sidebar: #f6f6f6;
+    --sidebar-foreground: #1b1b1b;
+    --sidebar-primary: #1b1b1b;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #ebebeb;
+    --sidebar-accent-foreground: #1b1b1b;
+    --sidebar-border: #e8e8e8;
+    --sidebar-ring: #1b1b1b;
   }
+
+  /* Dark mode — invertir la paleta */
   .dark {
+    --background: #1b1b1b;
+    --foreground: #f6f6f6;
 
-    --background: oklch(0.145 0 0);
+    --card: #242424;
+    --card-foreground: #f6f6f6;
 
-    --foreground: oklch(0.985 0 0);
+    --popover: #242424;
+    --popover-foreground: #f6f6f6;
 
-    --card: oklch(0.205 0 0);
+    --primary: #f6f6f6;
+    --primary-foreground: #1b1b1b;
 
-    --card-foreground: oklch(0.985 0 0);
+    --secondary: #2e2e2e;
+    --secondary-foreground: #f6f6f6;
 
-    --popover: oklch(0.205 0 0);
+    --muted: #2e2e2e;
+    --muted-foreground: #a0a0a5;
 
-    --popover-foreground: oklch(0.985 0 0);
+    --accent: #2e2e2e;
+    --accent-foreground: #f6f6f6;
 
-    --primary: oklch(0.922 0 0);
+    --destructive: #ff453a;
+    --destructive-foreground: #ffffff;
 
-    --primary-foreground: oklch(0.205 0 0);
+    --border: #333333;
+    --input: #333333;
+    --ring: #f6f6f6;
 
-    --secondary: oklch(0.269 0 0);
-
-    --secondary-foreground: oklch(0.985 0 0);
-
-    --muted: oklch(0.269 0 0);
-
-    --muted-foreground: oklch(0.708 0 0);
-
-    --accent: oklch(0.269 0 0);
-
-    --accent-foreground: oklch(0.985 0 0);
-
-    --destructive: oklch(0.704 0.191 22.216);
-
-    --border: oklch(1 0 0 / 10%);
-
-    --input: oklch(1 0 0 / 15%);
-
-    --ring: oklch(0.556 0 0);
-
-    --chart-1: oklch(0.87 0 0);
-
-    --chart-2: oklch(0.556 0 0);
-
-    --chart-3: oklch(0.439 0 0);
-
-    --chart-4: oklch(0.371 0 0);
-
-    --chart-5: oklch(0.269 0 0);
-
-    --sidebar: oklch(0.205 0 0);
-
-    --sidebar-foreground: oklch(0.985 0 0);
-
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-
-    --sidebar-accent: oklch(0.269 0 0);
-
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-
-    --sidebar-border: oklch(1 0 0 / 10%);
-
-    --sidebar-ring: oklch(0.556 0 0)
+    --sidebar: #242424;
+    --sidebar-foreground: #f6f6f6;
+    --sidebar-primary: #f6f6f6;
+    --sidebar-primary-foreground: #1b1b1b;
+    --sidebar-accent: #2e2e2e;
+    --sidebar-accent-foreground: #f6f6f6;
+    --sidebar-border: #333333;
+    --sidebar-ring: #f6f6f6;
   }
+
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
   }
-  html {
-    @apply font-sans;
-  }
+
+  /* Jerarquía tipográfica — Inter */
+  h1 { @apply text-4xl font-semibold tracking-tight leading-tight; }
+  h2 { @apply text-3xl font-semibold tracking-tight leading-snug; }
+  h3 { @apply text-2xl font-semibold tracking-tight; }
+  h4 { @apply text-xl font-medium tracking-tight; }
+  h5 { @apply text-lg font-medium; }
+  h6 { @apply text-base font-medium; }
+}
+
+/* ============================================================
+   Color picker — ocultar chrome del browser (Windows/Chrome)
+   ============================================================ */
+input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 0;
 }

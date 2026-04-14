@@ -1,7 +1,7 @@
 # Estado del Proyecto
 
-**Fase actual:** F1 — Design System Base
-**Paso actual:** 1.1 — Configurar shadcn/ui
+**Fase actual:** F2 — Herramientas Transversales
+**Paso actual:** Etapa 1 + polish /design panel completa. Admin panel refinado (ronda 2). Listo para F2.
 
 ---
 
@@ -18,17 +18,27 @@
 - [x] 0.8 Configurar TanStack Query + Zustand + providers
 
 ### F1 — Design System Base
-- [ ] 1.1 Configurar shadcn/ui (style: default, baseColor: slate)
-- [ ] 1.2 Definir tokens de diseño en tailwind.config.ts
-- [ ] 1.3 Instalar componentes shadcn base
-- [ ] 1.4 Crear componentes compartidos (DataTable, EmptyState, ErrorState, etc.)
-- [ ] 1.5 Crear layouts (AdminLayout, PublicLayout, SuperadminLayout)
+- [x] 1.1 Configurar shadcn/ui (style: base-nova, baseColor: neutral — ajustable en pausa)
+- [x] 1.2 Definir tokens de diseño en tailwind.config.ts
+- [x] 1.3 Instalar componentes shadcn base (17 componentes)
+- [x] 1.4 Crear componentes compartidos (DataTable, EmptyState, ErrorState, LoadingSpinner, ModuleGate, PlanUpgradePrompt)
+- [x] 1.5 Crear layouts (AdminLayout, PublicLayout, SuperadminLayout)
 
-### ⏸️ PAUSA DE DISEÑO
-- [ ] Humano confirma: colores brand configurados
-- [ ] Humano confirma: tipografía configurada
-- [ ] Humano confirma: logo SVG + favicon definidos
-- [ ] Humano confirma: componentes shadcn ajustados visualmente
+### ⏸️ PAUSA DE DISEÑO — COMPLETADA + POLISH APLICADO
+- [x] Humano confirma: colores brand configurados (#1b1b1b / #f6f6f6)
+- [x] Humano confirma: tipografía Inter configurada (Google Fonts, jerarquía completa)
+- [x] Humano confirma: logo en public/logo.jpg
+- [x] Humano confirma: visual check aprobado — /design panel activo
+- [x] Design Excellence polish aplicado (ver plan cheeky-herding-bengio.md)
+  - design-store: persist + logoUrl default '/logo.jpg'
+  - tailwind.config: tokens info (#0284c7) y pro (#7c3aed) agregados
+  - globals.css: keyframes accordion duplicados eliminados
+  - design-nav: scrollable en mobile, logo en nav bar
+  - vitrine-preview: sticky top-0 fix, búsqueda funcional, stagger animation, social icons semánticos
+  - admin-preview: toast system (sonner), SidebarContent anti-pattern fix, inline handlers eliminados, order detail con timeline + items + botones de acción, loading states en guardar config y producto, copyTracking con toast
+  - superadmin-preview: hamburger mobile funcional, filtro de estado en tabla de tiendas, card list en mobile
+  - components-tab: tokens CSS correctos, toast demo interactivo con botones reales de Sonner
+  - config-hub: dark mode toggle, header con título, link a vitrina completa
 
 ### F2 — Herramientas Transversales
 - [ ] 2.1 DataTable con sort, filter, paginación server-side, export CSV
@@ -126,6 +136,9 @@
 - **Tokens de diseño en tailwind.config.ts** definidos con valores placeholder (negro) — se sobreescriben en la pausa de diseño (F1.2)
 - **`src/lib/types/database.ts`** es un placeholder temporal (`Record<string, unknown>`) — se reemplaza en paso 0.5 tras ejecutar schema.sql
 - **Supabase CLI** no genera tipos en Windows con pnpm — `database.ts` escrito manualmente desde `schema.sql`. Cast `as any` en executor para insert en events (compatible en runtime, resolver al migrar a tipos CLI si corresponde)
+- **shadcn v4** instalado (CLI más reciente). Usa `base-nova` + `neutral`. Compatible con Tailwind v3 tras reescribir `globals.css` (eliminar imports de Tailwind v4) y actualizar `tailwind.config.ts` con sistema de colores CSS variable
+- **@tanstack/react-table** agregado como dependencia para DataTable
+- **postcss-import** instalado pero no usado (puede removerse si no se necesita)
 - **Supabase project ID:** `vqkvqowvmdwabelpiiil`
 
 ## Blockers Actuales
