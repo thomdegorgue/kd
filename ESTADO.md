@@ -1,7 +1,7 @@
 # Estado del Proyecto
 
-**Fase actual:** F0 — Setup Inicial
-**Paso actual:** 0.4 — BLOQUEANTE MANUAL (ejecutar schema.sql en Supabase)
+**Fase actual:** F1 — Design System Base
+**Paso actual:** 1.1 — Configurar shadcn/ui
 
 ---
 
@@ -11,11 +11,11 @@
 - [x] 0.1 Crear proyecto Next.js + estructura de carpetas
 - [x] 0.2 Instalar dependencias (shadcn, tanstack, zustand, zod, supabase, etc.)
 - [x] 0.3 Configurar Supabase client (browser + server + service role)
-- [ ] 0.4 Ejecutar schema.sql en Supabase ⬅ BLOQUEANTE MANUAL
-- [ ] 0.5 Generar tipos TypeScript desde schema
-- [ ] 0.6 Implementar executor base
-- [ ] 0.7 Implementar middleware multitenant
-- [ ] 0.8 Configurar TanStack Query + Zustand + providers
+- [x] 0.4 Ejecutar schema.sql en Supabase
+- [x] 0.5 Generar tipos TypeScript desde schema
+- [x] 0.6 Implementar executor base
+- [x] 0.7 Implementar middleware multitenant
+- [x] 0.8 Configurar TanStack Query + Zustand + providers
 
 ### F1 — Design System Base
 - [ ] 1.1 Configurar shadcn/ui (style: default, baseColor: slate)
@@ -125,8 +125,9 @@
 - **Tailwind 3.4.19** forzado manualmente (create-next-app instaló v4; se removió y reemplazó con v3 + autoprefixer + postcss.config.mjs reescrito)
 - **Tokens de diseño en tailwind.config.ts** definidos con valores placeholder (negro) — se sobreescriben en la pausa de diseño (F1.2)
 - **`src/lib/types/database.ts`** es un placeholder temporal (`Record<string, unknown>`) — se reemplaza en paso 0.5 tras ejecutar schema.sql
-- **Supabase CLI** no crea binario correctamente en Windows con pnpm — se usará `pnpm dlx supabase` en paso 0.5
+- **Supabase CLI** no genera tipos en Windows con pnpm — `database.ts` escrito manualmente desde `schema.sql`. Cast `as any` en executor para insert en events (compatible en runtime, resolver al migrar a tipos CLI si corresponde)
+- **Supabase project ID:** `vqkvqowvmdwabelpiiil`
 
 ## Blockers Actuales
 
-- **Paso 0.4 MANUAL:** Crear proyecto Supabase → completar `.env.local` → ejecutar `schema.sql` → confirmar 30 tablas + RLS → marcar [x] en ESTADO.md → el agente continúa con 0.5
+(ninguno — F0 completa)
