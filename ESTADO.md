@@ -1,17 +1,17 @@
 # Estado del Proyecto
 
 **Fase actual:** F0 — Setup Inicial
-**Paso actual:** 0.0 — Sin comenzar
+**Paso actual:** 0.4 — BLOQUEANTE MANUAL (ejecutar schema.sql en Supabase)
 
 ---
 
 ## Progreso por Fase
 
 ### F0 — Setup Inicial
-- [ ] 0.1 Crear proyecto Next.js + estructura de carpetas
-- [ ] 0.2 Instalar dependencias (shadcn, tanstack, zustand, zod, supabase, etc.)
-- [ ] 0.3 Configurar Supabase client (browser + server + service role)
-- [ ] 0.4 Ejecutar schema.sql en Supabase
+- [x] 0.1 Crear proyecto Next.js + estructura de carpetas
+- [x] 0.2 Instalar dependencias (shadcn, tanstack, zustand, zod, supabase, etc.)
+- [x] 0.3 Configurar Supabase client (browser + server + service role)
+- [ ] 0.4 Ejecutar schema.sql en Supabase ⬅ BLOQUEANTE MANUAL
 - [ ] 0.5 Generar tipos TypeScript desde schema
 - [ ] 0.6 Implementar executor base
 - [ ] 0.7 Implementar middleware multitenant
@@ -121,8 +121,12 @@
 
 ## Decisiones Tomadas
 
-(vacío — se llena sesión a sesión)
+- **Next.js 16.2.3** instalado (última versión disponible, no 15 como indicaba PLAN.md — compatible y superior)
+- **Tailwind 3.4.19** forzado manualmente (create-next-app instaló v4; se removió y reemplazó con v3 + autoprefixer + postcss.config.mjs reescrito)
+- **Tokens de diseño en tailwind.config.ts** definidos con valores placeholder (negro) — se sobreescriben en la pausa de diseño (F1.2)
+- **`src/lib/types/database.ts`** es un placeholder temporal (`Record<string, unknown>`) — se reemplaza en paso 0.5 tras ejecutar schema.sql
+- **Supabase CLI** no crea binario correctamente en Windows con pnpm — se usará `pnpm dlx supabase` en paso 0.5
 
 ## Blockers Actuales
 
-(vacío)
+- **Paso 0.4 MANUAL:** Crear proyecto Supabase → completar `.env.local` → ejecutar `schema.sql` → confirmar 30 tablas + RLS → marcar [x] en ESTADO.md → el agente continúa con 0.5

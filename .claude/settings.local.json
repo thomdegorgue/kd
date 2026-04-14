@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -v \"^\\\\.$\")",
+      "Bash(pnpm --version)",
+      "Read(//c/Users/thom/.nvm/versions/**)",
+      "Bash(export PATH=\"$PATH:/c/Program Files/nodejs:/c/Users/thom/AppData/Roaming/nvm/current:/c/Users/thom/.nvm/versions/node/$\\(ls /c/Users/thom/.nvm/versions/node)",
+      "Bash(cmd.exe /c \"where node 2>nul && where pnpm 2>nul\")",
+      "Bash(cmd.exe /c \"where node\")",
+      "Bash(cmd.exe /c \"where pnpm\")",
+      "Bash(cmd.exe /c \"node --version\")",
+      "Bash(\"/c/Users/thom/.config/herd/bin/nvm/nvm.exe\" list:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(powershell -Command \"node --version\")",
+      "Bash(powershell -Command \"pnpm --version\")",
+      "Bash(pnpm create:*)",
+      "Bash(cp -r scaffold-tmp/src .)",
+      "Bash(cp -r scaffold-tmp/node_modules .)",
+      "Bash(cp -r scaffold-tmp/public .)",
+      "Bash(pnpm remove:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm approve-builds:*)",
+      "Bash(pnpm exec:*)"
+    ]
+  }
+}
