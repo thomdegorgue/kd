@@ -1,9 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Store, Users, BarChart3, Settings, Zap } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { PanelShell, type PanelNavGroup } from '@/components/shared/panel-shell'
 
 const NAV_ITEMS = [
   { href: '/superadmin', label: 'Dashboard', icon: BarChart3, exact: true },
@@ -20,46 +19,61 @@ interface SuperadminLayoutProps {
 export function SuperadminLayout({ children }: SuperadminLayoutProps) {
   const pathname = usePathname()
 
-  const isActive = (href: string, exact?: boolean) =>
-    exact ? pathname === href : pathname.startsWith(href)
+  const activeKey =
+    NAV_ITEMS.find((i) => (i.exact ? pathname === i.href : pathname.startsWith(i.href)))?.href ?? '/superadmin'
+
+  const NAV: PanelNavGroup[] = [
+    {
+      items: NAV_ITEMS.map((i) => ({
+        key: i.href,
+        label: i.label,
+        icon: i.icon,
+        href: i.href,
+      })),
+    },
+  ]
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <aside className="flex w-56 shrink-0 flex-col bg-muted border-r">
-        <div className="flex h-14 items-center px-4 gap-2 border-b">
-          <Zap className="h-4 w-4 text-primary" />
-          <span className="text-sm font-semibold">Superadmin</span>
+    <PanelShell
+      nav={NAV}
+      activeKey={activeKey}
+      topOffsetClassName="top-0"
+      className="min-h-screen"
+      renderSidebarHeader={({ closeMobile }) => (
+        <div className="px-4 py-4 flex items-center gap-2.5 border-b border-sidebar-border">
+          <div className="h-7 w-7 rounded-lg bg-sidebar-accent text-sidebar-accent-foreground flex items-center justify-center">
+            <Zap className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold truncate">Superadmin</p>
+            <p className="text-2xs text-sidebar-foreground/60 truncate">Panel interno</p>
+          </div>
+          <button
+            type="button"
+            onClick={closeMobile}
+            className="ml-auto lg:hidden h-8 w-8 inline-flex items-center justify-center rounded-full text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+            aria-label="Cerrar menú"
+          >
+            ✕
+          </button>
         </div>
-
-        <nav className="flex-1 overflow-y-auto p-2 space-y-1">
-          {NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
-                isActive(href, exact)
-                  ? 'bg-primary text-primary-foreground font-medium'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {label}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="border-t p-3">
-          <p className="text-xs text-muted-foreground">KitDigital.ar — Interno</p>
-        </div>
-      </aside>
-
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 items-center border-b px-6 bg-background">
+      )}
+      renderTopbar={({ openMobile }) => (
+        <div className="h-14 bg-background border-b border-border flex items-center px-6 gap-3 shrink-0 sticky top-0 z-40">
+          <button
+            type="button"
+            onClick={openMobile}
+            className="lg:hidden text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Abrir menú"
+          >
+            <Zap className="h-4 w-4" />
+          </button>
           <span className="text-sm font-medium text-muted-foreground">Panel interno</span>
-        </header>
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
-      </div>
-    </div>
+        </div>
+      )}
+      renderMain={(content) => <main className="flex-1 overflow-y-auto p-6">{content}</main>}
+    >
+      {children}
+    </PanelShell>
   )
 }

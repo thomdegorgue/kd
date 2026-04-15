@@ -1,7 +1,7 @@
 # Estado del Proyecto
 
 **Fase actual:** F2 — Herramientas Transversales
-**Paso actual:** Etapa 1 + polish /design panel completa. Admin panel refinado (ronda 2). Listo para F2.
+**Paso actual:** Hub `/design` recreado (v2) desde `components_old`; listo para seguir F2 (herramientas reales).
 
 ---
 
@@ -38,7 +38,9 @@
   - admin-preview: toast system (sonner), SidebarContent anti-pattern fix, inline handlers eliminados, order detail con timeline + items + botones de acción, loading states en guardar config y producto, copyTracking con toast
   - superadmin-preview: hamburger mobile funcional, filtro de estado en tabla de tiendas, card list en mobile
   - components-tab: tokens CSS correctos, toast demo interactivo con botones reales de Sonner
-  - config-hub: dark mode toggle, header con título, link a vitrina completa
+  - config-hub: dark mode toggle, header con título, link a catálogo completo
+- [x] **Abr 2026 — /design v2 (ejecución plan):** restaurado `src/components` desde `components_old`; rutas `src/app/design/*`; redirects `design_old` → `design` en `next.config.ts`; `tsconfig` excluye `components_old`. Admin: POS con búsqueda + Enter, ticket, pagos en botones, cuentas de ahorro + alta en sheet, resumen por medio, historial y pedidos del día paginados; pedidos 3 estados; form producto por tabs (sin SEO genérico, slug en ficha); módulos base/pro y badges marca; catálogo sin rating, carrusel y carrito pulidos; superadmin plan “base”.
+- [x] **Abr 2026 — Admin preview (plan toasts/layout/toolbar/banners):** Sonner compacto (`providers.tsx` + `globals.css`); topbar y main a ancho útil (`max-w-[1920px]`); secciones con padding unificado; sidebar nav con `min-h-0` + scroll refinado; `EntityToolbar` (búsqueda + filtros en sheet con mes calendario por defecto + menú); categorías de productos solo en sheet; `LIST_PAGE_SIZE = 50`; tokens compartidos tabla/cards; sección Banners en grid con cards 16:9 y CTA dashed.
 
 ### F2 — Herramientas Transversales
 - [ ] 2.1 DataTable con sort, filter, paginación server-side, export CSV
@@ -52,7 +54,7 @@
 - [ ] 2.9 ToastSystem (sonner)
 - [ ] 2.10 ModuleGate + PlanUpgradePrompt
 
-### F3 — Vitrina Pública + Core
+### F3 — Catálogo Público + Core
 - [ ] 3.0 Onboarding wizard (4 pasos: nombre, logo, productos, compartir link)
 - [ ] 3.1 Rutas públicas: /[slug], /[slug]/[category], /[slug]/p/[id], /tracking/[code]
 - [ ] 3.2 Resolución de tienda por subdominio (middleware)
@@ -100,7 +102,7 @@
 ### F7 — Performance + Seguridad
 - [ ] 7.1 Upstash Redis: caché de queries costosas
 - [ ] 7.2 Rate limiting en API routes
-- [ ] 7.3 ISR para vitrina pública
+- [ ] 7.3 ISR para catálogo público
 - [ ] 7.4 Bundle analysis y optimización
 - [ ] 7.5 Virtualización de listas largas (TanStack Virtual)
 

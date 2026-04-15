@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useDesignStore } from '@/lib/stores/design-store'
 import { StoreThemeProvider } from '@/components/shared/store-theme-provider'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet'
@@ -8,8 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
-  ShoppingCart, Package, Search, Star, Truck, Shield, RotateCcw,
-  MapPin, Clock, ChevronLeft, ChevronRight, Plus, Minus, X,
+  ShoppingCart, Package, Search, Truck, Shield, RotateCcw,
+  MapPin, Clock, Plus, Minus, X,
   MessageCircle, ArrowLeft, Shirt, Footprints, Briefcase, Tag, Globe, Camera,
 } from 'lucide-react'
 import Image from 'next/image'
@@ -25,17 +25,23 @@ const BANNERS = [
 const CATEGORIES = ['Todo', 'Ropa', 'Accesorios', 'Calzado']
 
 type Product = {
-  id: number; name: string; price: number; comparePrice?: number
-  cat: string; desc: string; stock: number; rating: number; Icon: React.ElementType
+  id: number
+  name: string
+  price: number
+  comparePrice?: number
+  cat: string
+  desc: string
+  stock: number
+  Icon: React.ElementType
 }
 
 const PRODUCTS: Product[] = [
-  { id: 1, name: 'Remera básica',    price: 4500,  comparePrice: 6000, cat: 'Ropa',       desc: 'Remera 100% algodón, corte recto. Disponible en blanco y negro. Lavado a máquina.',         stock: 12, rating: 4.8, Icon: Shirt     },
-  { id: 2, name: 'Pantalón cargo',   price: 12000, cat: 'Ropa',        desc: 'Pantalón con bolsillos laterales y cierre con botón. Tela ripstop resistente al agua.',       stock: 8,  rating: 4.6, Icon: Shirt     },
-  { id: 3, name: 'Gorra snapback',   price: 6800,  cat: 'Accesorios',  desc: 'Gorra de 6 paneles con cierre snapback ajustable. Bordado de alta calidad.',                 stock: 25, rating: 4.9, Icon: Briefcase },
-  { id: 4, name: 'Zapatillas urban', price: 28000, comparePrice:32000, cat: 'Calzado',    desc: 'Zapatillas urbanas con suela de goma vulcanizada. Capellada de cuero ecológico.',           stock: 4,  rating: 4.7, Icon: Footprints},
-  { id: 5, name: 'Buzo hoodie',      price: 15500, cat: 'Ropa',        desc: 'Buzo con capucha y bolsillo canguro. Interior afelpado, cálido y suave.',                     stock: 6,  rating: 4.5, Icon: Shirt     },
-  { id: 6, name: 'Riñonera',         price: 8900,  cat: 'Accesorios',  desc: 'Riñonera con múltiples bolsillos y correa ajustable. Cierre con cremallera YKK.',             stock: 0,  rating: 4.3, Icon: Briefcase },
+  { id: 1, name: 'Remera básica',    price: 4500,  comparePrice: 6000, cat: 'Ropa',       desc: 'Remera 100% algodón, corte recto. Disponible en blanco y negro. Lavado a máquina.',         stock: 12, Icon: Shirt     },
+  { id: 2, name: 'Pantalón cargo',   price: 12000, cat: 'Ropa',        desc: 'Pantalón con bolsillos laterales y cierre con botón. Tela ripstop resistente al agua.',       stock: 8,  Icon: Shirt     },
+  { id: 3, name: 'Gorra snapback',   price: 6800,  cat: 'Accesorios',  desc: 'Gorra de 6 paneles con cierre snapback ajustable. Bordado de alta calidad.',                 stock: 25, Icon: Briefcase },
+  { id: 4, name: 'Zapatillas urban', price: 28000, comparePrice:32000, cat: 'Calzado',    desc: 'Zapatillas urbanas con suela de goma vulcanizada. Capellada de cuero ecológico.',           stock: 4,  Icon: Footprints},
+  { id: 5, name: 'Buzo hoodie',      price: 15500, cat: 'Ropa',        desc: 'Buzo con capucha y bolsillo canguro. Interior afelpado, cálido y suave.',                     stock: 6,  Icon: Shirt     },
+  { id: 6, name: 'Riñonera',         price: 8900,  cat: 'Accesorios',  desc: 'Riñonera con múltiples bolsillos y correa ajustable. Cierre con cremallera YKK.',             stock: 0,  Icon: Briefcase },
 ]
 
 const VARIANT_COLORS  = ['#1b1b1b', '#e5e5e5', '#2563eb', '#dc2626', '#16a34a']
@@ -68,15 +74,17 @@ export function VitrinePreview() {
     return () => clearInterval(id)
   }, [paused, modules.banners])
 
-  const prevSlide = useCallback(() => setSlide(s => (s - 1 + BANNERS.length) % BANNERS.length), [])
-  const nextSlide = useCallback(() => setSlide(s => (s + 1) % BANNERS.length), [])
-
   const addToCart     = (id: number) => setCart(c => ({ ...c, [id]: (c[id] ?? 0) + 1 }))
   const removeFromCart = (id: number) => setCart(c => { const n = { ...c }; if (n[id] > 1) n[id]-- ; else delete n[id]; return n })
 
   const filtered     = PRODUCTS
     .filter(p => activeCategory === 'Todo' || p.cat === activeCategory)
-    .filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter(
+      (p) =>
+        !searchQuery ||
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.desc.toLowerCase().includes(searchQuery.toLowerCase())
+    )
   const cartItems    = PRODUCTS.filter(p => cart[p.id])
   const cartTotal    = cartItems.reduce((s, p) => s + p.price * (cart[p.id] ?? 0), 0)
   const cartCount    = Object.values(cart).reduce((s, n) => s + n, 0)
@@ -128,7 +136,10 @@ export function VitrinePreview() {
             <ShoppingCart className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Carrito</span>
             {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-white text-2xs flex items-center justify-center font-bold">
+              <span
+                className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full text-primary-foreground text-2xs flex items-center justify-center font-bold border border-background"
+                style={{ background: primaryColor }}
+              >
                 {cartCount}
               </span>
             )}
@@ -183,21 +194,16 @@ export function VitrinePreview() {
                 </div>
               </div>
 
-              {/* Prev / Next */}
-              <button onClick={prevSlide} className="absolute left-3 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-black/20 flex items-center justify-center text-white hover:bg-black/35 transition-colors">
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button onClick={nextSlide} className="absolute right-3 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-black/20 flex items-center justify-center text-white hover:bg-black/35 transition-colors">
-                <ChevronRight className="h-4 w-4" />
-              </button>
             </div>
 
-            {/* Dots */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+            {/* Dots — única navegación manual */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
               {BANNERS.map((_, i) => (
                 <button
                   key={i}
+                  type="button"
                   onClick={() => setSlide(i)}
+                  aria-label={`Ir al banner ${i + 1}`}
                   className="rounded-full transition-all"
                   style={{
                     height: 6, width: i === slide ? 18 : 6,
@@ -261,7 +267,7 @@ export function VitrinePreview() {
               return (
                 <div
                   key={p.id}
-                  className="group bg-white rounded-2xl overflow-hidden border border-border hover:border-foreground/20 hover:shadow-md transition-all duration-200 animate-fade-in"
+                  className="group bg-white rounded-2xl overflow-hidden border border-border/80 shadow-xs hover:border-foreground/25 hover:shadow-md transition-all duration-200 animate-fade-in"
                   style={{ animationDelay: `${index * 60}ms`, animationFillMode: 'both' }}
                 >
                   {/* Imagen placeholder */}
@@ -284,7 +290,7 @@ export function VitrinePreview() {
                     {/* Badges */}
                     <div className="absolute top-2 left-2 flex flex-col gap-1">
                       {p.comparePrice && (
-                        <span className="text-2xs font-semibold px-1.5 py-0.5 rounded bg-red-500 text-white">
+                        <span className="text-2xs font-semibold px-1.5 py-0.5 rounded-md bg-primary text-primary-foreground">
                           -{Math.round((1 - p.price / p.comparePrice) * 100)}%
                         </span>
                       )}
@@ -292,7 +298,9 @@ export function VitrinePreview() {
                         <span className="text-2xs font-semibold px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Sin stock</span>
                       )}
                       {modules.stock && p.stock > 0 && p.stock <= 5 && (
-                        <span className="text-2xs font-semibold px-1.5 py-0.5 rounded bg-warning/15 text-warning">Quedan {p.stock}</span>
+                        <span className="text-2xs font-semibold px-1.5 py-0.5 rounded-md border border-border bg-muted text-foreground">
+                          Quedan {p.stock}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -300,13 +308,13 @@ export function VitrinePreview() {
                   {/* Info */}
                   <div className="p-3 space-y-2">
                     <div>
-                      <p className="text-xs font-medium leading-tight line-clamp-2 cursor-pointer hover:underline" onClick={() => openProduct(p)}>
+                      <p
+                        className="text-xs font-medium leading-tight line-clamp-2 cursor-pointer hover:underline"
+                        onClick={() => openProduct(p)}
+                      >
                         {p.name}
                       </p>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <Star className="h-2.5 w-2.5 fill-warning text-warning" />
-                        <span className="text-2xs text-muted-foreground">{p.rating}</span>
-                      </div>
+                      <p className="text-2xs text-muted-foreground mt-0.5 line-clamp-1">{p.cat}</p>
                     </div>
 
                     <div className="flex items-baseline gap-1.5">
@@ -330,7 +338,10 @@ export function VitrinePreview() {
                         Agregar al carrito
                       </button>
                     ) : (
-                      <div className="flex items-stretch h-9 rounded-xl overflow-hidden border-2" style={{ borderColor: primaryColor }}>
+                      <div
+                        className="flex items-stretch h-9 rounded-xl overflow-hidden border-2 bg-background"
+                        style={{ borderColor: primaryColor }}
+                      >
                         <button
                           onClick={() => removeFromCart(p.id)}
                           className="w-9 flex items-center justify-center shrink-0 transition-colors hover:bg-muted/40"
@@ -390,8 +401,11 @@ export function VitrinePreview() {
 
       {/* ── CART DRAWER ── */}
       <Sheet open={cartOpen} onOpenChange={setCartOpen}>
-        <SheetContent side="right" className="w-full sm:w-96 flex flex-col p-0">
-          <SheetHeader className="px-5 py-4 border-b border-border">
+        <SheetContent
+          side="right"
+          className="w-full sm:w-96 flex flex-col p-0 border-l border-border bg-background shadow-lg"
+        >
+          <SheetHeader className="px-5 py-4 border-b border-border/80 bg-muted/20">
             <SheetTitle className="text-sm font-semibold flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" /> Carrito ({cartCount})
             </SheetTitle>
@@ -436,7 +450,7 @@ export function VitrinePreview() {
             )}
           </ScrollArea>
           {cartItems.length > 0 && (
-            <div className="border-t border-border p-5 space-y-4">
+            <div className="border-t border-border/80 p-5 space-y-4 bg-muted/10">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Total</span>
                 <span className="text-lg font-bold">{fmt(cartTotal)}</span>
@@ -487,12 +501,9 @@ export function VitrinePreview() {
                         <span className="text-sm text-muted-foreground line-through">{fmt(selected.comparePrice)}</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 mt-1">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className={`h-3 w-3 text-warning ${i < Math.floor(selected.rating) ? 'fill-warning' : ''}`} />
-                      ))}
-                      <span className="text-xs text-muted-foreground ml-1">{selected.rating} · {selected.stock > 0 ? `${selected.stock} disponibles` : 'Sin stock'}</span>
-                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {selected.stock > 0 ? `${selected.stock} disponibles` : 'Sin stock'}
+                    </p>
                   </div>
 
                   <Separator />
@@ -536,7 +547,11 @@ export function VitrinePreview() {
                   {/* Stock */}
                   {modules.stock && (
                     <div className="flex items-center gap-2 text-xs">
-                      <div className={`h-2 w-2 rounded-full ${selected.stock === 0 ? 'bg-error' : selected.stock <= 5 ? 'bg-warning' : 'bg-success'}`} />
+                      <div
+                        className={`h-2 w-2 rounded-full ${
+                          selected.stock === 0 ? 'bg-destructive' : 'bg-primary'
+                        }`}
+                      />
                       {selected.stock === 0 ? 'Sin stock' : selected.stock <= 5 ? `Últimas ${selected.stock} unidades` : `${selected.stock} unidades disponibles`}
                     </div>
                   )}

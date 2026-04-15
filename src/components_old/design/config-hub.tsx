@@ -15,7 +15,7 @@ import { ArrowRight, Check, Layers, ShoppingBag, LayoutDashboard, Shield, Packag
 import { useEffect, useState } from 'react'
 
 const QUICK_LINKS = [
-  { href: '/design/vitrine',    icon: ShoppingBag,     label: 'Vitrina',     desc: 'Catálogo público, carrito, checkout' },
+  { href: '/design/vitrine',    icon: ShoppingBag,     label: 'Catálogo',     desc: 'Catálogo público, carrito, checkout' },
   { href: '/design/admin',      icon: LayoutDashboard, label: 'Panel Admin', desc: 'Dashboard, productos, pedidos, módulos' },
   { href: '/design/superadmin', icon: Shield,           label: 'Superadmin',  desc: 'Gestión global, métricas, planes' },
   { href: '/design/components', icon: Layers,           label: 'Componentes', desc: 'Librería de UI — todos los primitivos' },
@@ -23,15 +23,15 @@ const QUICK_LINKS = [
 
 const MODULE_LIST: { key: ModuleKey; label: string; desc: string; plan: 'free' | 'pro' }[] = [
   // Free — incluidos en plan base ($20.000/mes)
-  { key: 'banners',       label: 'Banners',            desc: 'Carrusel de imágenes en la vitrina',   plan: 'free' },
+  { key: 'banners',       label: 'Banners',            desc: 'Carrusel de imágenes en el catálogo',   plan: 'free' },
   { key: 'product_page',  label: 'Página de producto', desc: 'Detalle extendido e interno por producto', plan: 'free' },
-  { key: 'categories',    label: 'Categorías',          desc: 'Filtro de categorías en vitrina',      plan: 'free' },
+  { key: 'categories',    label: 'Categorías',          desc: 'Filtro de categorías en el catálogo',      plan: 'free' },
   { key: 'stock',         label: 'Stock',               desc: 'Control de inventario por producto',   plan: 'free' },
   { key: 'variants',      label: 'Variantes',           desc: 'Color, talla, material por producto',  plan: 'free' },
   { key: 'shipping',      label: 'Envíos',              desc: 'Métodos de envío y tracking',          plan: 'free' },
   { key: 'tasks',         label: 'Tareas',              desc: 'Gestión de tareas del equipo',         plan: 'free' },
   { key: 'payments',      label: 'Ventas',              desc: 'Registro de ventas y cobros (POS)',    plan: 'free' },
-  { key: 'social',        label: 'Redes sociales',      desc: 'Links en el footer de la vitrina',     plan: 'free' },
+  { key: 'social',        label: 'Redes sociales',      desc: 'Links en el footer del catálogo',     plan: 'free' },
   // Pro — extras ($5.000/mes c/u)
   { key: 'wholesale',     label: 'Mayorista',           desc: 'Tienda mayorista separada',            plan: 'pro'  },
   { key: 'finance',       label: 'Finanzas',            desc: 'Estadísticas de ingresos y gastos',    plan: 'pro'  },
@@ -134,7 +134,7 @@ export function ConfigHub() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Colores de marca</CardTitle>
-              <CardDescription className="text-xs">Se aplican en vitrina y panel admin de esta tienda</CardDescription>
+              <CardDescription className="text-xs">Se aplican en el catálogo y panel admin de esta tienda</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="grid grid-cols-2 gap-4">
@@ -208,11 +208,11 @@ export function ConfigHub() {
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium tracking-wider uppercase text-muted-foreground">Preview en vivo</p>
             <Link href="/design/vitrine" className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-              Ver vitrina completa <ArrowRight className="h-3 w-3" />
+              Ver catálogo completo <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
           <StoreThemeProvider primaryColor={primaryColor} secondaryColor={secondaryColor}>
-            {/* Mini vitrina */}
+            {/* Mini catálogo */}
             <div className="rounded-xl border border-border overflow-hidden shadow-xs">
               <div className="px-4 py-2.5 border-b border-border/40 flex items-center justify-between bg-white">
                 <div className="flex items-center gap-2">
@@ -290,7 +290,7 @@ export function ConfigHub() {
           <div>
             <p className="text-sm font-semibold">Módulos activos en el preview</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Activá o desactivá módulos para ver cómo cambia la vitrina y el panel admin.
+              Activá o desactivá módulos para ver cómo cambia el catálogo y el panel admin.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">

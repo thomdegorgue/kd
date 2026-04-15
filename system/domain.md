@@ -19,7 +19,7 @@ Este archivo es el diccionario y la constitución del sistema. Todo nombre, toda
 | `order` | `orders` | Solicitud de compra. |
 | `order_item` | `order_items` | Línea de un pedido (snapshot de producto). |
 | `payment` | `payments` | Registro de un cobro del dueño a su cliente. |
-| `banner` | `banners` | Imagen promocional en la vitrina. |
+| `banner` | `banners` | Imagen promocional en el catálogo público. |
 | `variant` | `variants` | Combinación de atributos de producto (talle, color). |
 | `variant_attribute` | `variant_attributes` | Tipo de atributo ("Talle", "Color"). |
 | `variant_value` | `variant_values` | Valor concreto ("M", "Rojo"). |

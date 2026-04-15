@@ -173,7 +173,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // ──────────────────────────────────────────────
-  // RUTAS PÚBLICAS (vitrina) — sin autenticación
+  // RUTAS PÚBLICAS (catálogo) — sin autenticación
   // ──────────────────────────────────────────────
 
   // En dev, las rutas /{slug}/* se procesan sin auth

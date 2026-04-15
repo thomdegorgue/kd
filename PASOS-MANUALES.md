@@ -119,4 +119,4 @@ Checklist obligatorio antes del lanzamiento público:
 - [ ] Incluir datos de contacto para reclamos según **Defensa del Consumidor Argentina** (Ley 24.240)
 - [ ] Evaluar si se necesita emitir **factura electrónica (AFIP)** por las suscripciones SaaS cobradas en ARS
 - [ ] Incluir cláusula de **procesamiento de datos por terceros** (Supabase, Cloudinary, Mercado Pago, OpenAI)
-- [ ] Páginas legales accesibles desde el footer del sitio institucional y la vitrina
+- [ ] Páginas legales accesibles desde el footer del sitio institucional y el catálogo

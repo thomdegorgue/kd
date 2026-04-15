@@ -40,8 +40,8 @@ Los 20 módulos con su especificación completa son:
 ### Componentes UI
 - `StoreSettingsForm` — formulario de configuración general de la tienda
 - `ModuleToggleList` — lista de módulos con toggle enable/disable
-- `StoreHeader` — header público de la vitrina (logo, nombre, WhatsApp)
-- `StoreCover` — imagen de portada de la vitrina
+- `StoreHeader` — header público del catálogo (logo, nombre, WhatsApp)
+- `StoreCover` — imagen de portada del catálogo
 
 ### Restricciones
 - No se puede desactivar un módulo CORE.
@@ -50,7 +50,7 @@ Los 20 módulos con su especificación completa son:
 
 ### Edge cases
 - `disable_module` sobre un módulo con datos activos (ej: productos con stock) debe advertir pero no bloquear — los datos permanecen, solo el módulo queda inaccesible.
-- `get_store_public` bypasea RLS (usa service role) para rendir la vitrina sin autenticación.
+- `get_store_public` bypasea RLS (usa service role) para rendir el catálogo sin autenticación.
 
 ---
 
@@ -76,8 +76,8 @@ Los 20 módulos con su especificación completa son:
 ### Componentes UI
 - `ProductList` — lista admin con DataTable, filtros, export CSV
 - `ProductForm` — formulario crear/editar (con ImageUploader, ModuleGate para variants)
-- `ProductCard` — card pública para vitrina
-- `ProductGrid` — grid de cards para vitrina
+- `ProductCard` — card pública del catálogo
+- `ProductGrid` — grid de cards del catálogo
 - `ProductDetail` — página de detalle de producto (si módulo product_page activo)
 
 ### Restricciones
@@ -114,14 +114,14 @@ Los 20 módulos con su especificación completa son:
 ### Componentes UI
 - `CategoryList` — lista admin con drag-and-drop reorder
 - `CategoryForm` — formulario crear/editar
-- `CategoryFilter` — filtro horizontal en vitrina pública
+- `CategoryFilter` — filtro horizontal en catálogo público
 
 ### Restricciones
 - Un producto puede pertenecer a múltiples categorías.
 - Eliminar una categoría no elimina los productos, solo las asignaciones en `product_categories`.
 
 ### Edge cases
-- Si se elimina la categoría activa en el filtro de la vitrina, resetear el filtro a "Todos".
+- Si se elimina la categoría activa en el filtro del catálogo, resetear el filtro a "Todos".
 
 ---
 
@@ -280,7 +280,7 @@ Los 20 módulos con su especificación completa son:
 
 ### Componentes UI
 - `VariantManager` — UI de gestión de atributos y variantes por producto
-- `VariantSelector` — selector en vitrina pública (dropdown o botones por atributo)
+- `VariantSelector` — selector en catálogo público (dropdown o botones por atributo)
 
 ### Restricciones
 - Si un producto tiene variantes activas, el carrito requiere seleccionar variante antes de agregar.
@@ -312,7 +312,7 @@ Los 20 módulos con su especificación completa son:
 
 ### Restricciones
 - Un precio mayorista por producto. Sin diferenciación por cliente (MVP).
-- El precio mayorista no se muestra en la vitrina pública.
+- El precio mayorista no se muestra en el catálogo público.
 
 ### Edge cases
 - Si el módulo se desactiva, los precios en DB persisten. Al reactivarlo, los datos están disponibles.
@@ -478,7 +478,7 @@ Al cambiar a `in_transit` se llena `shipped_at`. Al cambiar a `delivered` se lle
 
 ## 14. `banners`
 
-**Descripción:** Carrusel de imágenes promocionales en la portada de la vitrina.
+**Descripción:** Carrusel de imágenes promocionales en la portada del catálogo.
 **Depende de:** `catalog`
 **Tablas que posee:** `banners`
 **Siempre activo:** no
@@ -494,7 +494,7 @@ Al cambiar a `in_transit` se llena `shipped_at`. Al cambiar a `delivered` se lle
 | `reorder_banners` | user | owner, admin | banners | — | `{ ids: UUID[] }` | `{ updated: true }` | NOT_FOUND |
 
 ### Componentes UI
-- `BannerCarousel` — carrusel en vitrina pública (autoplay, swipe)
+- `BannerCarousel` — carrusel en catálogo público (autoplay, swipe)
 - `BannerList` — lista admin con drag-and-drop reorder
 - `BannerForm` — formulario con ImageUploader
 
@@ -508,7 +508,7 @@ Al cambiar a `in_transit` se llena `shipped_at`. Al cambiar a `delivered` se lle
 
 ## 15. `social`
 
-**Descripción:** Links de redes sociales en el footer de la vitrina.
+**Descripción:** Links de redes sociales en el footer del catálogo.
 **Depende de:** `catalog`
 **Tablas que posee:** ninguna (datos en `stores.config.social_links`)
 **Siempre activo:** no
@@ -522,14 +522,14 @@ Al cambiar a `in_transit` se llena `shipped_at`. Al cambiar a `delivered` se lle
 
 ### Componentes UI
 - `SocialLinksForm` — formulario con campos por red social
-- `SocialLinksFooter` — íconos con links en el footer de la vitrina
+- `SocialLinksFooter` — íconos con links en el footer del catálogo
 
 ### Restricciones
 - Los links deben ser URLs válidas.
 - Si un campo es vacío, no se muestra el ícono correspondiente.
 
 ### Edge cases
-- `get_social_links` es parte de `get_store_public` — no es una llamada separada en la vitrina.
+- `get_social_links` es parte de `get_store_public` — no es una llamada separada en el catálogo.
 
 ---
 
@@ -552,7 +552,7 @@ Al cambiar a `in_transit` se llena `shipped_at`. Al cambiar a `delivered` se lle
 - `ProductDetailPage` — página pública `/[slug]/p/[id]` con metadata extendida
 
 ### Restricciones
-- Si el módulo está inactivo, la ruta `/[slug]/p/[id]` redirige a la vitrina.
+- Si el módulo está inactivo, la ruta `/[slug]/p/[id]` redirige al catálogo.
 - `gallery_urls` máximo 10 imágenes.
 
 ### Edge cases

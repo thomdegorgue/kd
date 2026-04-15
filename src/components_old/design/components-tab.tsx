@@ -202,7 +202,7 @@ export function ComponentsTab() {
           </div>
           <div className="flex items-center gap-2">
             <Switch id="visible" />
-            <Label htmlFor="visible" className="cursor-pointer">Visible en vitrina</Label>
+            <Label htmlFor="visible" className="cursor-pointer">Visible en catálogo</Label>
           </div>
           <RadioGroup defaultValue="efectivo" className="flex gap-4">
             <div className="flex items-center gap-2">
@@ -323,7 +323,7 @@ export function ComponentsTab() {
 
       <Section title="Module Card — Activo vs Inactivo">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
-          <ModuleCardExample active label="Banners" desc="Carrusel de imágenes en la vitrina" plan="free" Icon={Package} />
+          <ModuleCardExample active label="Banners" desc="Carrusel de imágenes en el catálogo" plan="free" Icon={Package} />
           <ModuleCardExample active={false} label="Mayorista" desc="Tienda mayorista separada" plan="pro" Icon={BarChart2} />
           <ModuleCardExample active label="Ventas" desc="Registro de ventas y cobros (POS)" plan="free" Icon={Tag} />
           <ModuleCardExample active={false} label="Asistente IA" desc="Chat con GPT-4o-mini" plan="pro" Icon={Truck} />
@@ -377,7 +377,7 @@ export function ComponentsTab() {
 
       <Section title="Toasts — demo interactivo">
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => toast.success('Producto guardado', { description: 'Los cambios se reflejan en la vitrina.' })}>
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => toast.success('Producto guardado', { description: 'Los cambios se reflejan en el catálogo.' })}>
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Success
           </Button>
           <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => toast.error('Error al guardar', { description: 'Verificá tu conexión e intentá de nuevo.' })}>
@@ -403,7 +403,7 @@ export function ComponentsTab() {
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-emerald-800">Producto guardado</p>
-              <p className="text-xs text-emerald-700/70 mt-0.5">Los cambios se reflejan en la vitrina.</p>
+              <p className="text-xs text-emerald-700/70 mt-0.5">Los cambios se reflejan en el catálogo.</p>
             </div>
             <button className="text-emerald-600/60 hover:text-emerald-800 transition-colors shrink-0"><X className="h-3.5 w-3.5" /></button>
           </div>

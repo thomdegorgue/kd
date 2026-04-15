@@ -57,7 +57,7 @@ Todas las tablas de dominio tienen RLS habilitado.
 
 Política base: `store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid())`
 
-Vitrina pública: políticas adicionales que permiten SELECT sin autenticación en productos, categorías y banners activos de tiendas con status `demo`, `active` o `past_due`.
+Catálogo público: políticas adicionales que permiten SELECT sin autenticación en productos, categorías y banners activos de tiendas con status `demo`, `active` o `past_due`.
 
 Superadmin: bypasea RLS usando `service_role` key.
 

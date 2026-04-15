@@ -250,9 +250,9 @@ Ver `system/tools.md` para la especificación completa de cada herramienta. En e
 
 ---
 
-## F3 — Vitrina Pública + Core
+## F3 — Catálogo Público + Core
 
-**Objetivo:** La vitrina pública funcional con catálogo, productos, categorías, carrito y WhatsApp.
+**Objetivo:** El catálogo público funcional con productos, categorías, carrito y WhatsApp.
 
 ### 3.0 Onboarding wizard
 
@@ -260,7 +260,7 @@ Wizard de 4 pasos para tiendas nuevas:
 1. Nombre y WhatsApp
 2. Subir logo
 3. Agregar 3 productos
-4. Compartir link de vitrina
+4. Compartir link del catálogo
 
 Se muestra una sola vez al owner al crear la tienda. Progreso persistido en `stores.config.onboarding`. Al completar todos los pasos o al hacer skip, no se vuelve a mostrar.
 
@@ -268,17 +268,17 @@ Se muestra una sola vez al owner al crear la tienda. Progreso persistido en `sto
 
 ### 3.1–3.9 (ver ESTADO.md para desglose)
 
-La vitrina usa Server Components con ISR (revalidación cada 60s) para SEO y velocidad. El carrito es 100% client-side con Zustand en localStorage.
+El catálogo usa Server Components con ISR (revalidación cada 60s) para SEO y velocidad. El carrito es 100% client-side con Zustand en localStorage.
 
 Flujo de compra:
-1. Cliente navega vitrina → ve productos
+1. Cliente navega el catálogo → ve productos
 2. Agrega al carrito (Zustand, localStorage)
 3. Click "Enviar pedido por WhatsApp"
 4. Se genera URL wa.me con mensaje formateado
 5. El dueño recibe el pedido por WhatsApp
 6. El dueño registra el pedido en el panel (F4)
 
-**Criterio:** vitrina pública carga con SSR. Carrito funciona. Mensaje de WhatsApp se genera correctamente.
+**Criterio:** catálogo público carga con SSR. Carrito funciona. Mensaje de WhatsApp se genera correctamente.
 
 ---
 

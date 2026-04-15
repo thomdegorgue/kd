@@ -16,7 +16,7 @@
 
 | Superficie | Rutas | Audiencia | Layout |
 |-----------|-------|-----------|--------|
-| Vitrina pública | `/(public)/[slug]/*` | Clientes de la tienda | PublicLayout |
+| Catálogo público | `/(public)/[slug]/*` | Clientes de la tienda | PublicLayout |
 | Panel admin | `/(admin)/admin/*` | Dueño + equipo | AdminLayout |
 | Panel superadmin | `/(superadmin)/superadmin/*` | Operador KitDigital | SuperadminLayout |
 
@@ -65,7 +65,7 @@ src/
 ├── components/
 │   ├── ui/                         → shadcn base
 │   ├── admin/                      → componentes de panel
-│   ├── public/                     → componentes de vitrina
+│   ├── public/                     → componentes del catálogo público
 │   └── shared/                     → compartidos (DataTable, EmptyState, etc.)
 ├── lib/
 │   ├── supabase/                   → clients (browser, server, service-role)
@@ -102,7 +102,7 @@ src/
 
 9. **Accesibilidad básica.** Labels en inputs, focus visible, contraste WCAG AA, navegación por teclado en formularios y modales.
 
-10. **Renders estratégicos.** Vitrina: SSR + ISR. Panel: Client Components + TanStack Query. Layout/nav: Server Components.
+10. **Renders estratégicos.** Catálogo público: SSR + ISR. Panel: Client Components + TanStack Query. Layout/nav: Server Components.
 
 11. **Imágenes con next/image.** Nunca `<img>` directo.
 

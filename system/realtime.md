@@ -8,8 +8,8 @@ Este archivo define cómo el sistema mantiene los datos frescos, cuándo usar SS
 
 | Área | Estrategia | Razón |
 |------|-----------|-------|
-| Vitrina pública (catálogo, producto, categorías) | SSR + ISR (60s) | SEO, velocidad de carga, Open Graph |
-| Vitrina pública (carrito) | Client Component (Zustand) | Estado local, sin SEO |
+| Catálogo público (home, producto, categorías) | SSR + ISR (60s) | SEO, velocidad de carga, Open Graph |
+| Catálogo público (carrito) | Client Component (Zustand) | Estado local, sin SEO |
 | Panel admin (layout, sidebar, nav) | Server Component | No cambia con datos |
 | Panel admin (secciones de datos) | Client Components + TanStack Query | Interactividad, caché, refetch |
 | Dashboard estadísticas | Client + polling cada 60s | Datos frescos sin realtime |
@@ -83,14 +83,14 @@ si módulo finance activo:
 ### Stock deducido (`stock_updated`)
 ```
 invalidar: ['stock', storeId]
-invalidar: ['products', storeId]  (disponibilidad en vitrina)
+invalidar: ['products', storeId]  (disponibilidad en el catálogo)
 ```
 
 ### Producto creado/editado (`product_created`, `product_updated`)
 ```
 invalidar: ['products', storeId]
 invalidar: ['categories', storeId]  (conteo de productos por categoría)
-revalidar vitrina: revalidatePath(`/${slug}`)
+revalidar catálogo: revalidatePath(`/${slug}`)
 ```
 
 ### Producto eliminado (`product_deleted`)
@@ -98,7 +98,7 @@ revalidar vitrina: revalidatePath(`/${slug}`)
 invalidar: ['products', storeId]
 invalidar: ['categories', storeId]
 invalidar: ['stock', storeId]  (si tenía stock)
-revalidar vitrina: revalidatePath(`/${slug}`)
+revalidar catálogo: revalidatePath(`/${slug}`)
 ```
 
 ### Estado de tienda cambiado (`store_status_changed`)
@@ -117,13 +117,13 @@ invalidar: ['store-modules', storeId]
 ```
 invalidar: ['categories', storeId]
 invalidar: ['products', storeId]  (por filtro de categoría)
-revalidar vitrina: revalidatePath(`/${slug}`)
+revalidar catálogo: revalidatePath(`/${slug}`)
 ```
 
 ### Banner creado/editado/eliminado
 ```
 invalidar: ['banners', storeId]
-revalidar vitrina: revalidatePath(`/${slug}`)
+revalidar catálogo: revalidatePath(`/${slug}`)
 ```
 
 ### Finance entry o expense creado
@@ -218,8 +218,8 @@ El panel de creación de nueva orden debe ser especialmente rápido:
 
 | Key Pattern | Dato | TTL | Invalidación |
 |------------|------|-----|-------------|
-| `store:{storeId}:products:public` | Productos activos para vitrina | 5min | `product_created`, `product_updated`, `product_deleted` |
-| `store:{storeId}:categories:public` | Categorías activas para vitrina | 5min | Cambio en categorías |
+| `store:{storeId}:products:public` | Productos activos para el catálogo | 5min | `product_created`, `product_updated`, `product_deleted` |
+| `store:{storeId}:categories:public` | Categorías activas para el catálogo | 5min | Cambio en categorías |
 | `store:{storeId}:config` | Config pública de la tienda | 10min | `store_updated` |
 | `store:{storeId}:stats:dashboard` | Stats del dashboard | 2min | Cualquier mutation relevante |
 | `global:plans` | Lista de planes | 1h | Cambio en planes (superadmin) |

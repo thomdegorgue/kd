@@ -38,7 +38,7 @@ export default function Home() {
             <span className="text-muted-foreground">listo en minutos.</span>
           </h1>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
-            Creá tu vitrina online, recibí pedidos por WhatsApp y gestioná todo desde un panel simple.
+            Creá tu catálogo online, recibí pedidos por WhatsApp y gestioná todo desde un panel simple.
           </p>
           <div className="flex items-center justify-center gap-3">
             <Button size="lg" className="px-8 text-sm font-medium">Crear mi tienda</Button>

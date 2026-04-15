@@ -8,10 +8,10 @@ import Image from 'next/image'
 const SECTIONS = [
   { href: '/design',            label: 'Config',      exact: true },
   { href: '/design/components', label: 'Componentes' },
-  { href: '/design/vitrine',    label: 'Vitrina' },
+  { href: '/design/vitrine',    label: 'Catálogo' },
   { href: '/design/admin',      label: 'Admin' },
   { href: '/design/superadmin', label: 'Superadmin' },
-]
+]cc
 
 export function DesignNav() {
   const pathname = usePathname()

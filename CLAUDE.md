@@ -2,7 +2,7 @@
 
 ## Overview
 
-SaaS multitenant modular para catálogos digitales con carrito WhatsApp, orientado a emprendedores y PyMEs de Argentina y Latinoamérica. Cada tienda tiene vitrina pública (`{slug}.kitdigital.ar`) y un panel de gestión con módulos activables por plan.
+SaaS multitenant modular para catálogos digitales con carrito WhatsApp, orientado a emprendedores y PyMEs de Argentina y Latinoamérica. Cada tienda tiene catálogo público (`{slug}.kitdigital.ar`) y un panel de gestión con módulos activables por plan.
 
 ---
 
@@ -31,14 +31,14 @@ SaaS multitenant modular para catálogos digitales con carrito WhatsApp, orienta
 ```
 src/
 ├── app/
-│   ├── (public)/[slug]/          # Vitrina pública (SSR + ISR)
+│   ├── (public)/[slug]/          # Catálogo público (SSR + ISR)
 │   ├── (admin)/admin/            # Panel de gestión (SPA, Client Components)
 │   ├── (superadmin)/superadmin/  # Panel interno
 │   └── api/webhooks/mercadopago/ # Webhook handler billing
 ├── components/
 │   ├── ui/          # shadcn/ui base
 │   ├── admin/       # Componentes del panel
-│   ├── public/      # Componentes de la vitrina
+│   ├── public/      # Componentes del catálogo público
 │   └── shared/      # DataTable, EmptyState, ErrorState, ModuleGate, etc.
 ├── lib/
 │   ├── supabase/    # client.ts | server.ts | service-role.ts
@@ -70,7 +70,7 @@ Toda operación de dominio pasa por `executor({ name, store_id, actor, input })`
 ### RLS
 - Todas las tablas de dominio tienen RLS habilitado.
 - Política base: `store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid())`.
-- Vitrina pública: SELECT sin auth en productos/categorías/banners activos de tiendas `demo|active|past_due`.
+- Catálogo público: SELECT sin auth en productos/categorías/banners activos de tiendas `demo|active|past_due`.
 - Superadmin bypasea RLS via `service_role`.
 
 ### Módulos

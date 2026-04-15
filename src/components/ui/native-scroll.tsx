@@ -16,14 +16,14 @@ export function NativeScroll({ className, ...props }: NativeScrollProps) {
     <div
       data-slot="native-scroll"
       className={cn(
-        "min-h-0 overflow-y-auto overscroll-contain",
+        "min-h-0 overflow-y-auto overscroll-contain scroll-smooth scroll-pb-3",
         // Scrollbar fino y discreto (Firefox + WebKit).
         "scrollbar-gutter-stable",
-        "[scrollbar-width:thin] [scrollbar-color:hsl(var(--foreground)/0.22)_transparent]",
+        "[scrollbar-width:thin] [scrollbar-color:hsl(var(--foreground)/0.28)_transparent]",
         "[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2",
         "[&::-webkit-scrollbar-track]:bg-transparent",
-        "[&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-foreground/15",
-        "[&::-webkit-scrollbar-thumb:hover]:bg-foreground/25 [&::-webkit-scrollbar-thumb:active]:bg-foreground/30",
+        "[&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-foreground/18",
+        "[&::-webkit-scrollbar-thumb:hover]:bg-foreground/30 [&::-webkit-scrollbar-thumb:active]:bg-foreground/40",
         className
       )}
       {...props}

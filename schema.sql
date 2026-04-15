@@ -745,7 +745,7 @@ CREATE POLICY products_delete ON products FOR DELETE
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
     AND store_allows_writes(store_id));
 
--- Vitrina pública: los productos activos de tiendas activas se pueden ver sin autenticación
+-- Catálogo público: los productos activos de tiendas activas se pueden ver sin autenticación
 CREATE POLICY products_public_select ON products FOR SELECT
   USING (is_active = true AND deleted_at IS NULL AND store_id IN (SELECT id FROM stores WHERE status IN ('demo', 'active', 'past_due')));
 

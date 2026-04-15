@@ -61,7 +61,7 @@ SaaS multitenant modular para catálogos digitales + carrito WhatsApp, mobile-fi
 ## Nombres Oficiales del Producto
 
 - **Producto**: KitDigital.ar
-- **Catálogo público**: Vitrina
+- **Catálogo público**: Catálogo
 - **Banner principal**: Portada
 - **Módulos activables**: Módulos
 - **Panel de gestión**: Panel
