@@ -11,7 +11,7 @@ SaaS multitenant modular para catálogos digitales con carrito WhatsApp, orienta
 | Capa | Tecnología |
 |------|------------|
 | Runtime | Node 22 + **pnpm** (nunca npm ni yarn) |
-| Framework | Next.js 15, App Router, TypeScript estricto |
+| Framework | Next.js 16.2.3, App Router, TypeScript estricto |
 | UI | **Tailwind CSS v3** (fijar `"tailwindcss": "^3"`), shadcn/ui, next-themes |
 | Data fetching | TanStack Query v5 |
 | Estado UI | Zustand |
