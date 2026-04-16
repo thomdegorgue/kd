@@ -46,12 +46,15 @@ CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON users
 CREATE TABLE plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  price INTEGER NOT NULL,
-  max_products INTEGER NOT NULL,
-  max_orders INTEGER NOT NULL,
-  ai_tokens INTEGER NOT NULL,
-  available_modules JSONB NOT NULL DEFAULT '[]',
-  module_prices JSONB NOT NULL DEFAULT '{}',
+  -- Precio base en centavos ARS: ceil(max_products / 100) × price_per_100_products
+  price_per_100_products INTEGER NOT NULL DEFAULT 0,
+  -- Precio por módulo pro activo, en centavos ARS/mes
+  pro_module_price INTEGER NOT NULL DEFAULT 0,
+  -- Módulos incluidos en el precio base (core + base)
+  base_modules JSONB NOT NULL DEFAULT '[]',
+  -- Configuración de trial
+  trial_days INTEGER NOT NULL DEFAULT 14,
+  trial_max_products INTEGER NOT NULL DEFAULT 100,
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -1008,12 +1011,26 @@ CREATE POLICY events_insert ON events FOR INSERT
 -- DATOS INICIALES
 -- ============================================================
 
-INSERT INTO plans (name, price, max_products, max_orders, ai_tokens, available_modules, module_prices) VALUES
-('starter', 0, 30, 100, 0, '["catalog","products","categories","cart","orders"]', '{}'),
-('growth', 0, 200, 500, 1000, '["catalog","products","categories","cart","orders","stock","payments","banners","social","product_page","shipping"]', '{"variants": 0, "wholesale": 0, "finance": 0}'),
-('pro', 0, 1000, 99999, 5000, '["catalog","products","categories","cart","orders","stock","payments","variants","wholesale","shipping","finance","banners","social","product_page","multiuser","custom_domain","tasks","savings_account","expenses","assistant"]', '{}');
+-- Plan único. price_per_100_products y pro_module_price configurables por superadmin.
+-- Valores en centavos ARS: 2000000 = $20,000 ARS | 500000 = $5,000 ARS
+INSERT INTO plans (name, price_per_100_products, pro_module_price, base_modules, trial_days, trial_max_products) VALUES
+(
+  'base',
+  2000000,
+  500000,
+  '["catalog","products","categories","cart","orders","stock","payments","banners","social","product_page","shipping"]',
+  14,
+  100
+);
 
--- NOTA: los precios (price) están en 0 como placeholder. El superadmin debe
--- configurar los precios reales desde el panel. Los precios están en centavos ARS/mes.
+-- NOTA: Los precios están en centavos ARS/mes.
+-- price_per_100_products: precio base por cada 100 productos del tier elegido por la tienda.
+-- pro_module_price: precio por cada módulo pro activo (variants, wholesale, finance, expenses,
+--   savings_account, multiuser, custom_domain, tasks, assistant).
+-- Total mensual = ceil(stores.limits.max_products / 100) * price_per_100_products
+--              + count(módulos_pro_activos) * pro_module_price
+-- El superadmin puede actualizar estos valores desde el panel (tabla plans).
+-- stores.limits.max_products define el tier de productos de cada tienda.
+-- stores.limits.max_orders y stores.limits.ai_tokens se configuran por tienda desde superadmin.
 
 COMMIT;

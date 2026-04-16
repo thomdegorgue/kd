@@ -44,16 +44,24 @@ export function listHandlers(): string[] {
 }
 
 // ============================================================
-// HANDLER DUMMY — solo para verificar el pipeline en F0
-// Eliminar cuando existan handlers reales
+// IMPORTAR HANDLERS — side-effect imports que registran al cargarse
 // ============================================================
 
-registerHandler({
-  name: '__test_ping',
-  requires: [],
-  permissions: ['owner', 'admin', 'collaborator', 'superadmin', 'system', 'ai'],
-  event_type: null,
-  invalidates: [],
-  validate: () => ({ valid: true }),
-  execute: async () => ({ pong: true, timestamp: new Date().toISOString() }),
-})
+import './handlers/catalog'
+import './handlers/products'
+import './handlers/categories'
+import './handlers/orders'
+import './handlers/dashboard'
+import './handlers/customers'
+import './handlers/payments'
+import './handlers/stock'
+import './handlers/shipping'
+import './handlers/variants'
+import './handlers/wholesale'
+import './handlers/finance'
+import './handlers/expenses'
+import './handlers/savings'
+import './handlers/tasks'
+import './handlers/multiuser'
+import './handlers/custom-domain'
+import './handlers/assistant'

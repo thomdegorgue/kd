@@ -5,31 +5,64 @@
 ## Modelo
 
 ```
-Total mensual = precio_plan_base + Σ precio_módulos_adicionales_activos
+Total mensual = ceil(max_products / 100) × precio_por_100 + Σ módulos_pro_activos × precio_por_módulo
 ```
 
 Cobro mediante Mercado Pago Suscripciones (recurrente automático). KitDigital no almacena datos de tarjeta.
 
----
-
-## Planes
-
-| Plan | Productos | Pedidos/mes | IA Tokens | Módulos incluidos |
-|------|-----------|-------------|-----------|-------------------|
-| `starter` | 30 | 100 | 0 | CORE (5 módulos) |
-| `growth` | 200 | 500 | 1000 | 11 módulos + add-ons |
-| `pro` | 1000 | ilimitados | 5000 | Todos (20 módulos) |
-
-Precios definidos por superadmin en tabla `plans`. Trial (demo): 14 días, sin tarjeta, límites del starter.
+Ambos precios (`precio_por_100` y `precio_por_módulo`) son configurables por superadmin en tabla `plans`.
 
 ---
 
-## Módulos Adicionales (add-ons)
+## Precio Base — Tier de Productos
 
-Los módulos no incluidos en el plan se cobran como add-on mensual. Precios en `plans.module_prices`.
+El dueño elige cuántos productos quiere poder tener (tier). El precio escala linealmente:
 
-- Activar: costo se agrega al próximo período. Módulo disponible inmediato.
-- Desactivar: módulo se desactiva inmediato. Sin devolución. Costo se quita del próximo período.
+| Tier (max productos) | Precio/mes |
+|----------------------|------------|
+| 100                  | $20,000 ARS |
+| 200                  | $40,000 ARS |
+| 300                  | $60,000 ARS |
+| N × 100              | N × $20,000 ARS |
+
+Fórmula: `ceil(max_products / 100) × price_per_100_products` (almacenado en `plans.price_per_100_products`, en centavos ARS).
+
+`stores.limits.max_products` define el tier de cada tienda. Se fija al activar la suscripción y se puede cambiar (ver flujo de cambio de tier).
+
+---
+
+## Módulos Pro — Add-on Mensual
+
+Los 9 módulos pro tienen precio fijo por módulo activo: **`plans.pro_module_price`** (por defecto $5,000 ARS/mes en centavos).
+
+**Módulos base** (incluidos sin cargo adicional): `catalog`, `products`, `categories`, `cart`, `orders`, `stock`, `payments`, `banners`, `social`, `product_page`, `shipping`.
+
+**Módulos pro** (add-on mensual): `variants`, `wholesale`, `finance`, `expenses`, `savings_account`, `multiuser`, `custom_domain`, `tasks`, `assistant`.
+
+- **Activar módulo pro:** módulo disponible inmediato. Costo se suma al próximo período.
+- **Desactivar módulo pro:** módulo se desactiva inmediato. Sin devolución. Costo se quita del próximo período.
+
+---
+
+## Trial
+
+14 días, sin tarjeta. Límites: `plans.trial_max_products` productos (por defecto 100), módulos base activos, sin módulos pro. Al vencer → se ofrece activar suscripción o la tienda pasa a `past_due`.
+
+---
+
+## Recálculo de Precio
+
+El precio de la suscripción cambia cuando:
+1. El dueño cambia su tier de productos (`stores.limits.max_products`).
+2. El dueño activa o desactiva un módulo pro.
+
+**Flujo de recálculo:**
+1. Calcular nuevo `total = ceil(max_products / 100) × price_per_100_products + cant_pro_activos × pro_module_price`.
+2. Cancelar la suscripción actual en MP (`PUT /preapproval/{id}` con `status: cancelled`).
+3. Crear nueva suscripción en MP con el nuevo monto.
+4. Registrar evento `subscription_price_updated` con `{ old_amount, new_amount, reason }`.
+
+No hay proration automática via MP — si el dueño hace upgrade a mitad de período, el nuevo precio aplica desde el próximo ciclo (o se cobra la diferencia manualmente si el superadmin lo decide).
 
 ---
 
@@ -57,11 +90,11 @@ Día 60  → 30 días en 'past_due' → billing_status → 'archived'. Datos con
 
 ---
 
-## Flujo de Cambio de Plan
+## Flujo de Cambio de Tier de Productos
 
-- Upgrade (precio mayor): cambio inmediato. Cobro prorrateado de la diferencia.
-- Downgrade (precio menor): cambio al inicio del próximo período. Sin devolución.
-- Si el nuevo plan tiene límites menores a los activos (ej: 200 productos con plan de 30), el dueño debe reducir primero.
+- **Upgrade** (más productos): cambio inmediato. El nuevo precio aplica desde el próximo período (sin cobro adicional inmediato — se recalcula la suscripción de MP).
+- **Downgrade** (menos productos): solo posible si `count(productos_activos) ≤ nuevo_tier`. Si el dueño tiene más productos que el nuevo tier, debe eliminar/desactivar productos primero. El cambio aplica al inicio del próximo período.
+- Ambos casos disparan el flujo de recálculo de precio (cancelar + crear nueva suscripción en MP).
 
 ---
 

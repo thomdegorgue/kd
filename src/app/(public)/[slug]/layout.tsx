@@ -1,0 +1,34 @@
+import { notFound } from 'next/navigation'
+import { getStoreBySlug } from '@/lib/db/queries/stores'
+import { PublicLayout } from '@/components/public/public-layout'
+import { StoreProvider } from '@/components/public/store-context'
+
+export const revalidate = 60
+
+export default async function StoreLayout({
+  params,
+  children,
+}: {
+  params: Promise<{ slug: string }>
+  children: React.ReactNode
+}) {
+  const { slug } = await params
+  const store = await getStoreBySlug(slug)
+
+  if (!store) notFound()
+
+  return (
+    <StoreProvider store={store}>
+      <PublicLayout
+        store={{
+          name: store.name,
+          logo_url: store.logo_url,
+          whatsapp: store.whatsapp,
+          config: store.config,
+        }}
+      >
+        {children}
+      </PublicLayout>
+    </StoreProvider>
+  )
+}

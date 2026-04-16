@@ -12,9 +12,10 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp, ChevronDown } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp, ChevronDown, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
   TableBody,
@@ -25,12 +26,28 @@ import {
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 
+interface ServerPagination {
+  page: number
+  pageSize: number
+  total: number
+}
+
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   searchKey?: string
   searchPlaceholder?: string
   pageSize?: number
+  /** Server-side pagination. Cuando está presente, desactiva client-side sort/filter/pagination. */
+  pagination?: ServerPagination
+  onPageChange?: (page: number) => void
+  onSort?: (sorting: SortingState) => void
+  /** Muestra skeleton rows mientras carga */
+  isLoading?: boolean
+  /** Componente a mostrar cuando no hay datos */
+  emptyState?: React.ReactNode
+  /** Callback para exportar. Si se pasa, muestra botón de export. */
+  onExport?: () => void
 }
 
 export function DataTable<TData, TValue>({
@@ -39,34 +56,78 @@ export function DataTable<TData, TValue>({
   searchKey,
   searchPlaceholder = 'Buscar...',
   pageSize = 20,
+  pagination,
+  onPageChange,
+  onSort,
+  isLoading,
+  emptyState,
+  onExport,
 }: DataTableProps<TData, TValue>) {
+  const isServerSide = !!pagination
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+
+  const handleSortingChange = (updater: SortingState | ((old: SortingState) => SortingState)) => {
+    const newSorting = typeof updater === 'function' ? updater(sorting) : updater
+    setSorting(newSorting)
+    if (isServerSide && onSort) {
+      onSort(newSorting)
+    }
+  }
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    onSortingChange: setSorting,
+    ...(!isServerSide && {
+      getPaginationRowModel: getPaginationRowModel(),
+      getSortedRowModel: getSortedRowModel(),
+      getFilteredRowModel: getFilteredRowModel(),
+    }),
+    onSortingChange: handleSortingChange,
     onColumnFiltersChange: setColumnFilters,
-    initialState: { pagination: { pageSize } },
-    state: { sorting, columnFilters },
+    manualPagination: isServerSide,
+    manualSorting: isServerSide,
+    ...(isServerSide && { pageCount: Math.ceil(pagination.total / pagination.pageSize) }),
+    initialState: { pagination: { pageSize: isServerSide ? pagination.pageSize : pageSize } },
+    state: {
+      sorting,
+      columnFilters,
+      ...(isServerSide && { pagination: { pageIndex: pagination.page - 1, pageSize: pagination.pageSize } }),
+    },
   })
+
+  const totalRows = isServerSide ? pagination.total : table.getFilteredRowModel().rows.length
+  const currentPage = isServerSide ? pagination.page : table.getState().pagination.pageIndex + 1
+  const totalPages = isServerSide
+    ? Math.ceil(pagination.total / pagination.pageSize)
+    : table.getPageCount()
 
   return (
     <div className="space-y-4">
-      {searchKey && (
-        <Input
-          placeholder={searchPlaceholder}
-          value={(table.getColumn(searchKey)?.getFilterValue() as string) ?? ''}
-          onChange={(e) => table.getColumn(searchKey)?.setFilterValue(e.target.value)}
-          className="max-w-sm"
-        />
+      {/* Toolbar: search + export */}
+      {(searchKey || onExport) && (
+        <div className="flex items-center justify-between gap-4">
+          {searchKey ? (
+            <Input
+              placeholder={searchPlaceholder}
+              value={(table.getColumn(searchKey)?.getFilterValue() as string) ?? ''}
+              onChange={(e) => table.getColumn(searchKey)?.setFilterValue(e.target.value)}
+              className="max-w-sm"
+            />
+          ) : (
+            <div />
+          )}
+          {onExport && (
+            <Button variant="outline" size="sm" onClick={onExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Exportar
+            </Button>
+          )}
+        </div>
       )}
 
+      {/* Table */}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -105,7 +166,17 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.length ? (
+            {isLoading ? (
+              Array.from({ length: pageSize > 10 ? 10 : pageSize }).map((_, i) => (
+                <TableRow key={`skeleton-${i}`}>
+                  {columns.map((_, j) => (
+                    <TableCell key={`skeleton-${i}-${j}`}>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
@@ -117,8 +188,10 @@ export function DataTable<TData, TValue>({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
-                  Sin resultados.
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  {emptyState ?? (
+                    <span className="text-muted-foreground">Sin resultados.</span>
+                  )}
                 </TableCell>
               </TableRow>
             )}
@@ -126,27 +199,40 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
+      {/* Pagination */}
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {table.getFilteredRowModel().rows.length} resultado(s)
+          {totalRows} resultado(s)
         </p>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
+            onClick={() => {
+              if (isServerSide && onPageChange) {
+                onPageChange(currentPage - 1)
+              } else {
+                table.previousPage()
+              }
+            }}
+            disabled={isServerSide ? currentPage <= 1 : !table.getCanPreviousPage()}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="text-xs text-muted-foreground">
-            {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
+            {currentPage} / {totalPages || 1}
           </span>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
+            onClick={() => {
+              if (isServerSide && onPageChange) {
+                onPageChange(currentPage + 1)
+              } else {
+                table.nextPage()
+              }
+            }}
+            disabled={isServerSide ? currentPage >= totalPages : !table.getCanNextPage()}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>

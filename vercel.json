@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/check-billing",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/clean-assistant-sessions",
+      "schedule": "0 4 * * *"
+    }
+  ]
+}

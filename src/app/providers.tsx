@@ -6,6 +6,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { ThemeProvider } from 'next-themes'
 import { Toaster } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { ModalContainer } from '@/components/shared/modal-container'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -47,6 +48,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
               },
             }}
           />
+          <ModalContainer />
         </TooltipProvider>
       </ThemeProvider>
       <ReactQueryDevtools initialIsOpen={false} />

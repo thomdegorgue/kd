@@ -697,27 +697,31 @@ Al cambiar a `in_transit` se llena `shipped_at`. Al cambiar a `delivered` se lle
 - Si se agotan los `ai_tokens`: bloquear `send_assistant_message` con `LIMIT_EXCEEDED`. Mostrar `PlanUpgradePrompt`.
 - El cron de limpieza archiva sesiones expiradas y libera memoria de contexto.
 
-### Tabla: Módulos por Plan
+### Tabla: Clasificación de Módulos
 
-| Módulo | starter | growth | pro |
-|--------|---------|--------|-----|
-| catalog | ✓ | ✓ | ✓ |
-| products | ✓ | ✓ | ✓ |
-| categories | ✓ | ✓ | ✓ |
-| cart | ✓ | ✓ | ✓ |
-| orders | ✓ | ✓ | ✓ |
-| stock | — | ✓ | ✓ |
-| payments | — | ✓ | ✓ |
-| banners | — | ✓ | ✓ |
-| social | — | ✓ | ✓ |
-| product_page | — | ✓ | ✓ |
-| shipping | — | ✓ | ✓ |
-| variants | — | add-on | ✓ |
-| wholesale | — | add-on | ✓ |
-| finance | — | add-on | ✓ |
-| expenses | — | — | ✓ |
-| savings_account | — | — | ✓ |
-| multiuser | — | — | ✓ |
-| custom_domain | — | — | ✓ |
-| tasks | — | — | ✓ |
-| assistant | — | — | ✓ |
+| Módulo          | Tipo | Costo mensual |
+|-----------------|------|---------------|
+| catalog         | core | incluido en precio base |
+| products        | core | incluido en precio base |
+| categories      | core | incluido en precio base |
+| cart            | core | incluido en precio base |
+| orders          | core | incluido en precio base |
+| stock           | base | incluido en precio base |
+| payments        | base | incluido en precio base |
+| banners         | base | incluido en precio base |
+| social          | base | incluido en precio base |
+| product_page    | base | incluido en precio base |
+| shipping        | base | incluido en precio base |
+| variants        | pro  | $5,000 ARS/mes |
+| wholesale       | pro  | $5,000 ARS/mes |
+| finance         | pro  | $5,000 ARS/mes |
+| expenses        | pro  | $5,000 ARS/mes |
+| savings_account | pro  | $5,000 ARS/mes |
+| multiuser       | pro  | $5,000 ARS/mes |
+| custom_domain   | pro  | $5,000 ARS/mes |
+| tasks           | pro  | $5,000 ARS/mes |
+| assistant       | pro  | $5,000 ARS/mes |
+
+**`core`:** siempre activos, no desactivables. Incluidos en el precio base.  
+**`base`:** activos por defecto con cualquier suscripción activa o trial. Incluidos en el precio base.  
+**`pro`:** desactivados por defecto. El dueño los activa individualmente desde el panel. Cada uno agrega `plans.pro_module_price` al ticket mensual.

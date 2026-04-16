@@ -7,11 +7,10 @@ Acceso: `/superadmin/*`. Solo `users.role === 'superadmin'`. Sin RLS (usa servic
 ## Capacidades
 
 ### Gestión de Tiendas
-- Listar todas las tiendas (con filtros por status, plan, fecha)
+- Listar todas las tiendas (con filtros por billing_status, fecha)
 - Ver detalle de cualquier tienda (config, módulos, billing, usuarios)
 - Cambiar status de tienda (active, suspended, archived)
-- Cambiar plan de tienda
-- Override de módulos (activar/desactivar individualmente)
+- **Override de módulos** (activar/desactivar cualquiera de los 20 módulos individualmente, sin restricción de billing)
 - Override de límites (max_products, max_orders, ai_tokens)
 - Extender trial (modificar trial_ends_at)
 - Impersonar tienda (acceso lectura al panel como si fuera el owner)
@@ -21,9 +20,13 @@ Acceso: `/superadmin/*`. Solo `users.role === 'superadmin'`. Sin RLS (usa servic
 - Ban/unban usuario
 - Ver tiendas de un usuario
 
-### Gestión de Planes
-- CRUD de planes (crear, editar, desactivar)
-- Modificar precios de módulos add-on
+### Gestión de Precios del Plan
+El sistema tiene un único plan. El superadmin puede configurar:
+- `price_per_100_products` — precio base por cada 100 productos (en centavos ARS)
+- `pro_module_price` — precio por módulo pro activo (en centavos ARS/mes)
+- `trial_days` — duración del trial gratuito
+- `trial_max_products` — límite de productos durante el trial
+- `base_modules` — cuáles módulos están incluidos en el precio base (sin cargo adicional)
 
 ### Auditoría
 - Ver tabla de eventos (filtros por tienda, tipo, fecha, actor)
@@ -31,11 +34,11 @@ Acceso: `/superadmin/*`. Solo `users.role === 'superadmin'`. Sin RLS (usa servic
 - Ver billing payments por tienda
 
 ### Métricas
-- MRR (Monthly Recurring Revenue)
-- Tiendas activas por plan
+- MRR (Monthly Recurring Revenue) — calculado dinámicamente: `Σ ceil(limits.max_products/100) × price_per_100 + pro_activos × pro_price` por tienda activa
+- Tiendas activas / en trial / en mora / archivadas
+- Tiendas por tier de productos (distribución)
 - Churn rate
 - Tasa de conversión demo → active
-- Top tiendas por pedidos/mes
 
 ---
 

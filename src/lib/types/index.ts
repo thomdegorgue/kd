@@ -103,6 +103,7 @@ export type StoreContext = {
   store_id: string
   slug: string
   status: StoreStatus
+  billing_status: StoreStatus
   modules: Partial<Record<ModuleName, boolean>>
   limits: {
     max_products: number

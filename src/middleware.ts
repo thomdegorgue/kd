@@ -27,7 +27,10 @@ function resolveSlug(request: NextRequest): string | null {
       segments[0] === 'api' ||
       segments[0] === '_next' ||
       segments[0] === 'tracking' ||
-      segments[0] === 'invite'
+      segments[0] === 'invite' ||
+      segments[0] === 'auth' ||
+      segments[0] === 'onboarding' ||
+      segments[0] === 'design'
     ) {
       return null
     }
@@ -90,7 +93,29 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // ──────────────────────────────────────────────
+  // RUTAS PÚBLICAS DEL SISTEMA — sin autenticación
+  // ──────────────────────────────────────────────
+  if (
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/invite') ||
+    pathname.startsWith('/design')
+  ) {
+    return NextResponse.next()
+  }
+
   const { client, response } = createMiddlewareClient(request)
+
+  // ──────────────────────────────────────────────
+  // ONBOARDING — requiere sesión pero NO store_user
+  // ──────────────────────────────────────────────
+  if (pathname.startsWith('/onboarding')) {
+    const { data: { user } } = await client.auth.getUser()
+    if (!user) {
+      return NextResponse.redirect(new URL('/auth/login?next=/onboarding', request.url))
+    }
+    return response
+  }
 
   // ──────────────────────────────────────────────
   // RUTAS SUPERADMIN — requiere sesión + role=superadmin
@@ -134,7 +159,7 @@ export async function middleware(request: NextRequest) {
       .select(`
         role,
         store:stores (
-          id, slug, status, modules, limits
+          id, slug, status, billing_status, modules, limits
         )
       `)
       .eq('user_id', user.id)
@@ -155,6 +180,7 @@ export async function middleware(request: NextRequest) {
       store_id: store.id,
       slug: store.slug,
       status: store.status as StoreStatus,
+      billing_status: (store.billing_status ?? store.status) as StoreStatus,
       modules: (store.modules as Partial<Record<ModuleName, boolean>>) ?? {},
       limits: (store.limits as StoreContext['limits']) ?? {
         max_products: 30,

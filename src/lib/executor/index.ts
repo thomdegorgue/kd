@@ -92,12 +92,12 @@ export async function executor<T = unknown>(
   // PASO 3 — Validar actor y permisos
   // ──────────────────────────────────────────────
 
-  if (!actor.id && actor.type !== 'system') {
+  if (!actor.id && actor.type !== 'system' && actor.type !== 'ai') {
     return makeError('UNAUTHORIZED', 'Actor no autenticado')
   }
 
-  // Superadmin bypasea verificación de rol por tienda
-  if (actor.type !== 'superadmin' && storeContext) {
+  // Superadmin y ai bypasean verificación de rol por tienda
+  if (actor.type !== 'superadmin' && actor.type !== 'ai' && storeContext) {
     const roleAllowed = handler.permissions.includes(actor.type as Exclude<ActorType, 'user'>)
     const userRoleAllowed = actor.type === 'user'
       ? handler.permissions.includes(storeContext.user_role as StoreUserRole)
@@ -189,11 +189,15 @@ export async function executor<T = unknown>(
 
   if (handler.invalidates.length > 0 && store_id) {
     const keys = handler.invalidates.map((k) => k.replace('{store_id}', store_id))
-    // Redis invalidation se implementa en F7 — placeholder async
-    void Promise.resolve().then(() => {
-      // TODO F7: invalidar keys en Upstash Redis
-      void keys
-    })
+    void (async () => {
+      try {
+        const { redis } = await import('@/lib/redis')
+        await redis.del(...keys)
+      } catch (err) {
+        // Invalidación de caché no debe fallar la acción
+        console.error('Cache invalidation error:', err)
+      }
+    })()
   }
 
   // ──────────────────────────────────────────────

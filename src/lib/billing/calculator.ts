@@ -1,0 +1,109 @@
+import type { ModuleName } from '@/lib/types'
+
+// ============================================================
+// CONSTANTES
+// ============================================================
+
+export const PRO_MODULES: readonly ModuleName[] = [
+  'variants',
+  'wholesale',
+  'finance',
+  'expenses',
+  'savings_account',
+  'multiuser',
+  'custom_domain',
+  'tasks',
+  'assistant',
+] as const
+
+export const BASE_MODULES: readonly ModuleName[] = [
+  'catalog',
+  'products',
+  'categories',
+  'cart',
+  'orders',
+  'stock',
+  'payments',
+  'banners',
+  'social',
+  'product_page',
+  'shipping',
+] as const
+
+export function isProModule(module: string): module is ModuleName {
+  return PRO_MODULES.includes(module as ModuleName)
+}
+
+// ============================================================
+// TIPOS
+// ============================================================
+
+export type PlanPricing = {
+  price_per_100_products: number // en centavos ARS
+  pro_module_price: number       // en centavos ARS
+}
+
+// ============================================================
+// CALCULADORA
+// ============================================================
+
+/**
+ * Calcula el total mensual en centavos ARS.
+ *
+ * Total = ceil(maxProducts / 100) × price_per_100_products
+ *       + count(módulos_pro_activos) × pro_module_price
+ */
+export function computeMonthlyTotal(
+  plan: PlanPricing,
+  maxProducts: number,
+  activeModules: Partial<Record<ModuleName, boolean>>,
+): number {
+  const tiers = Math.ceil(maxProducts / 100)
+  const base = tiers * plan.price_per_100_products
+
+  const proCount = PRO_MODULES.filter((m) => activeModules[m] === true).length
+  const pro = proCount * plan.pro_module_price
+
+  return base + pro
+}
+
+/**
+ * Detalle del precio para mostrar en UI.
+ */
+export function computePriceBreakdown(
+  plan: PlanPricing,
+  maxProducts: number,
+  activeModules: Partial<Record<ModuleName, boolean>>,
+): {
+  tiers: number
+  basePrice: number
+  activeProModules: ModuleName[]
+  proPrice: number
+  total: number
+} {
+  const tiers = Math.ceil(maxProducts / 100)
+  const basePrice = tiers * plan.price_per_100_products
+  const activeProModules = PRO_MODULES.filter((m) => activeModules[m] === true)
+  const proPrice = activeProModules.length * plan.pro_module_price
+  const total = basePrice + proPrice
+
+  return { tiers, basePrice, activeProModules, proPrice, total }
+}
+
+// ============================================================
+// FORMATO
+// ============================================================
+
+/** Formatea centavos ARS a string legible: $20.000 */
+export function formatARS(centavos: number): string {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    maximumFractionDigits: 0,
+  }).format(centavos / 100)
+}
+
+/** Convierte centavos ARS a pesos ARS (número) para MP API */
+export function centavosToARS(centavos: number): number {
+  return centavos / 100
+}

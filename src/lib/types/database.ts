@@ -43,12 +43,11 @@ export type Database = {
         Row: {
           id: string
           name: string
-          price: number
-          max_products: number
-          max_orders: number
-          ai_tokens: number
-          available_modules: Json
-          module_prices: Json
+          price_per_100_products: number
+          pro_module_price: number
+          base_modules: Json
+          trial_days: number
+          trial_max_products: number
           is_active: boolean
           created_at: string
           updated_at: string
@@ -56,12 +55,11 @@ export type Database = {
         Insert: {
           id?: string
           name: string
-          price: number
-          max_products: number
-          max_orders: number
-          ai_tokens: number
-          available_modules?: Json
-          module_prices?: Json
+          price_per_100_products?: number
+          pro_module_price?: number
+          base_modules?: Json
+          trial_days?: number
+          trial_max_products?: number
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -69,12 +67,11 @@ export type Database = {
         Update: {
           id?: string
           name?: string
-          price?: number
-          max_products?: number
-          max_orders?: number
-          ai_tokens?: number
-          available_modules?: Json
-          module_prices?: Json
+          price_per_100_products?: number
+          pro_module_price?: number
+          base_modules?: Json
+          trial_days?: number
+          trial_max_products?: number
           is_active?: boolean
           created_at?: string
           updated_at?: string

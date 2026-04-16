@@ -1,0 +1,91 @@
+'use client'
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
+import {
+  getActivePlan,
+  createSubscription,
+  cancelSubscription,
+  changeTier,
+  type CreateSubscriptionResult,
+  type CancelSubscriptionResult,
+  type ChangeTierResult,
+} from '@/lib/actions/billing'
+import { useAdminContext } from '@/lib/hooks/use-admin-context'
+import { queryKeys, staleTimes, gcTimes } from '@/lib/hooks/query-keys'
+
+export function useBilling() {
+  const { store_id } = useAdminContext()
+
+  return useQuery({
+    queryKey: queryKeys.billing(store_id),
+    queryFn: getActivePlan,
+    staleTime: staleTimes.billing,
+    gcTime: gcTimes.billing,
+  })
+}
+
+export function useCreateSubscription() {
+  const { store_id } = useAdminContext()
+  const queryClient = useQueryClient()
+  const router = useRouter()
+
+  return useMutation({
+    mutationFn: (input: unknown) => createSubscription(input),
+    onSuccess: (result: CreateSubscriptionResult) => {
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.billing(store_id) })
+      toast.success('Suscripción creada. Redirigiendo a Mercado Pago...')
+      router.push(result.init_point)
+    },
+    onError: () => {
+      toast.error('Error al crear la suscripción')
+    },
+  })
+}
+
+export function useCancelSubscription() {
+  const { store_id } = useAdminContext()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: unknown) => cancelSubscription(input),
+    onSuccess: (result: CancelSubscriptionResult) => {
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.billing(store_id) })
+      toast.success('Suscripción cancelada. Tu acceso continúa hasta el fin del período.')
+    },
+    onError: () => {
+      toast.error('Error al cancelar la suscripción')
+    },
+  })
+}
+
+export function useChangeTier() {
+  const { store_id } = useAdminContext()
+  const queryClient = useQueryClient()
+  const router = useRouter()
+
+  return useMutation({
+    mutationFn: (input: unknown) => changeTier(input),
+    onSuccess: (result: ChangeTierResult) => {
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.billing(store_id) })
+      toast.success('Tier actualizado. Redirigiendo a Mercado Pago para confirmar...')
+      router.push(result.init_point)
+    },
+    onError: () => {
+      toast.error('Error al cambiar el tier')
+    },
+  })
+}
