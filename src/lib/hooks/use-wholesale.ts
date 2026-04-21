@@ -4,19 +4,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { listWholesalePrices, setWholesalePrice, deleteWholesalePrice } from '@/lib/actions/wholesale'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
+import { queryKeys, staleTimes, gcTimes } from '@/lib/hooks/query-keys'
 
 export function useWholesalePrices() {
   const { store_id } = useAdminContext()
 
   return useQuery({
-    queryKey: ['wholesale', store_id],
+    queryKey: queryKeys.wholesale(store_id),
     queryFn: async () => {
       const result = await listWholesalePrices()
       if (!result.success) throw new Error(result.error.message)
       return result.data
     },
-    staleTime: 2 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: staleTimes.wholesale,
+    gcTime: gcTimes.wholesale,
   })
 }
 

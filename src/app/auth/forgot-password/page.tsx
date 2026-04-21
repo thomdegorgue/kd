@@ -7,18 +7,36 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { signIn } from '@/lib/actions/auth'
+import { sendPasswordReset } from '@/lib/actions/auth'
 import type { ActionResult } from '@/lib/types'
 
-export default function LoginPage() {
-  const [state, action, pending] = useActionState<ActionResult | null, FormData>(signIn, null)
+export default function ForgotPasswordPage() {
+  const [state, action, pending] = useActionState<ActionResult | null, FormData>(sendPasswordReset, null)
+
+  if (state?.success) {
+    return (
+      <Card>
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl text-center">Revisá tu email</CardTitle>
+          <CardDescription className="text-center">
+            Si el email existe, recibirás instrucciones para restablecer tu contraseña.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-center">
+          <Link href="/auth/login" className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-4">
+            Volver al inicio de sesión
+          </Link>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl text-center">Ingresar</CardTitle>
+        <CardTitle className="text-2xl text-center">Recuperar contraseña</CardTitle>
         <CardDescription className="text-center">
-          Accedé a tu panel de administración
+          Ingresá tu email y te enviaremos instrucciones.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -41,36 +59,15 @@ export default function LoginPage() {
             />
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Contraseña</Label>
-              <Link
-                href="/auth/forgot-password"
-                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
-            </div>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              placeholder="••••••••"
-              autoComplete="current-password"
-              required
-            />
-          </div>
-
           <Button type="submit" className="w-full" disabled={pending}>
             {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Ingresar
+            Enviar instrucciones
           </Button>
         </form>
 
         <div className="mt-4 text-center text-sm text-muted-foreground">
-          ¿No tenés cuenta?{' '}
-          <Link href="/auth/signup" className="text-foreground underline underline-offset-4 hover:text-primary">
-            Registrate gratis
+          <Link href="/auth/login" className="text-foreground underline underline-offset-4 hover:text-primary">
+            Volver al inicio de sesión
           </Link>
         </div>
       </CardContent>

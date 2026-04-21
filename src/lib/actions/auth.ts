@@ -10,6 +10,52 @@ import type { ActionResult } from '@/lib/types'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
 
+// ── sendPasswordReset ────────────────────────────────────────
+
+export async function sendPasswordReset(
+  _prev: ActionResult | null,
+  formData: FormData
+): Promise<ActionResult> {
+  const email = String(formData.get('email') ?? '').trim()
+  if (!email) {
+    return { success: false, error: { code: 'INVALID_INPUT', message: 'Ingresá tu email' } }
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'
+  const supabase = await createClient()
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${appUrl}/auth/reset-password`,
+  })
+
+  return { success: true, data: null }
+}
+
+// ── updatePassword ───────────────────────────────────────────
+
+export async function updatePassword(
+  _prev: ActionResult | null,
+  formData: FormData
+): Promise<ActionResult> {
+  const password = String(formData.get('password') ?? '')
+  const confirm = String(formData.get('confirm') ?? '')
+
+  if (password.length < 8) {
+    return { success: false, error: { code: 'INVALID_INPUT', message: 'La contraseña debe tener al menos 8 caracteres' } }
+  }
+  if (password !== confirm) {
+    return { success: false, error: { code: 'INVALID_INPUT', message: 'Las contraseñas no coinciden' } }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.auth.updateUser({ password })
+
+  if (error) {
+    return { success: false, error: { code: 'UNAUTHORIZED', message: error.message } }
+  }
+
+  redirect('/admin')
+}
+
 // ── signIn ───────────────────────────────────────────────────
 
 export async function signIn(

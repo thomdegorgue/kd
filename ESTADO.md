@@ -1,7 +1,7 @@
 # Estado del Proyecto
 
-**Fase actual:** F9 — Auth + Onboarding ✅ COMPLETA
-**Paso actual:** F9 completada. Flujo de registro, onboarding e invitaciones implementado.
+**Fase actual:** F11 — Onboarding Pulido + Auth + Módulos ✅ COMPLETA
+**Paso actual:** F11 completada. Onboarding mejorado, flujo forgot-password, query keys normalizados, auditoría de módulos documentada. Próximo paso: configurar CRON_SECRET + MP_WEBHOOK_SECRET en Vercel, crear superadmin, testing end-to-end en producción.
 
 ---
 
@@ -132,20 +132,21 @@
 ---
 
 ## Variables de Entorno Configuradas
-- [ ] NEXT_PUBLIC_SUPABASE_URL
-- [ ] NEXT_PUBLIC_SUPABASE_ANON_KEY
-- [ ] SUPABASE_SERVICE_ROLE_KEY
-- [ ] MP_ACCESS_TOKEN
-- [ ] MP_PUBLIC_KEY
-- [ ] MP_WEBHOOK_SECRET
-- [ ] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-- [ ] NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
-- [ ] UPSTASH_REDIS_REST_URL
-- [ ] UPSTASH_REDIS_REST_TOKEN
-- [ ] OPENAI_API_KEY
-- [ ] RESEND_API_KEY
-- [ ] NEXT_PUBLIC_APP_URL
-- [ ] NEXT_PUBLIC_APP_DOMAIN
+- [x] NEXT_PUBLIC_SUPABASE_URL
+- [x] NEXT_PUBLIC_SUPABASE_ANON_KEY
+- [x] SUPABASE_SERVICE_ROLE_KEY
+- [x] MP_ACCESS_TOKEN
+- [x] MP_PUBLIC_KEY
+- [ ] MP_WEBHOOK_SECRET — ⚠️ VERIFICAR que tiene valor real en Vercel (ver PASOS-MANUALES.md §15)
+- [x] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+- [x] NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+- [x] UPSTASH_REDIS_REST_URL
+- [x] UPSTASH_REDIS_REST_TOKEN
+- [x] OPENAI_API_KEY
+- [x] RESEND_API_KEY
+- [x] NEXT_PUBLIC_APP_URL
+- [x] NEXT_PUBLIC_APP_DOMAIN
+- [ ] CRON_SECRET — ⚠️ PENDIENTE generar y configurar en Vercel (ver PASOS-MANUALES.md §14)
 
 ## Decisiones Tomadas
 
@@ -324,6 +325,68 @@
 
 El proyecto es **completamente congruente** entre documentación y código. Todos los sistemas críticos (executor, RLS, caché, validaciones) funcionan correctamente. Ningún blocker técnico para proceder a deploy/testing.
 
-## Estado actual
+## F10 — Auditoría MVP
 
-F9 completa. Plataforma completa F0–F9. Auditoría 2026-04-16 completada sin incongruencias críticas. Listo para configurar env vars y testing en staging.
+### 2026-04-21
+
+- [x] Auditoría exhaustiva de seguridad, código y flujos críticos
+- [x] `.gitignore` verificado — `.env.local` NO está en git ✅
+- [x] `.env.example` creado con todas las variables
+- [x] `system/auditoria.md` creado con hallazgos completos
+- [x] `SLOTS_AVAILABLE` en landing movido a env var `NEXT_PUBLIC_SLOTS_AVAILABLE`
+- [x] PASOS-MANUALES.md actualizado: §13 superadmin, §14 CRON_SECRET, §15 MP_WEBHOOK_SECRET
+- [x] ENV VARS en ESTADO.md marcadas como configuradas
+
+### Blockers Actuales (solo configuración manual)
+
+1. **CRON_SECRET** — Generar + configurar en Vercel (ver PASOS-MANUALES.md §14)
+2. **MP_WEBHOOK_SECRET** — Verificar que tiene valor real en Vercel (ver PASOS-MANUALES.md §15)
+3. **Superadmin** — Crear usuario en Supabase Auth + SQL para promover (ver PASOS-MANUALES.md §13)
+4. **Testing end-to-end** — Verificar flujo completo en producción con tienda real
+
+### Estado actual
+
+F10 completa. Plataforma auditada y lista para MVP. No hay bloqueantes de código. Solo quedan pasos manuales de configuración en Vercel/Supabase y testing final en producción.
+
+---
+
+## F11 — Onboarding Pulido + Auth + Módulos Auditados
+
+### 2026-04-21
+
+**Build y TypeScript:** `pnpm build` ✅ · `pnpm exec tsc --noEmit` ✅ (cero errores)
+
+#### BLOQUE 1 — Query Keys normalizados
+- [x] `wholesale` agregado a `queryKeys`, `staleTimes`, `gcTimes` en `src/lib/hooks/query-keys.ts`
+- [x] `use-wholesale.ts` actualizado: `queryKeys.wholesale(store_id)` en los 3 hooks
+
+#### BLOQUE 2 — Flujo "Olvidé mi contraseña"
+- [x] Link "¿Olvidaste tu contraseña?" en `/auth/login` (debajo del campo contraseña)
+- [x] `/auth/forgot-password` — formulario de recuperación + mensaje de confirmación
+- [x] `/auth/reset-password` — formulario de nueva contraseña + validación de confirmación
+- [x] `sendPasswordReset` + `updatePassword` agregados a `src/lib/actions/auth.ts`
+
+#### BLOQUE 3 — Onboarding UX
+- [x] `OnboardingSteps` rediseñado: círculos numerados, check icon al completar, conectores de línea
+- [x] Step 1: preview en tiempo real del URL del catálogo (`{domain}/{slug}`)
+- [x] Step 1: helper text WhatsApp más claro
+- [x] Step 2: descripción de logo mejorada (200×200 px, fondo blanco/transparente)
+- [x] Step 3: refactorizado en server page + `ProductStepClient` (mismo patrón que Step 2)
+- [x] Step 3: campo de imagen del producto (opcional) via Cloudinary
+- [x] Step 3: `onboardingStep3` action incluye `image_url` con validación Zod
+- [x] Step 4: `DoneClient` con botón "Copiar link" + feedback visual
+- [x] Step 4: botón "Compartir por WhatsApp" con mensaje prearmado
+- [x] Step 4: lista de próximos pasos (productos, diseño, compartir)
+
+#### BLOQUE 4 — Auditoría de Módulos
+- [x] `system/auditoria.md` actualizado con tabla de estado de todos los 20 módulos
+- [x] Deuda técnica documentada (savings naming, banners sin handler, middleware warning)
+- [x] Mejoras de F11 documentadas en auditoria.md
+
+### Blockers Actuales
+
+Los mismos que F10 (solo configuración manual):
+1. **CRON_SECRET** — Generar + configurar en Vercel (ver PASOS-MANUALES.md §14)
+2. **MP_WEBHOOK_SECRET** — Verificar que tiene valor real en Vercel (ver PASOS-MANUALES.md §15)
+3. **Superadmin** — Crear usuario en Supabase (ver PASOS-MANUALES.md §13)
+4. **Testing end-to-end** — Verificar flujo completo en producción

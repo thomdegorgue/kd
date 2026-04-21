@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -11,11 +11,26 @@ import { onboardingStep1 } from '@/lib/actions/onboarding'
 import { OnboardingSteps } from './_components/onboarding-steps'
 import type { ActionResult } from '@/lib/types'
 
+const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'kitdigital.ar'
+
+function slugify(text: string) {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+}
+
 export default function OnboardingPage() {
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(onboardingStep1, null)
+  const [storeName, setStoreName] = useState('')
 
   const fieldError = (field: string) =>
     state && !state.success && state.error.field === field ? state.error.message : null
+
+  const slug = slugify(storeName)
 
   return (
     <div className="space-y-6">
@@ -43,8 +58,16 @@ export default function OnboardingPage() {
                 name="name"
                 placeholder="Ej: Ropa de María"
                 required
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
               />
               {fieldError('name') && <p className="text-xs text-destructive">{fieldError('name')}</p>}
+              {slug && (
+                <p className="text-xs text-muted-foreground">
+                  Tu catálogo estará en:{' '}
+                  <span className="font-mono text-foreground">{appDomain}/{slug}</span>
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -58,10 +81,11 @@ export default function OnboardingPage() {
                 <Input
                   id="whatsapp"
                   name="whatsapp"
-                  placeholder="1123456789"
+                  placeholder="9 11 2345-6789"
                   className="rounded-l-none"
                 />
               </div>
+              <p className="text-xs text-muted-foreground">Tus clientes te escribirán al hacer un pedido</p>
               {fieldError('whatsapp') && <p className="text-xs text-destructive">{fieldError('whatsapp')}</p>}
             </div>
 

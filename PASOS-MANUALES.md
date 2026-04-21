@@ -239,6 +239,86 @@ FASE 4: Validación (30 min)
 
 ---
 
+## 13. Setup Inicial — Superadmin (OBLIGATORIO antes del lanzamiento)
+
+El rol superadmin no se puede crear desde la UI — requiere una operación SQL directa en Supabase.
+
+**Paso 1: Crear usuario en Supabase Auth**
+1. Ir a [supabase.com](https://supabase.com) → tu proyecto → **Authentication** → **Users**
+2. Click **+ Add user** → **Create new user**
+3. Email: `admin@kitdigital.ar` (o el email que uses para administrar)
+4. Password: elegir contraseña fuerte (mínimo 16 caracteres, alfanumérico + símbolos)
+5. Click **Create user**
+
+**Paso 2: Promover a superadmin (SQL Editor)**
+```sql
+-- Verificar que el usuario existe en la tabla pública
+SELECT id, email FROM public.users WHERE email = 'admin@kitdigital.ar';
+
+-- Promover a superadmin
+UPDATE public.users SET role = 'superadmin' WHERE email = 'admin@kitdigital.ar';
+
+-- Verificar
+SELECT id, email, role FROM public.users WHERE role = 'superadmin';
+```
+
+**Paso 3: Verificar acceso**
+1. Ir a `https://kitdigital.ar/auth/login`
+2. Login con las credenciales del superadmin
+3. Debe redirigir automáticamente a `https://kitdigital.ar/superadmin`
+4. Si redirige a `/admin` → el rol no fue aplicado, revisar el SQL
+
+**Nota:** Solo puede haber uno o pocos superadmins. No crear superadmins para clientes normales.
+
+---
+
+## 14. Configurar CRON_SECRET (REQUERIDO en producción)
+
+Los crons de Vercel (`/api/cron/check-billing` y `/api/cron/clean-assistant-sessions`) están protegidos con un secret. Sin esto, cualquiera puede llamar esos endpoints directamente.
+
+**Paso 1: Generar secret**
+```bash
+# En tu terminal local:
+openssl rand -base64 32
+# Ejemplo output: K8mP3xQzR9vL1nF7wJ2cA5tY6bE0dH4s...
+```
+
+**Paso 2: Configurar en Vercel**
+1. Vercel → tu proyecto → **Settings** → **Environment Variables**
+2. Agregar: `CRON_SECRET` = el valor generado
+3. Seleccionar entornos: **Production** y **Preview**
+4. Click **Save**
+
+**Paso 3: Configurar en `.env.local`**
+```env
+CRON_SECRET=K8mP3xQzR9vL1nF7wJ2cA5tY6bE0dH4s...
+```
+
+**Verificación:** Los crons de Vercel automáticamente envían el header `Authorization: Bearer <CRON_SECRET>`. Si el secret está vacío en el código, los crya ons corren sin verificación (inseguro pero funcional). Con el secret configurado, requests externos sin el header recibirán 401.
+
+---
+
+## 15. Verificar MP_WEBHOOK_SECRET (CRÍTICO para billing)
+
+Sin este secret, el sistema acepta webhooks de cualquier fuente — alguien podría enviar un webhook falso para activar suscripciones o marcar pagos como aprobados.
+
+**Cómo obtener el secret:**
+1. Ir a [mercadopago.com.ar/developers](https://www.mercadopago.com.ar/developers) → tu aplicación
+2. **Webhooks** → seleccionar el webhook configurado para `kitdigital.ar`
+3. Debajo del webhook hay un campo **"Clave secreta"** o **"Secret"**
+4. Copiar ese valor → `MP_WEBHOOK_SECRET`
+
+**Configurar en Vercel:**
+1. Settings → Environment Variables → `MP_WEBHOOK_SECRET` = valor copiado
+2. Configurar en Production y Preview
+
+**En `.env.local`:**
+```env
+MP_WEBHOOK_SECRET=tu-secret-de-mp
+```
+
+---
+
 ## 11. Legal y Cumplimiento
 
 Checklist obligatorio antes del lanzamiento público:

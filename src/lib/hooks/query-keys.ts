@@ -54,6 +54,9 @@ export const queryKeys = {
   shipments: (storeId: string, filters?: Record<string, unknown>) =>
     filters ? ['shipments', storeId, filters] as const : ['shipments', storeId] as const,
 
+  // Wholesale
+  wholesale: (storeId: string) => ['wholesale', storeId] as const,
+
   // Savings
   savings: (storeId: string) => ['savings', storeId] as const,
 
@@ -85,6 +88,7 @@ export const staleTimes = {
   banners: 5 * 60 * 1000,
   shippingMethods: 5 * 60 * 1000,
   shipments: 30 * 1000,
+  wholesale: 2 * 60 * 1000,
   savings: 2 * 60 * 1000,
   plans: 30 * 60 * 1000,
   billing: 60 * 1000,
@@ -108,6 +112,7 @@ export const gcTimes = {
   banners: 15 * 60 * 1000,
   shippingMethods: 15 * 60 * 1000,
   shipments: 5 * 60 * 1000,
+  wholesale: 10 * 60 * 1000,
   savings: 10 * 60 * 1000,
   plans: 60 * 60 * 1000,
   billing: 5 * 60 * 1000,

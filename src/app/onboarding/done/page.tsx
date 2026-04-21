@@ -1,11 +1,9 @@
-import Link from 'next/link'
-import { CheckCircle, ExternalLink } from 'lucide-react'
+import { CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { OnboardingSteps } from '../_components/onboarding-steps'
-import { completeOnboarding } from '@/lib/actions/onboarding'
+import { DoneClient } from './done-client'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
@@ -30,9 +28,8 @@ async function getStoreSlug(): Promise<string | null> {
 
 export default async function OnboardingDonePage() {
   const slug = await getStoreSlug()
-  const catalogUrl = slug
-    ? `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'}/${slug}`
-    : null
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'
+  const catalogUrl = slug ? `${appUrl}/${slug}` : null
 
   return (
     <div className="space-y-6">
@@ -50,31 +47,8 @@ export default async function OnboardingDonePage() {
             Ya podés compartir tu catálogo y empezar a recibir pedidos por WhatsApp.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {catalogUrl && (
-            <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                Link de tu catálogo
-              </p>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-mono truncate">{catalogUrl}</span>
-                <Button
-                  render={<a href={catalogUrl} target="_blank" rel="noopener noreferrer" />}
-                  variant="ghost"
-                  size="sm"
-                  className="shrink-0"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <form action={completeOnboarding}>
-            <Button type="submit" className="w-full">
-              Ir a mi panel de administración
-            </Button>
-          </form>
+        <CardContent>
+          <DoneClient catalogUrl={catalogUrl} />
         </CardContent>
       </Card>
     </div>

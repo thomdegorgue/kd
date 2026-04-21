@@ -11,6 +11,15 @@ Ante conflicto entre documentos, la prioridad es:
 3. `ESTADO.md` (estado actual)
 4. Todo lo demás
 
+## Estado del Proyecto (2026-04-21)
+
+F0–F10 completadas. Plataforma auditada y lista para MVP. Ver `system/auditoria.md` para el resultado completo de la auditoría.
+
+**Blockers pendientes (solo configuración manual):**
+- `CRON_SECRET` → configurar en Vercel (ver PASOS-MANUALES.md §14)
+- `MP_WEBHOOK_SECRET` → verificar en Vercel (ver PASOS-MANUALES.md §15)
+- Superadmin → crear en Supabase (ver PASOS-MANUALES.md §13)
+
 ## Protocolo de Inicio de Sesión
 
 1. Leer `ESTADO.md` → identificar fase actual, paso actual, blockers

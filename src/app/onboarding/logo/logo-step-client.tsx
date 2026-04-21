@@ -23,7 +23,7 @@ export function LogoStepClient({ storeId }: { storeId: string }) {
         <CardHeader>
           <CardTitle>Subí tu logo</CardTitle>
           <CardDescription>
-            Una imagen cuadrada funciona mejor. Podés subirlo después desde Configuración.
+            Recomendamos 200×200 px con fondo blanco o transparente. Podés cambiarlo después desde Configuración.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -89,6 +89,7 @@ const productSchema = z.object({
   name: z.string().min(1, 'Nombre requerido').max(200),
   price: z.coerce.number().min(0, 'Precio inválido'),
   description: z.string().max(1000).optional(),
+  image_url: z.string().url().optional().or(z.literal('')),
 })
 
 export async function onboardingStep3(
@@ -99,6 +100,7 @@ export async function onboardingStep3(
     name: formData.get('name'),
     price: formData.get('price'),
     description: formData.get('description') || undefined,
+    image_url: formData.get('image_url') || undefined,
   }
   const parsed = productSchema.safeParse(raw)
   if (!parsed.success) {
@@ -114,6 +116,7 @@ export async function onboardingStep3(
     name: parsed.data.name,
     price: parsed.data.price,
     description: parsed.data.description ?? null,
+    image_url: parsed.data.image_url || null,
     is_active: true,
     stock: null,
   })

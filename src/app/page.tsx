@@ -3,8 +3,7 @@ import Link from 'next/link'
 import { LandingNav } from '@/components/landing/nav'
 import { PricingCalculator } from '@/components/landing/pricing-calculator'
 
-// Slots disponibles para el lanzamiento (drop limitado)
-const SLOTS_AVAILABLE = 10
+const SLOTS_AVAILABLE = Number(process.env.NEXT_PUBLIC_SLOTS_AVAILABLE ?? '10')
 
 export default function HomePage() {
   return (
