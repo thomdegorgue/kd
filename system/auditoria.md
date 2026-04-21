@@ -191,7 +191,7 @@ Resultado: todos los módulos tienen arquitectura completa. Gaps menores documen
 | orders | ✅ `orders.ts` | ✅ `orders.ts` | ✅ `use-orders.ts` | ✅ `/admin/orders` | OK |
 | stock | ✅ `stock.ts` | ✅ `stock.ts` | ✅ `use-stock.ts` | ✅ `/admin/stock` | OK |
 | payments | ✅ `billing.ts` | ✅ `billing.ts` | ✅ `use-billing.ts` | ✅ `/admin/billing` | OK |
-| banners | ✅ via `catalog.ts` | ✅ `banners.ts` | ✅ `use-banners.ts` | ✅ `/admin/banners` | ⚠️ Sin handler dedicado |
+| banners | ✅ `banners.ts` (F11) | ✅ `banners.ts` | ✅ `use-banners.ts` | ✅ `/admin/banners` | ✅ Handler completo con CRUD + drag-and-drop |
 | social | ✅ `catalog.ts` | ✅ `store.ts` | ✅ `use-store-config.ts` | ✅ Settings > Social | OK |
 | product_page | ✅ `products.ts` | ✅ `products.ts` | ✅ `use-products.ts` | ✅ `/[slug]/[id]` | OK |
 | shipping | ✅ `shipping.ts` | ✅ `shipping.ts` | ✅ `use-shipping.ts` | ✅ `/admin/shipping` | OK |
@@ -210,8 +210,21 @@ Resultado: todos los módulos tienen arquitectura completa. Gaps menores documen
 | ID | Descripción | Impacto | Prioridad |
 |----|-------------|---------|-----------|
 | DT1 | `savings` handler nombrado como `savings` pero módulo llamado `savings_account` en system/modules.md | Bajo — funciona, solo inconsistencia de nombres | Baja |
-| DT2 | `banners` gestionados via handler `catalog` sin handler dedicado — acciones directas a DB | Bajo — funciona; refactorizar si se necesita auditoría de banners separada | Media |
+| ~~DT2~~ | ~~`banners` gestionados via handler `catalog` sin handler dedicado~~ | ✅ RESUELTO en F11 — handler completo con CRUD, drag-and-drop | N/A |
 | DT3 | Warning `middleware` deprecated en build (Next.js 16 sugiere `proxy.ts`) | Cosmético — no afecta funcionalidad | Baja |
+
+### Banners CRUD Implementado (F11 — 2026-04-21)
+
+| # | Implementación | Estado |
+|---|---|---|
+| B1 | `src/lib/validations/banner.ts` con schemas Zod para create/update/reorder | ✅ DONE |
+| B2 | `src/lib/executor/handlers/banners.ts` con 5 handlers (list, create, update, delete, reorder) | ✅ DONE |
+| B3 | `src/lib/executor/registry.ts` → agregar import de banners handler | ✅ DONE |
+| B4 | `src/lib/actions/banners.ts` → thin wrappers executeAction | ✅ DONE |
+| B5 | `src/lib/hooks/use-banners.ts` → 5 TanStack hooks (query + 4 mutations) | ✅ DONE |
+| B6 | `src/app/(admin)/admin/banners/page.tsx` → UI drag-and-drop con ImageUploader | ✅ DONE |
+
+---
 
 ### Mejoras de Onboarding Implementadas (2026-04-21)
 

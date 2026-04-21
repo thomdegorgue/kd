@@ -350,7 +350,7 @@ F10 completa. Plataforma auditada y lista para MVP. No hay bloqueantes de códig
 
 ---
 
-## F11 — Onboarding Pulido + Auth + Módulos Auditados
+## F11 — Onboarding Pulido + Auth + Módulos + Banners CRUD
 
 ### 2026-04-21
 
@@ -382,6 +382,15 @@ F10 completa. Plataforma auditada y lista para MVP. No hay bloqueantes de códig
 - [x] `system/auditoria.md` actualizado con tabla de estado de todos los 20 módulos
 - [x] Deuda técnica documentada (savings naming, banners sin handler, middleware warning)
 - [x] Mejoras de F11 documentadas en auditoria.md
+
+#### BLOQUE 5 — Banners CRUD Completo
+- [x] `src/lib/validations/banner.ts` — schemas Zod (create, update, reorder)
+- [x] `src/lib/executor/handlers/banners.ts` — 5 handlers (list, create, update, delete, reorder)
+- [x] `src/lib/executor/registry.ts` — agregar import
+- [x] `src/lib/actions/banners.ts` — 5 server actions
+- [x] `src/lib/hooks/use-banners.ts` — 5 TanStack hooks
+- [x] `src/app/(admin)/admin/banners/page.tsx` — UI drag-and-drop con ImageUploader
+- [x] DT2 (banners sin handler) — ✅ RESUELTO
 
 ### Blockers Actuales
 
