@@ -23,12 +23,34 @@ export async function createStore(input: CreateStoreInput): Promise<ActionResult
   // Obtener el plan base
   const { data: plan, error: planError } = await db
     .from('plans')
-    .select('id, base_modules')
+    .select('id, base_modules, max_stores_total')
     .eq('name', 'base')
     .single()
 
   if (planError || !plan) {
     return { success: false, error: { code: 'SYSTEM_ERROR', message: 'Plan base no encontrado' } }
+  }
+
+  // Validar cap global de tiendas (si está configurado)
+  if (plan.max_stores_total !== null && plan.max_stores_total !== undefined) {
+    const { count, error: countError } = await db
+      .from('stores')
+      .select('*', { count: 'exact', head: true })
+      .neq('status', 'archived')
+
+    if (countError) {
+      return { success: false, error: { code: 'SYSTEM_ERROR', message: 'Error al verificar cap de tiendas' } }
+    }
+
+    if ((count ?? 0) >= plan.max_stores_total) {
+      return {
+        success: false,
+        error: {
+          code: 'STORE_CAP_REACHED',
+          message: 'No hay cupos disponibles. Volvé más tarde o sumate a la lista de espera.',
+        },
+      }
+    }
   }
 
   // Construir el mapa de módulos activos desde base_modules del plan

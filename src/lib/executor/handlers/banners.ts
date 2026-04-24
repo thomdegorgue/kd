@@ -30,7 +30,7 @@ registerHandler({
 
 registerHandler({
   name: 'create_banner',
-  requires: [],
+  requires: ['banners'],
   permissions: ['owner', 'admin'],
   event_type: 'banner_created',
   invalidates: ['banners:{store_id}'],
@@ -74,7 +74,7 @@ registerHandler({
 
 registerHandler({
   name: 'update_banner',
-  requires: [],
+  requires: ['banners'],
   permissions: ['owner', 'admin'],
   event_type: 'banner_updated',
   invalidates: ['banners:{store_id}'],
@@ -107,7 +107,7 @@ registerHandler({
 
 registerHandler({
   name: 'delete_banner',
-  requires: [],
+  requires: ['banners'],
   permissions: ['owner', 'admin'],
   event_type: 'banner_deleted',
   invalidates: ['banners:{store_id}'],
@@ -134,7 +134,7 @@ registerHandler({
 
 registerHandler({
   name: 'reorder_banners',
-  requires: [],
+  requires: ['banners'],
   permissions: ['owner', 'admin'],
   event_type: null,
   invalidates: ['banners:{store_id}'],

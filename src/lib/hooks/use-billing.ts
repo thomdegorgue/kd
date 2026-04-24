@@ -8,9 +8,11 @@ import {
   createSubscription,
   cancelSubscription,
   changeTier,
+  createAnnualSubscription,
   type CreateSubscriptionResult,
   type CancelSubscriptionResult,
   type ChangeTierResult,
+  type CreateAnnualSubscriptionResult,
 } from '@/lib/actions/billing'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import { queryKeys, staleTimes, gcTimes } from '@/lib/hooks/query-keys'
@@ -64,6 +66,28 @@ export function useCancelSubscription() {
     },
     onError: () => {
       toast.error('Error al cancelar la suscripción')
+    },
+  })
+}
+
+export function useCreateAnnualSubscription() {
+  const { store_id } = useAdminContext()
+  const queryClient = useQueryClient()
+  const router = useRouter()
+
+  return useMutation({
+    mutationFn: (tier: number) => createAnnualSubscription(tier),
+    onSuccess: (result: CreateAnnualSubscriptionResult) => {
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.billing(store_id) })
+      toast.success('Redirigiendo a Mercado Pago para completar el pago anual...')
+      router.push(result.init_point)
+    },
+    onError: () => {
+      toast.error('Error al crear el plan anual')
     },
   })
 }

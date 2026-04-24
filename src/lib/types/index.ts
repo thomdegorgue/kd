@@ -94,6 +94,7 @@ export type ErrorCode =
   | 'CONFLICT'
   | 'EXTERNAL_ERROR'
   | 'SYSTEM_ERROR'
+  | 'STORE_CAP_REACHED'
 
 // ============================================================
 // STORE CONTEXT — propagado por middleware a Server Components

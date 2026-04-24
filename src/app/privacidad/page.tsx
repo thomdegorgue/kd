@@ -210,7 +210,7 @@ export default function PrivacidadPage() {
           </p>
           <ul>
             <li><strong>AEPD (España, si aplica):</strong> www.aepd.es</li>
-            <li><strong>AFIP (Argentina):</strong> Para cuestiones de protección de datos personales, según Ley 25.326</li>
+            <li><strong>AAIP (Argentina):</strong> <a href="https://www.argentina.gob.ar/aaip" className="underline hover:no-underline" target="_blank" rel="noopener noreferrer">Agencia de Acceso a la Información Pública</a>, organismo de control de la Ley 25.326 de Protección de Datos Personales</li>
           </ul>
 
         </div>

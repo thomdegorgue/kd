@@ -11,11 +11,16 @@ Ante conflicto entre documentos, la prioridad es:
 3. `ESTADO.md` (estado actual)
 4. Todo lo demás
 
-## Estado del Proyecto (2026-04-21)
+## Estado del Proyecto (2026-04-22)
 
-F0–F10 completadas. Plataforma auditada y lista para MVP. Ver `system/auditoria.md` para el resultado completo de la auditoría.
+F0–F12 completadas. Plataforma auditada, auth, onboarding, billing mensual, superadmin, email, SEO, páginas legales y módulos CRUD implementados. Ver `system/auditoria.md` y `auditoria.md` para los hallazgos.
 
-**Blockers pendientes (solo configuración manual):**
+**Fase en curso: F13 — Go-to-Market.** Ver `ESTADO.md` §F13 para la lista completa de pasos.
+
+**Blockers F13 (deben resolverse antes de deploy):**
+- SQL migration 13.0 → ejecutar en Supabase (ver PASOS-MANUALES.md §16) — **OBLIGATORIO PRIMERO**
+- `public/og-image.jpg` → crear manualmente 1200×630px
+- WhatsApp real → confirmar número para `src/app/terminos/page.tsx`
 - `CRON_SECRET` → configurar en Vercel (ver PASOS-MANUALES.md §14)
 - `MP_WEBHOOK_SECRET` → verificar en Vercel (ver PASOS-MANUALES.md §15)
 - Superadmin → crear en Supabase (ver PASOS-MANUALES.md §13)
@@ -54,6 +59,9 @@ En el paso **0.4** (`PLAN.md`), ejecutar `schema.sql` completo en el SQL Editor 
 - Un módulo solo escribe en sus propias tablas.
 - Los eventos son inmutables.
 - Mobile-first siempre.
+- **Billing dual**: `stores.billing_period = 'monthly' | 'annual'`. El plan anual incluye todos los módulos pro EXCEPTO `assistant`. `assistant` es siempre add-on mensual independientemente del billing_period. Ver `system/billing.md` §"Modelo de Billing (Dual)".
+- **Grupos de módulos**: toda UI que liste módulos debe usar los grupos definidos en `system/modules.md` §"Grupos de Módulos".
+- **Cap de tiendas**: `plans.max_stores_total` controla el límite global. `create_store` debe validarlo. `NULL` = sin límite.
 
 ## Estrategia de Testing
 

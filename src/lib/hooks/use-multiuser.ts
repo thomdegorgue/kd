@@ -11,19 +11,20 @@ import {
   removeStoreUser,
 } from '@/lib/actions/multiuser'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
+import { queryKeys, staleTimes, gcTimes } from '@/lib/hooks/query-keys'
 
 export function useStoreUsers() {
   const { store_id } = useAdminContext()
 
   return useQuery({
-    queryKey: ['store-users', store_id],
+    queryKey: queryKeys.storeUsers(store_id),
     queryFn: async () => {
       const result = await listStoreUsers()
       if (!result.success) throw new Error(result.error.message)
       return result.data
     },
-    staleTime: 2 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: staleTimes.storeUsers,
+    gcTime: gcTimes.storeUsers,
   })
 }
 
@@ -31,14 +32,14 @@ export function useInvitations() {
   const { store_id } = useAdminContext()
 
   return useQuery({
-    queryKey: ['invitations', store_id],
+    queryKey: queryKeys.invitations(store_id),
     queryFn: async () => {
       const result = await listInvitations()
       if (!result.success) throw new Error(result.error.message)
       return result.data
     },
-    staleTime: 60 * 1000,
-    gcTime: 5 * 60 * 1000,
+    staleTime: staleTimes.invitations,
+    gcTime: gcTimes.invitations,
   })
 }
 
@@ -53,7 +54,7 @@ export function useInviteStoreUser() {
       return result.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invitations', store_id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.invitations(store_id) })
       toast.success('Invitación enviada')
     },
     onError: (error) => toast.error(error.message),
@@ -71,7 +72,7 @@ export function useCancelInvitation() {
       return result.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invitations', store_id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.invitations(store_id) })
       toast.success('Invitación cancelada')
     },
     onError: (error) => toast.error(error.message),
@@ -89,7 +90,7 @@ export function useUpdateStoreUserRole() {
       return result.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['store-users', store_id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeUsers(store_id) })
       toast.success('Rol actualizado')
     },
     onError: (error) => toast.error(error.message),
@@ -107,7 +108,7 @@ export function useRemoveStoreUser() {
       return result.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['store-users', store_id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeUsers(store_id) })
       toast.success('Usuario removido')
     },
     onError: (error) => toast.error(error.message),

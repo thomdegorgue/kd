@@ -335,3 +335,216 @@ Ver `system/superadmin.md` para la especificación completa.
 **Objetivo:** Asistente integrado en el panel del dueño.
 
 **Criterio:** chat funciona. Propone acciones. Acciones pasan por executor. Límite de tokens se respeta.
+
+---
+
+## F9 — Auth + Onboarding
+
+**Objetivo:** Flujo de registro, login, recuperación de contraseña y wizard de onboarding completo.
+
+**Criterio:** signup → onboarding → admin funciona end-to-end. Invitaciones de multiuser aceptables.
+
+---
+
+## F10 — Pulido + Auditoría
+
+**Objetivo:** Auditoría de coherencia codebase vs documentación. Fix de inconsistencias menores.
+
+**Criterio:** `pnpm build` + `tsc --noEmit` sin errores. Auditoría documentada en `auditoria.md`.
+
+---
+
+## F11 — Onboarding Pulido + Auth
+
+**Objetivo:** Mejorar UX del onboarding, flujo forgot-password, normalización de query keys.
+
+**Criterio:** onboarding wizard mejorado. Query keys normalizados. Auditoría de módulos documentada.
+
+---
+
+## F12 — Correcciones Previas al Lanzamiento
+
+**Objetivo:** Correcciones de bugs identificados en auditoría (multiuser, email, billing cron).
+
+**Criterio:** bugs críticos de auditoría corregidos. Build limpio.
+
+---
+
+## F13 — Go-to-Market
+
+**Objetivo:** Preparar KitDigital para producción y lanzamiento comercial: billing dual (mensual + anual), cap de tiendas configurable, grupos de módulos en landing, y corrección de todos los bugs de auditoría pendientes.
+
+Ver `system/billing.md` para la especificación completa del modelo dual.
+Ver `system/modules.md` para la tabla de grupos de módulos.
+
+### 13.0 SQL Migration (Paso Manual — PASOS-MANUALES.md §16)
+
+Ejecutar en Supabase SQL Editor antes de cualquier deploy de F13:
+
+```sql
+ALTER TABLE stores ADD COLUMN billing_period TEXT NOT NULL DEFAULT 'monthly'
+  CHECK (billing_period IN ('monthly', 'annual'));
+ALTER TABLE stores ADD COLUMN annual_paid_until DATE;
+ALTER TABLE plans ADD COLUMN annual_discount_months INTEGER NOT NULL DEFAULT 2;
+ALTER TABLE plans ADD COLUMN max_stores_total INTEGER;
+ALTER TABLE billing_payments ALTER COLUMN mp_subscription_id DROP NOT NULL;
+```
+
+**Criterio:** las 5 columnas existen en Supabase Table Editor sin errores.
+
+### 13.1 `src/lib/billing/calculator.ts` — Precio Anual
+
+Agregar función `calculateAnnualPrice(maxProducts: number, plan: Plan): number`:
+- Fórmula: `Math.ceil(maxProducts / 100) * plan.price_per_100_products * (12 - plan.annual_discount_months)`
+- El plan anual NO suma módulos pro (están todos incluidos en el precio base anual).
+
+**Criterio:** función exportada, tipada, sin `any`. Tests unitarios opcionales pero recomendados.
+
+### 13.2 `src/lib/billing/mercadopago.ts` — Checkout Preference Anual
+
+Agregar función `createCheckoutPreference({ store_id, amount, back_url })`:
+- `POST /checkout/preferences` en API de MP.
+- `external_reference = store_id` (para identificar el pago en el webhook).
+- `back_url.success`, `back_url.failure`, `back_url.pending` → `/admin/billing?status=...`
+- Devuelve `{ id, init_point, sandbox_init_point }`.
+
+**Criterio:** función exportada, tipada. Flujo en staging genera URL de MP válida.
+
+### 13.3 `src/app/api/webhooks/mercadopago/route.ts` — Billing Dual
+
+Actualizar handler para distinguir pago anual vs mensual:
+- Si `data.preapproval_id` está ausente y `topic === 'payment'` → rama anual: actualizar `billing_period`, `annual_paid_until`, activar módulos pro (excepto `assistant`), emitir evento `annual_subscription_created`.
+- Si `data.preapproval_id` presente y `topic === 'payment'` → rama mensual existente (sin cambios).
+- Corregir inconsistencias de nombres de eventos identificadas en auditoría (usar snake_case canónico de `system/modules.md`).
+
+**Criterio:** webhook procesa ambos tipos. Idempotencia respetada. Evento correcto registrado.
+
+### 13.4 `src/app/api/cron/check-billing/route.ts` — Soporte Anual + Bug Fix
+
+- **Bug fix:** query de `owner_id` debe resolverse via `store_users` con `role = 'owner'`, no del campo directo en `stores` (que no existe). Ver auditoria.md §cron.
+- Agregar rama anual: tiendas con `billing_period = 'annual'` y `annual_paid_until < NOW()` → `billing_status = 'past_due'`.
+- Agregar aviso a 14 días: tiendas con `annual_paid_until BETWEEN NOW() AND NOW() + INTERVAL '14 days'` → enviar email de aviso.
+
+**Criterio:** cron procesa ambos tipos de billing sin errores. Email de aviso se envía correctamente.
+
+### 13.5 `src/lib/billing/verify-signature.ts` — timingSafeEqual
+
+Reemplazar comparación de firma con `crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b))` para evitar timing attacks.
+
+**Criterio:** comparación usa `timingSafeEqual`. Sin cambios en la lógica de derivación HMAC.
+
+### 13.6 `src/lib/email/resend.ts` — Logging de Errores
+
+En el catch del `resend.emails.send()`: en lugar de solo `console.error`, insertar registro en tabla `events` con `action: 'email_send_failed'`, `actor_type: 'system'`, `data: { template, recipient, error: err.message }`.
+
+**Criterio:** errores de email se registran en `events`. Silent failures eliminados.
+
+### 13.7 `src/lib/executor/handlers/stores.ts` — Cap de Tiendas
+
+Al inicio de `createStore()`, antes de insertar:
+1. Leer `plans.max_stores_total` (single row).
+2. Si no es `null`, contar tiendas activas (`status != 'archived'`).
+3. Si `count >= max_stores_total` → retornar error `STORE_CAP_REACHED`.
+
+**Criterio:** no se pueden crear tiendas por encima del cap. Error descriptivo.
+
+### 13.8 Superadmin UI — Campo `max_stores_total`
+
+En `/superadmin/settings` (panel de precios, ya existe), agregar campo de formulario para `plans.max_stores_total`:
+- Input numérico, opcional (vacío = sin límite / NULL).
+- Label: "Cap máximo de tiendas (dejar vacío = sin límite)".
+- Guardar via server action existente de superadmin settings.
+
+**Criterio:** superadmin puede leer y actualizar el cap desde la UI.
+
+### 13.9 Admin Billing UI — Opción Plan Anual
+
+En `/admin/billing`, agregar toggle/tab "Mensual / Anual":
+- Anual muestra precio calculado (`calculateAnnualPrice`), módulos incluidos (todos excepto `assistant`), ahorro vs mensual.
+- Botón "Contratar Plan Anual" → llama a server action que crea Checkout Preference → redirige a `init_point` de MP.
+- Mensual mantiene flujo existente.
+- Si `billing_period = 'annual'`, mostrar fecha de vencimiento y botón de renovación.
+
+**Criterio:** UI renderiza correctamente. Precio anual correcto. Redirect a MP funciona en staging.
+
+### 13.10 Landing Page `src/app/page.tsx` — Grupos de Módulos + Cap Real
+
+- Mostrar módulos agrupados según tabla de `system/modules.md` (Catálogo y Ventas, Operaciones, Equipo, Comercial, Finanzas, Dominio, IA).
+- Reemplazar `NEXT_PUBLIC_SLOTS_AVAILABLE` hardcodeado por fetch a `/api/stores/capacity` en Server Component (con `revalidate = 60`).
+- Crear `src/app/api/stores/capacity/route.ts` que devuelve `{ available: number | null }`.
+- El WhatsApp CTA debe usar el número real configurado en env var `NEXT_PUBLIC_WHATSAPP_NUMBER`.
+
+**Criterio:** landing muestra grupos, cupos en tiempo real, y número WhatsApp real.
+
+### 13.11 `src/app/global-error.tsx` — Ocultar Error en Producción
+
+```tsx
+// Antes (incorrecto):
+<p>{error.message}</p>
+
+// Después (correcto):
+<p>{process.env.NODE_ENV === 'development' ? error.message : 'Ocurrió un error inesperado.'}</p>
+```
+
+**Criterio:** en `NODE_ENV=production` no se expone el mensaje técnico del error.
+
+### 13.12 `src/app/sitemap.ts` — Tiendas Activas
+
+Completar el TODO existente: consultar `stores` donde `billing_status = 'active'` y `status = 'active'`, devolver una URL por tienda `https://{slug}.kitdigital.ar`.
+
+**Criterio:** sitemap incluye todas las tiendas activas. No incluye tiendas archivadas ni en trial.
+
+### 13.13 `src/lib/executor/handlers/banners.ts` — Requires Fix
+
+Agregar `requires: ['banners']` en todas las actions del handler `banners` (create_banner, update_banner, delete_banner, reorder_banners) para que el executor valide que el módulo está activo antes de ejecutar.
+
+**Criterio:** operaciones de banners devuelven `MODULE_INACTIVE` si el módulo `banners` no está activo.
+
+### 13.14 `src/lib/executor/handlers/multiuser.ts` — Query Keys
+
+Reemplazar query keys inline (`['invitations', store_id]`, etc.) con la factory de `src/lib/hooks/query-keys.ts` para consistencia con el resto del codebase.
+
+**Criterio:** todos los query keys de multiuser usan la factory. Sin strings inline duplicados.
+
+### 13.15 `src/app/privacidad/page.tsx` — AFIP → AAIP
+
+Reemplazar todas las referencias a "AFIP" en la página de privacidad por "AAIP" (Agencia de Acceso a la Información Pública — el organismo correcto de protección de datos en Argentina).
+
+**Criterio:** "AFIP" no aparece en la página de privacidad.
+
+### 13.16 `src/app/terminos/page.tsx` — WhatsApp Real
+
+Reemplazar el número placeholder de WhatsApp por el número real del soporte de KitDigital (usar env var `NEXT_PUBLIC_WHATSAPP_NUMBER` o valor fijo confirmado por el humano).
+
+**Criterio:** el número de WhatsApp en términos es el real de soporte.
+
+### 13.17 `public/og-image.jpg` — Open Graph (Paso Manual)
+
+Crear y subir imagen Open Graph de 1200×630px con branding de KitDigital. Requerida por el meta tag en `src/app/layout.tsx`. Sin esta imagen, las previews en redes sociales no funcionan.
+
+Ver PASOS-MANUALES.md §16.
+
+**Criterio:** `public/og-image.jpg` existe. Verificar preview en [opengraph.xyz](https://www.opengraph.xyz).
+
+### 13.18 Build Final + Deploy
+
+```bash
+pnpm build
+pnpm exec tsc --noEmit
+```
+
+Sin errores. Deploy a Vercel. Verificar en staging con cuenta de prueba:
+- [ ] Crear cuenta → onboarding → admin accesible
+- [ ] Activar plan mensual → webhook procesa → módulos activos
+- [ ] Activar plan anual → webhook procesa → módulos pro activos (excepto assistant)
+- [ ] Cap de tiendas funciona (configurar max=1 en superadmin, intentar crear segunda tienda)
+- [ ] Cron de check-billing funciona (forzar manualmente con cURL)
+- [ ] Email de aviso de vencimiento llega
+- [ ] Landing muestra grupos de módulos y cupos correctos
+- [ ] Sitemap incluye tiendas activas
+
+**Criterio:** todos los checks pasan. Plataforma en producción.
+
+---
+
+**Criterio global F13:** build limpio, billing anual procesable end-to-end, cap de tiendas respetado, bugs de auditoría corregidos, plataforma desplegada y verificada en producción.

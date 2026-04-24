@@ -55,6 +55,8 @@ CREATE TABLE plans (
   -- Configuración de trial
   trial_days INTEGER NOT NULL DEFAULT 14,
   trial_max_products INTEGER NOT NULL DEFAULT 100,
+  annual_discount_months INTEGER NOT NULL DEFAULT 2,
+  max_stores_total INTEGER,
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -89,6 +91,8 @@ CREATE TABLE stores (
   billing_cycle_anchor INTEGER,
   current_period_start TIMESTAMPTZ,
   current_period_end TIMESTAMPTZ,
+  billing_period TEXT NOT NULL DEFAULT 'monthly' CHECK (billing_period IN ('monthly', 'annual')),
+  annual_paid_until DATE,
   mp_subscription_id TEXT UNIQUE,
   mp_customer_id TEXT,
   ai_tokens_used INTEGER NOT NULL DEFAULT 0,
@@ -173,7 +177,7 @@ CREATE TABLE billing_payments (
   store_id UUID NOT NULL REFERENCES stores(id),
   plan_id UUID NOT NULL REFERENCES plans(id),
   mp_payment_id TEXT NOT NULL UNIQUE,
-  mp_subscription_id TEXT NOT NULL,
+  mp_subscription_id TEXT,
   amount INTEGER NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('approved', 'rejected', 'pending', 'refunded')),
   period_start TIMESTAMPTZ NOT NULL,

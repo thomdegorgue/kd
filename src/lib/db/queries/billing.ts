@@ -21,6 +21,8 @@ export type BillingInfo = {
   plan_id: string | null
   limits: Record<string, number>
   modules: Record<string, boolean>
+  billing_period: 'monthly' | 'annual'
+  annual_paid_until: string | null
 }
 
 // ============================================================
@@ -50,7 +52,7 @@ export async function getBillingInfo(storeId: string): Promise<BillingInfo> {
   const { data, error } = await db
     .from('stores')
     .select(
-      'id, billing_status, mp_subscription_id, mp_customer_id, trial_ends_at, current_period_start, current_period_end, last_billing_failure_at, cancelled_at, plan_id, limits, modules',
+      'id, billing_status, mp_subscription_id, mp_customer_id, trial_ends_at, current_period_start, current_period_end, last_billing_failure_at, cancelled_at, plan_id, limits, modules, billing_period, annual_paid_until',
     )
     .eq('id', storeId)
     .single()

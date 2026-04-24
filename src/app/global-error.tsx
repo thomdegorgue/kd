@@ -24,7 +24,7 @@ export default function GlobalError({
               <p className="text-[#6e6e73] mb-4">
                 Disculpanos, encontramos un error inesperado. Estamos trabajando para solucionarlo.
               </p>
-              {error.message && (
+              {process.env.NODE_ENV === 'development' && error.message && (
                 <p className="text-xs text-[#999] font-mono bg-[#f5f5f5] p-3 rounded mb-4 break-words">
                   {error.message}
                 </p>

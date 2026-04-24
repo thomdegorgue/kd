@@ -1,5 +1,27 @@
 ﻿# Módulos del Sistema
 
+---
+
+## Grupos de Módulos
+
+Los módulos se agrupan lógicamente para la landing page, el panel de billing y el onboarding. Esta agrupación es canónica — todo componente que liste módulos debe respetarla.
+
+| Grupo | Tier | Módulos |
+|-------|------|---------|
+| Catálogo y Ventas | base | `catalog`, `products`, `categories`, `cart`, `orders`, `product_page`, `banners`, `social` |
+| Operaciones | base | `stock`, `shipping`, `payments` |
+| Equipo | pro | `multiuser`, `tasks` |
+| Comercial | pro | `variants`, `wholesale` |
+| Finanzas | pro | `finance`, `expenses`, `savings_account` |
+| Dominio | pro | `custom_domain` |
+| IA | pro* | `assistant` |
+
+> **\*IA — Plan Anual:** el módulo `assistant` es el único módulo pro **excluido** del plan anual. Siempre es add-on mensual, independientemente del billing_period.
+
+**Totales:** 11 módulos base · 9 módulos pro (8 incluidos en anual + 1 solo mensual)
+
+---
+
 Este archivo debe contener la especificación completa de los 20 módulos. Por cada módulo incluir:
 
 - **ID canónico**

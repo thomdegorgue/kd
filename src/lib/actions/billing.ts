@@ -2,8 +2,14 @@
 
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
 import { getStoreContext } from '@/lib/auth/store-context'
-import { createPreapproval, cancelPreapproval } from '@/lib/billing/mercadopago'
-import { computeMonthlyTotal, centavosToARS, isProModule } from '@/lib/billing/calculator'
+import { createPreapproval, cancelPreapproval, createCheckoutPreference } from '@/lib/billing/mercadopago'
+import {
+  computeMonthlyTotal,
+  calculateAnnualPrice,
+  centavosToARS,
+  isProModule,
+  type AnnualPlanPricing,
+} from '@/lib/billing/calculator'
 import { getPlan, getBillingInfo, getStoreOwnerEmail } from '@/lib/db/queries/billing'
 import {
   createSubscriptionSchema,
@@ -189,6 +195,81 @@ export async function cancelSubscription(
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error al cancelar suscripción'
     console.error('[billing] cancelSubscription error:', err)
+    return { success: false, error: message }
+  }
+}
+
+// ============================================================
+// CREATE ANNUAL SUBSCRIPTION (Checkout Preference — pago único)
+// ============================================================
+
+export type CreateAnnualSubscriptionResult =
+  | { success: true; init_point: string }
+  | { success: false; error: string }
+
+export async function createAnnualSubscription(
+  tier: number,
+): Promise<CreateAnnualSubscriptionResult> {
+  try {
+    const ctx = await getStoreContext()
+
+    if (!Number.isInteger(tier) || tier < 100) {
+      return { success: false, error: 'Tier inválido (mínimo 100)' }
+    }
+
+    const [plan, ownerEmail] = await Promise.all([
+      getPlan(),
+      getStoreOwnerEmail(ctx.store_id),
+    ])
+
+    const annualCentavos = calculateAnnualPrice(plan as unknown as AnnualPlanPricing, tier)
+    const annualARS = centavosToARS(annualCentavos)
+
+    if (annualARS <= 0) {
+      return { success: false, error: 'Precio anual inválido' }
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'
+
+    // Guardar tier deseado para que el webhook lo aplique al confirmar
+    const { data: storeData } = await db
+      .from('stores')
+      .select('limits, config')
+      .eq('id', ctx.store_id)
+      .single()
+
+    const currentLimits = (storeData?.limits as Record<string, number>) ?? {}
+    const currentConfig = (storeData?.config as Record<string, unknown>) ?? {}
+
+    await db
+      .from('stores')
+      .update({
+        limits: { ...currentLimits, max_products: tier },
+        config: { ...currentConfig, pending_annual_tier: tier },
+      })
+      .eq('id', ctx.store_id)
+
+    const { init_point } = await createCheckoutPreference({
+      store_id: ctx.store_id,
+      title: `KitDigital Anual — ${tier} productos`,
+      amount: annualARS,
+      payer_email: ownerEmail,
+      back_url: {
+        success: `${appUrl}/admin/billing?status=success`,
+        failure: `${appUrl}/admin/billing?status=failure`,
+        pending: `${appUrl}/admin/billing?status=pending`,
+      },
+    })
+
+    await emitBillingEvent(ctx.store_id, 'annual_subscription_initiated', {
+      tier,
+      total_ars: annualARS,
+    })
+
+    return { success: true, init_point }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error al crear plan anual'
+    console.error('[billing] createAnnualSubscription error:', err)
     return { success: false, error: message }
   }
 }

@@ -4,6 +4,21 @@ export const metadata = {
   title: 'Términos y Condiciones',
 }
 
+const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? ''
+
+function formatWhatsApp(num: string): string {
+  if (!num) return ''
+  // Formato internacional con guiones: 5491123456789 → +54 9 11 2345-6789
+  const clean = num.replace(/\D/g, '')
+  if (clean.length < 11) return `+${clean}`
+  const country = clean.slice(0, 2)
+  const mobile = clean.slice(2, 3)
+  const area = clean.slice(3, 5)
+  const first = clean.slice(5, 9)
+  const last = clean.slice(9)
+  return `+${country} ${mobile} ${area} ${first}-${last}`
+}
+
 export default function TerminosPage() {
   return (
     <div className="min-h-screen bg-white">
@@ -137,7 +152,9 @@ export default function TerminosPage() {
           </p>
           <ul>
             <li><strong>Email:</strong> soporte@kitdigital.ar</li>
-            <li><strong>WhatsApp:</strong> +54 9 11 XXXX-XXXX (ver catálogo para número actual)</li>
+            {WHATSAPP_NUMBER && (
+              <li><strong>WhatsApp:</strong> <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">{formatWhatsApp(WHATSAPP_NUMBER)}</a></li>
+            )}
           </ul>
 
         </div>

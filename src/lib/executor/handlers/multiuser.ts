@@ -112,7 +112,6 @@ registerHandler({
         role,
         token,
         expires_at: expiresAt,
-        accepted: false,
         invited_by: context.user_id,
       })
       .select()

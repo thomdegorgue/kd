@@ -1,7 +1,7 @@
 # Estado del Proyecto
 
-**Fase actual:** F11 — Onboarding Pulido + Auth + Módulos ✅ COMPLETA
-**Paso actual:** F11 completada. Onboarding mejorado, flujo forgot-password, query keys normalizados, auditoría de módulos documentada. Próximo paso: configurar CRON_SECRET + MP_WEBHOOK_SECRET en Vercel, crear superadmin, testing end-to-end en producción.
+**Fase actual:** F13 — Go-to-Market
+**Paso actual:** F0–F12 completadas. Iniciando F13: billing dual (mensual + anual), cap de tiendas, grupos de módulos, bugs de auditoría. Comenzar por paso 13.0 (SQL migration manual en Supabase) antes de cualquier código.
 
 ---
 
@@ -433,10 +433,59 @@ F10 completa. Plataforma auditada y lista para MVP. No hay bloqueantes de códig
 #### BLOQUE 7 — Configuración Vercel
 - [x] `vercel.json` — agregar redirect www → apex (301 permanent)
 
-### Blockers Actuales (solo configuración manual)
+### Blockers F12 (resueltos antes de iniciar F13)
 
-1. **OG Image** — Crear `public/og-image.jpg` (1200×630) manualmente con diseño del hero
-2. **CRON_SECRET** — Generar + configurar en Vercel (ver PASOS-MANUALES.md §14)
-3. **MP_WEBHOOK_SECRET** — Verificar que tiene valor real en Vercel (ver PASOS-MANUALES.md §15)
-4. **Superadmin** — Crear usuario en Supabase (ver PASOS-MANUALES.md §13)
-5. **Testing end-to-end** — Verificar flujo completo en producción
+1. **OG Image** — Crear `public/og-image.jpg` (1200×630) → resuelto en 13.17
+2. **CRON_SECRET** — Generar + configurar en Vercel → ver PASOS-MANUALES.md §14
+3. **MP_WEBHOOK_SECRET** — Verificar valor real en Vercel → ver PASOS-MANUALES.md §15
+4. **Superadmin** — Crear usuario en Supabase → ver PASOS-MANUALES.md §13
+
+---
+
+## F13 — Go-to-Market
+
+**Estado (2026-04-23):** código completo. Build limpio. Pendiente migración SQL (13.0), OG image (13.17), deploy (13.18).
+
+### Pasos
+
+- [ ] 13.0 SQL migration manual (ver PASOS-MANUALES.md §16) — **BLOCKER: ejecutar antes de deploy**
+- [x] 13.1 `calculator.ts` — `calculateAnnualPrice()` + `ANNUAL_INCLUDED_PRO_MODULES`
+- [x] 13.2 `mercadopago.ts` — `createCheckoutPreference()` para pago único anual + tipo `MpCheckoutPreference`
+- [x] 13.3 webhook MP — rama anual (`payment` sin `preapproval_id`): activa `billing_period='annual'`, `annual_paid_until=+365d`, módulos pro excepto `assistant`, emite `annual_subscription_created`
+- [x] 13.4 cron `check-billing` — helper `getStoreOwnerEmail()` (join `store_users role=owner`), rama anual past_due, aviso 14 días con idempotencia en `config.annual_warning_{paid_until}`
+- [x] 13.5 `verify-signature.ts` — `crypto.timingSafeEqual` con guard de longitud
+- [x] 13.6 `resend.ts` — helper `logEmailFailure` inserta evento `email_send_failed` en tabla `events`
+- [x] 13.7 `stores.ts` — guard `max_stores_total` antes de insert; retorna `STORE_CAP_REACHED` (agregado al ErrorCode type)
+- [x] 13.8 `/superadmin/plan` — `plan-pricing-form.tsx` extendido con `annual_discount_months` y `max_stores_total` (nullable). `updatePlanPricing` action extendida
+- [x] 13.9 `BillingPanel` — tabs Mensual/Anual con `calculateAnnualPrice`, módulos incluidos listados, CTA crea Checkout Preference; action `createAnnualSubscription` + hook `useCreateAnnualSubscription`; muestra `annual_paid_until` si activo
+- [x] 13.10 landing: `/api/stores/capacity` (GET, ISR 60s); `page.tsx` fetch cupos server-side; WhatsApp via `NEXT_PUBLIC_WHATSAPP_NUMBER`; `PricingCalculator` refactor a **grupos de módulos** (Catálogo y Ventas, Operaciones, Equipo, Comercial, Finanzas, Dominio, IA) según `system/modules.md`
+- [x] 13.11 `global-error.tsx` — `error.message` solo en `NODE_ENV === 'development'`
+- [x] 13.12 `sitemap.ts` — `generateSitemaps()` chunkea en 10k URLs; por chunk query tiendas `billing_status=active AND status=active`; respeta `custom_domain_verified`
+- [x] 13.13 `banners.ts` — `requires: ['banners']` en create/update/delete/reorder
+- [x] 13.14 `query-keys.ts` — agregados `storeUsers` e `invitations` al factory + staleTimes/gcTimes; `use-multiuser.ts` refactor a factory; insert de invitación limpiado (`accepted: false` removido, `accepted_at` es el campo real)
+- [x] 13.15 `privacidad/page.tsx` — AFIP → AAIP (Agencia de Acceso a la Información Pública) con link argentina.gob.ar/aaip
+- [x] 13.16 `terminos/page.tsx` — placeholder XXXX reemplazado por `NEXT_PUBLIC_WHATSAPP_NUMBER` con formateador; render condicional si no hay env var
+- [ ] 13.17 `public/og-image.jpg` — pendiente (paso manual humano, 1200×630)
+- [x] 13.18 `pnpm build` ✅ · `pnpm exec tsc --noEmit` ✅ · deploy pendiente
+
+### Blockers F13 restantes
+
+1. **SQL MIGRATION (13.0)** — ejecutar en Supabase (ver PASOS-MANUALES.md §16.1) — sin esto, el código del plan anual, cap y billing_period falla en runtime por columnas inexistentes
+2. **OG Image (13.17)** — crear manualmente
+3. **`NEXT_PUBLIC_WHATSAPP_NUMBER`** — setear en `.env.local` y Vercel
+4. **`CRON_SECRET`, `MP_WEBHOOK_SECRET`, superadmin** — si aún pendientes
+
+### Decisiones F13
+
+- `billing_period = 'monthly' | 'annual'` — columna nueva en `stores`
+- `annual_paid_until DATE` — columna nueva en `stores` (solo relevante si `billing_period = 'annual'`)
+- Plan anual = precio mensual × (12 − `annual_discount_months`). Default 2 meses gratis (paga 10, recibe 12).
+- Plan anual incluye todos los módulos pro EXCEPTO `assistant`. `assistant` es siempre add-on mensual.
+- `plans.max_stores_total` — cap global configurable desde superadmin. `NULL` = sin límite.
+- Webhook distingue pago anual vs mensual por ausencia/presencia de `preapproval_id` en el payload de MP. `external_reference = store_id` para resolver la tienda en rama anual.
+- Endpoint `/api/stores/capacity` público (ISR 60s) para que landing lea cupos en tiempo real.
+- `STORE_CAP_REACHED` agregado a `ErrorCode` type.
+- Cron anual idempotente: `config.annual_warning_{YYYY-MM-DD}` marca el envío del aviso de 14 días por ciclo.
+- `sitemap.ts` chunkea en 10k URLs por archivo; usa `custom_domain` si `custom_domain_verified = true`, sino `{slug}.{apexHost}`.
+- Módulos en landing agrupados por `system/modules.md §Grupos de Módulos` (7 grupos: Catálogo y Ventas, Operaciones, Equipo, Comercial, Finanzas, Dominio, IA).
+- Insert de invitación limpiado: ya no se envía `accepted: false` (no existe en schema; el campo es `accepted_at`).

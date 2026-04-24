@@ -7,7 +7,6 @@ import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import {
   PRO_MODULES,
-  BASE_MODULES,
   computePriceBreakdown,
   formatARS,
 } from '@/lib/billing/calculator'
@@ -20,31 +19,78 @@ const PLAN_PRICING = {
 
 const TIERS = [100, 200, 300, 500, 1000, 2000] as const
 
-const BASE_MODULE_LABELS: Record<string, string> = {
-  catalog: 'Catálogo público',
-  products: 'Gestión de productos',
-  categories: 'Categorías',
-  cart: 'Carrito WhatsApp',
-  orders: 'Gestión de pedidos',
-  stock: 'Control de stock',
-  payments: 'Registro de cobros',
-  banners: 'Banners promocionales',
-  social: 'Redes sociales',
-  product_page: 'Página de producto',
-  shipping: 'Envíos y tracking',
+type ModuleGroup = {
+  title: string
+  tier: 'base' | 'pro'
+  note?: string
+  modules: ReadonlyArray<{ id: ModuleName; label: string }>
 }
 
-const PRO_MODULE_LABELS: Record<string, string> = {
-  variants: 'Variantes de producto',
-  wholesale: 'Precios mayoristas',
-  finance: 'Finanzas',
-  expenses: 'Gastos',
-  savings_account: 'Caja de ahorro',
-  multiuser: 'Multi-usuario',
-  custom_domain: 'Dominio propio',
-  tasks: 'Tareas',
-  assistant: 'Asistente IA',
-}
+// Canónico: system/modules.md §Grupos de Módulos
+const BASE_GROUPS: readonly ModuleGroup[] = [
+  {
+    title: 'Catálogo y Ventas',
+    tier: 'base',
+    modules: [
+      { id: 'catalog', label: 'Catálogo público' },
+      { id: 'products', label: 'Gestión de productos' },
+      { id: 'categories', label: 'Categorías' },
+      { id: 'cart', label: 'Carrito WhatsApp' },
+      { id: 'orders', label: 'Gestión de pedidos' },
+      { id: 'product_page', label: 'Página de producto' },
+      { id: 'banners', label: 'Banners promocionales' },
+      { id: 'social', label: 'Redes sociales' },
+    ],
+  },
+  {
+    title: 'Operaciones',
+    tier: 'base',
+    modules: [
+      { id: 'stock', label: 'Control de stock' },
+      { id: 'shipping', label: 'Envíos y tracking' },
+      { id: 'payments', label: 'Registro de cobros' },
+    ],
+  },
+]
+
+const PRO_GROUPS: readonly ModuleGroup[] = [
+  {
+    title: 'Equipo',
+    tier: 'pro',
+    modules: [
+      { id: 'multiuser', label: 'Multi-usuario' },
+      { id: 'tasks', label: 'Tareas' },
+    ],
+  },
+  {
+    title: 'Comercial',
+    tier: 'pro',
+    modules: [
+      { id: 'variants', label: 'Variantes de producto' },
+      { id: 'wholesale', label: 'Precios mayoristas' },
+    ],
+  },
+  {
+    title: 'Finanzas',
+    tier: 'pro',
+    modules: [
+      { id: 'finance', label: 'Finanzas' },
+      { id: 'expenses', label: 'Gastos' },
+      { id: 'savings_account', label: 'Caja de ahorro' },
+    ],
+  },
+  {
+    title: 'Dominio',
+    tier: 'pro',
+    modules: [{ id: 'custom_domain', label: 'Dominio propio' }],
+  },
+  {
+    title: 'IA',
+    tier: 'pro',
+    note: 'Solo add-on mensual (no incluido en plan anual)',
+    modules: [{ id: 'assistant', label: 'Asistente IA' }],
+  },
+]
 
 export function PricingCalculator() {
   const [maxProducts, setMaxProducts] = useState<number>(100)
@@ -82,59 +128,76 @@ export function PricingCalculator() {
         </div>
       </div>
 
-      {/* Modules grid */}
+      {/* Modules grid — agrupado por system/modules.md §Grupos */}
       <div id="modulos" className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-14">
 
-        {/* Base modules */}
-        <div>
-          <p className="text-xs font-medium tracking-wider uppercase text-[#6e6e73] mb-6">
+        {/* Base groups */}
+        <div className="space-y-8">
+          <p className="text-xs font-medium tracking-wider uppercase text-[#6e6e73]">
             Incluido en todo plan
           </p>
-          <ul className="space-y-3.5">
-            {BASE_MODULES.map(module => (
-              <li key={module} className="flex items-center gap-3">
-                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center">
-                  <Check className="w-3 h-3 text-emerald-600 stroke-[2.5]" />
-                </span>
-                <span className="text-sm text-[#1b1b1b]">
-                  {BASE_MODULE_LABELS[module] ?? module}
-                </span>
-              </li>
-            ))}
-          </ul>
+          {BASE_GROUPS.map(group => (
+            <div key={group.title}>
+              <p className="text-xs font-semibold text-[#1b1b1b] mb-3 tracking-wide">
+                {group.title}
+              </p>
+              <ul className="space-y-3.5">
+                {group.modules.map(mod => (
+                  <li key={mod.id} className="flex items-center gap-3">
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center">
+                      <Check className="w-3 h-3 text-emerald-600 stroke-[2.5]" />
+                    </span>
+                    <span className="text-sm text-[#1b1b1b]">{mod.label}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
 
-        {/* Pro modules */}
-        <div>
-          <p className="text-xs font-medium tracking-wider uppercase text-[#6e6e73] mb-6">
+        {/* Pro groups */}
+        <div className="space-y-8">
+          <p className="text-xs font-medium tracking-wider uppercase text-[#6e6e73]">
             Módulos pro ·{' '}
             <span className="text-violet-600 normal-case tracking-normal">
               {formatARS(PLAN_PRICING.pro_module_price)}/mes c/u
             </span>
           </p>
-          <ul className="space-y-3.5">
-            {PRO_MODULES.map(module => {
-              const isActive = activeModules[module] === true
-              return (
-                <li key={module} className="flex items-center justify-between gap-4">
-                  <label
-                    htmlFor={`module-${module}`}
-                    className={`text-sm cursor-pointer select-none transition-colors flex-1 ${
-                      isActive ? 'text-[#1b1b1b] font-medium' : 'text-[#6e6e73]'
-                    }`}
-                  >
-                    {PRO_MODULE_LABELS[module] ?? module}
-                  </label>
-                  <Switch
-                    id={`module-${module}`}
-                    size="sm"
-                    checked={isActive}
-                    onCheckedChange={(checked) => handleModuleToggle(module, checked)}
-                  />
-                </li>
-              )
-            })}
-          </ul>
+          {PRO_GROUPS.map(group => (
+            <div key={group.title}>
+              <p className="text-xs font-semibold text-[#1b1b1b] mb-3 tracking-wide">
+                {group.title}
+                {group.note && (
+                  <span className="ml-2 text-[10px] font-normal text-[#6e6e73] normal-case tracking-normal">
+                    {group.note}
+                  </span>
+                )}
+              </p>
+              <ul className="space-y-3.5">
+                {group.modules.map(mod => {
+                  const isActive = activeModules[mod.id] === true
+                  return (
+                    <li key={mod.id} className="flex items-center justify-between gap-4">
+                      <label
+                        htmlFor={`module-${mod.id}`}
+                        className={`text-sm cursor-pointer select-none transition-colors flex-1 ${
+                          isActive ? 'text-[#1b1b1b] font-medium' : 'text-[#6e6e73]'
+                        }`}
+                      >
+                        {mod.label}
+                      </label>
+                      <Switch
+                        id={`module-${mod.id}`}
+                        size="sm"
+                        checked={isActive}
+                        onCheckedChange={(checked) => handleModuleToggle(mod.id, checked)}
+                      />
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
         </div>
       </div>
 

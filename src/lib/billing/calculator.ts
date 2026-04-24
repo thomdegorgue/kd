@@ -43,6 +43,10 @@ export type PlanPricing = {
   pro_module_price: number       // en centavos ARS
 }
 
+export type AnnualPlanPricing = PlanPricing & {
+  annual_discount_months: number // meses que el dueño NO paga (ej: 2 → paga 10, recibe 12)
+}
+
 // ============================================================
 // CALCULADORA
 // ============================================================
@@ -66,6 +70,30 @@ export function computeMonthlyTotal(
 
   return base + pro
 }
+
+/**
+ * Calcula el precio anual en centavos ARS.
+ *
+ * Total = ceil(maxProducts / 100) × price_per_100_products × (12 - annual_discount_months)
+ *
+ * El plan anual incluye todos los módulos pro EXCEPTO `assistant`. Los módulos
+ * pro no suman al precio base (están incluidos). Ver system/billing.md.
+ */
+export function calculateAnnualPrice(
+  plan: AnnualPlanPricing,
+  maxProducts: number,
+): number {
+  const tiers = Math.ceil(maxProducts / 100)
+  const monthsToPay = Math.max(0, 12 - plan.annual_discount_months)
+  return tiers * plan.price_per_100_products * monthsToPay
+}
+
+/**
+ * Módulos pro incluidos en plan anual (todos excepto `assistant`, que es add-on mensual).
+ */
+export const ANNUAL_INCLUDED_PRO_MODULES: readonly ModuleName[] = PRO_MODULES.filter(
+  (m) => m !== 'assistant',
+)
 
 /**
  * Detalle del precio para mostrar en UI.

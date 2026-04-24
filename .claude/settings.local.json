@@ -30,7 +30,8 @@
       "Bash(mkdir -p \"C:/Users/thom/Herd/kd/src/app/\\(public\\)/[slug]/[category]\")",
       "Bash(mkdir -p \"C:/Users/thom/Herd/kd/src/app/\\(public\\)/[slug]/p/[id]\")",
       "Bash(mkdir -p \"C:/Users/thom/Herd/kd/src/app/\\(public\\)/tracking/[code]\")",
-      "Bash(wc *)"
+      "Bash(wc *)",
+      "Bash(xargs ls *)"
     ]
   }
 }

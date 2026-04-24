@@ -67,6 +67,27 @@ export type MpPayment = {
   date_created: string
   date_approved: string | null
   preapproval_id: string | null
+  external_reference: string | null
+}
+
+export type MpCheckoutPreference = {
+  id: string
+  init_point: string
+  sandbox_init_point: string
+  external_reference: string
+  date_created: string
+}
+
+export type CreateCheckoutPreferenceParams = {
+  store_id: string
+  title: string
+  amount: number // en pesos ARS (no centavos)
+  payer_email?: string
+  back_url: {
+    success: string
+    failure: string
+    pending: string
+  }
 }
 
 export type CreatePreapprovalParams = {
@@ -130,4 +151,43 @@ export async function getPreapproval(
  */
 export async function getPayment(paymentId: string): Promise<MpPayment> {
   return mpFetch<MpPayment>(`/v1/payments/${paymentId}`)
+}
+
+/**
+ * Crea una Checkout Preference (pago único) en MP para el plan anual.
+ * `external_reference = store_id` permite identificar el pago en el webhook.
+ * Retorna `init_point` (prod) y `sandbox_init_point` (test) al que redirigir.
+ */
+export async function createCheckoutPreference(
+  params: CreateCheckoutPreferenceParams,
+): Promise<{ id: string; init_point: string; sandbox_init_point: string }> {
+  const body: Record<string, unknown> = {
+    items: [
+      {
+        id: `annual-${params.store_id}`,
+        title: params.title,
+        quantity: 1,
+        currency_id: 'ARS',
+        unit_price: params.amount,
+      },
+    ],
+    external_reference: params.store_id,
+    back_urls: params.back_url,
+    auto_return: 'approved',
+  }
+
+  if (params.payer_email) {
+    body.payer = { email: params.payer_email }
+  }
+
+  const data = await mpFetch<MpCheckoutPreference>('/checkout/preferences', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+
+  return {
+    id: data.id,
+    init_point: data.init_point,
+    sandbox_init_point: data.sandbox_init_point,
+  }
 }

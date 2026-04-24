@@ -41,7 +41,20 @@ Estas son las tareas que solo un humano puede realizar. El agente IA no puede ej
      - ☑️ `subscription.updated` (cuando cambia una suscripción)
    - Click **Crear webhook**
 9. Copiar el **Webhook Secret** (aparece debajo del webhook creado)
-   - `MP_WEBHOOK_SECRET` en `.env.local`
+   - Pegar ese valor en `MP_WEBHOOK_SECRET` (Vercel + `.env.local`) — ver también §15.
+
+### Webhook: qué URL poner y cómo funciona el secret (no se “manda el token” al servidor como login)
+
+**URL del webhook:** la pública de tu app en producción, por ejemplo `https://kitdigital.ar/api/webhooks/mercadopago`. Mercado Pago hace un **POST** a esa URL cada vez que ocurre un evento (pago creado, suscripción actualizada, etc.). El cuerpo del POST es un JSON con el evento; **no** va el secret en el body.
+
+**¿Dónde entra el secret entonces?** MP y tu servidor comparten **la misma clave** que vos copiaste del panel de MP (`MP_WEBHOOK_SECRET`). En cada notificación, MP envía **headers HTTP**:
+
+- `x-signature` — contiene timestamp y un hash (`ts=...,v1=...`)
+- `x-request-id` — un id único del request
+
+KitDigital **recomputa** el HMAC-SHA256 usando `MP_WEBHOOK_SECRET` + `x-request-id` + el timestamp, y lo compara con `v1`. Si no coincide → **401 Invalid signature**. El secret **nunca sale** de tu entorno (Vercel / `.env.local`); solo MP (al firmar) y tu código (al verificar) lo conocen.
+
+**Resumen:** no tenés que “recibir el token” aparte: configurás el webhook en MP con la URL correcta, copiás el **Webhook Secret** de MP a `MP_WEBHOOK_SECRET` en Vercel, y cada POST que MP envíe vendrá firmado en headers. Sin `MP_WEBHOOK_SECRET` configurado, el código rechaza todo (o en desarrollo podés ver logs de error).
 
 **Para desarrollo local con webhooks:**
 - Usar `ngrok http 3000` para exponer puerto local
@@ -139,9 +152,22 @@ Estas son las tareas que solo un humano puede realizar. El agente IA no puede ej
 
 1. Conectar repositorio de GitHub
 2. Configurar en Vercel **las mismas variables** que en `.env.local` (sección 8), más las opcionales que documenta `README.md` (ej. `SUPERADMIN_ALLOWED_IPS`). No hay un número fijo: copiar el bloque completo al desplegar.
-3. Configurar dominio: `kitdigital.ar`
-4. Configurar wildcard DNS: `*.kitdigital.ar` → CNAME de Vercel
-5. Habilitar wildcard subdomains en Vercel (Settings → Domains)
+3. Configurar dominio apex: `kitdigital.ar` (y opcionalmente `www` → redirect al apex; el repo incluye redirect en `vercel.json`).
+4. Configurar **subdominio comodín (wildcard)** en DNS y en Vercel (siguiente subsección).
+5. En Vercel → **Settings → Domains**: agregar el dominio raíz y el wildcard; seguir las instrucciones de registros DNS que muestra Vercel.
+
+### Qué es un dominio wildcard (`*.kitdigital.ar`)
+
+**Wildcard** = “cualquier subdominio de un nivel”. El asterisco es un comodín.
+
+- Sin wildcard solo resuelve `kitdigital.ar` y quizá `www.kitdigital.ar`.
+- Con **`*.kitdigital.ar`** también resuelven, por ejemplo:
+  - `mi-tienda.kitdigital.ar`
+  - `otra-tienda.kitdigital.ar`
+
+En KitDigital, cada tienda usa su **slug** como subdominio en producción: `{slug}.kitdigital.ar`. Por eso en el DNS del proveedor (donde compraste el dominio) tenés que crear un registro **CNAME** para el nombre `*` (o el host `*.kitdigital.ar` según el panel) apuntando al destino que indique Vercel (típicamente `cname.vercel-dns.com` o similar al agregar el dominio en el dashboard). Luego en Vercel confirmás que `*.kitdigital.ar` está verificado.
+
+Si el wildcard no está bien configurado, los catálogos públicos por subdominio no cargarán aunque el sitio principal sí.
 
 ## 8. Variables de Entorno Locales
 
@@ -160,6 +186,9 @@ UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 OPENAI_API_KEY=
 RESEND_API_KEY=
+CRON_SECRET=
+# WhatsApp de soporte (términos, landing, etc.) — internacional sin +, ej: 5491123456789
+NEXT_PUBLIC_WHATSAPP_NUMBER=
 # Opcional (ver README.md):
 # SUPERADMIN_ALLOWED_IPS=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -274,33 +303,56 @@ SELECT id, email, role FROM public.users WHERE role = 'superadmin';
 
 ## 14. Configurar CRON_SECRET (REQUERIDO en producción)
 
-Los crons de Vercel (`/api/cron/check-billing` y `/api/cron/clean-assistant-sessions`) están protegidos con un secret. Sin esto, cualquiera puede llamar esos endpoints directamente.
+### Para qué sirve
 
-**Paso 1: Generar secret**
+En `vercel.json` están definidos dos crons que Vercel invoca por HTTP en horarios fijos:
+
+- `/api/cron/check-billing` — trial vencido, archivo por falta de pago, plan anual vencido, avisos por email, etc.
+- `/api/cron/clean-assistant-sessions` — limpieza de sesiones del asistente IA.
+
+Esas URLs son públicas si alguien adivina la ruta. **`CRON_SECRET`** es una contraseña larga que solo vos y Vercel conocen: el código exige el header `Authorization: Bearer <CRON_SECRET>`. Vercel, al disparar el cron, **envía ese header automáticamente** con el valor de la variable de entorno `CRON_SECRET` que configuraste en el proyecto.
+
+- **Con `CRON_SECRET` definido:** un visitante que abra `/api/cron/check-billing` en el navegador recibe **401** (no puede ejecutar la lógica).
+- **Sin `CRON_SECRET`:** el código permite la ejecución (comportamiento inseguro pensado solo para dev); en producción **siempre** definir el secret.
+
+### Cómo generar el valor
+
+**Linux / macOS / Git Bash en Windows:**
 ```bash
-# En tu terminal local:
 openssl rand -base64 32
-# Ejemplo output: K8mP3xQzR9vL1nF7wJ2cA5tY6bE0dH4s...
 ```
 
-**Paso 2: Configurar en Vercel**
-1. Vercel → tu proyecto → **Settings** → **Environment Variables**
-2. Agregar: `CRON_SECRET` = el valor generado
-3. Seleccionar entornos: **Production** y **Preview**
-4. Click **Save**
+**PowerShell (Windows nativo):**
+```powershell
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
+```
 
-**Paso 3: Configurar en `.env.local`**
+Copiá el string resultante (sin espacios ni comillas raras). Ejemplo de forma: `K8mP3xQzR9vL1nF7wJ2cA5tY6bE0dH4s...`
+
+### Dónde pegarlo
+
+1. **Vercel** → proyecto → **Settings** → **Environment Variables** → nombre `CRON_SECRET`, valor = el string generado → entornos **Production** y **Preview** → Save. Redeploy si hace falta para que tome el valor.
+2. **`.env.local`** (local, si probás crons a mano):
 ```env
-CRON_SECRET=K8mP3xQzR9vL1nF7wJ2cA5tY6bE0dH4s...
+CRON_SECRET=el-mismo-valor-que-en-vercel
 ```
 
-**Verificación:** Los crons de Vercel automáticamente envían el header `Authorization: Bearer <CRON_SECRET>`. Si el secret está vacío en el código, los crya ons corren sin verificación (inseguro pero funcional). Con el secret configurado, requests externos sin el header recibirán 401.
+### Probar a mano (opcional)
+
+Con el servidor corriendo y `CRON_SECRET` en `.env.local`:
+```bash
+curl -H "Authorization: Bearer TU_CRON_SECRET" http://localhost:3000/api/cron/check-billing
+```
+
+Sin el header correcto debe responder 401.
 
 ---
 
 ## 15. Verificar MP_WEBHOOK_SECRET (CRÍTICO para billing)
 
-Sin este secret, el sistema acepta webhooks de cualquier fuente — alguien podría enviar un webhook falso para activar suscripciones o marcar pagos como aprobados.
+Sin `MP_WEBHOOK_SECRET` en el servidor, la firma no se puede validar: **todos** los POST del webhook reciben **401** hasta que copies el secret del panel de MP a Vercel (y redeploy si hace falta). Con el secret correcto, solo notificaciones **firmadas por Mercado Pago** pasan la verificación; un atacante que no conozca el secret no puede fabricar un `x-signature` válido.
+
+**Relación con §2 (Webhook):** la misma “Clave secreta” que muestra MP al crear el webhook es la que copiás acá. No viaja en el cuerpo del JSON; MP la usa para firmar los headers (ver §2, subsección *Webhook: qué URL…*).
 
 **Cómo obtener el secret:**
 1. Ir a [mercadopago.com.ar/developers](https://www.mercadopago.com.ar/developers) → tu aplicación
@@ -319,7 +371,108 @@ MP_WEBHOOK_SECRET=tu-secret-de-mp
 
 ---
 
-## 11. Legal y Cumplimiento
+## 16. F13 — Pasos Manuales Go-to-Market
+
+Checklist de producto y operación para billing dual (mensual/anual), DNS y seguridad. El **código** de F13 ya está en el repo; esto es lo que el humano debe hacer en servicios externos.
+
+### 16.1 SQL Migration en Supabase (OBLIGATORIO — BLOCKER)
+
+Ir a [supabase.com](https://supabase.com) → tu proyecto → **SQL Editor** → **New query** → pegar y ejecutar:
+
+```sql
+-- Soporte billing dual en stores
+ALTER TABLE stores
+  ADD COLUMN IF NOT EXISTS billing_period TEXT NOT NULL DEFAULT 'monthly'
+    CHECK (billing_period IN ('monthly', 'annual'));
+
+ALTER TABLE stores
+  ADD COLUMN IF NOT EXISTS annual_paid_until DATE;
+
+-- Configuración de descuento anual y cap global en plans
+ALTER TABLE plans
+  ADD COLUMN IF NOT EXISTS annual_discount_months INTEGER NOT NULL DEFAULT 2;
+
+ALTER TABLE plans
+  ADD COLUMN IF NOT EXISTS max_stores_total INTEGER;
+
+-- Asegurar que mp_subscription_id sea nullable en billing_payments
+-- (pagos anuales no tienen preapproval_id de MP)
+ALTER TABLE billing_payments
+  ALTER COLUMN mp_subscription_id DROP NOT NULL;
+```
+
+**Verificación:** ir a Table Editor → tabla `stores` → confirmar columnas `billing_period` y `annual_paid_until`. Tabla `plans` → confirmar `annual_discount_months` y `max_stores_total`.
+
+### 16.2 Crear imagen Open Graph (`public/og-image.jpg`)
+
+**Qué es Open Graph (OG):** metadatos que describen una página cuando se comparte el enlace en **WhatsApp, Instagram, X, LinkedIn, Slack**, etc. Muchas redes muestran título, descripción e **imagen de vista previa**. Esa imagen suele llamarse “OG image”.
+
+En este proyecto la imagen por defecto vive en el repo como **`public/og-image.jpg`** (tamaño recomendado **1200×630 px**, JPG calidad 85+).
+
+**Contenido sugerido:**
+- Fondo oscuro (puede ser `#1b1b1b`) con logo y tagline
+- Texto: "KitDigital — Catálogo digital para tu negocio"
+
+**Cómo subirla:** guardar el archivo en la carpeta `public/` del proyecto, commitear y desplegar; o subir el mismo asset al hosting que uses si el flujo de deploy no incluye `public/` por algún motivo (lo normal en Next.js es commitear `public/og-image.jpg`).
+
+**Verificación:** tras el deploy, pegar `https://kitdigital.ar` en [opengraph.xyz](https://www.opengraph.xyz) y comprobar que la imagen se ve.
+
+### 16.3 Número WhatsApp de soporte (`NEXT_PUBLIC_WHATSAPP_NUMBER`)
+
+La landing y las páginas legales (p. ej. términos) leen el número desde la variable de entorno **`NEXT_PUBLIC_WHATSAPP_NUMBER`**. No hace falta editar el código si configurás el número bien.
+
+**Formato:** internacional **sin** el símbolo `+`, solo dígitos. Ejemplo Argentina: `5491123456789` (código país 54 + código área sin 0 + número).
+
+**Dónde configurarlo:**
+1. **Vercel** → Environment Variables → `NEXT_PUBLIC_WHATSAPP_NUMBER` → Production (y Preview si aplica).
+2. **`.env.local`** para desarrollo local.
+
+Tras cambiar variables `NEXT_PUBLIC_*` en Vercel, hace falta **nuevo deploy** para que el valor quede baked en el bundle del cliente.
+
+### 16.4 Configurar CRON_SECRET en Vercel (si pendiente)
+
+Ver §14 de este documento.
+
+### 16.5 Configurar MP_WEBHOOK_SECRET en Vercel (si pendiente)
+
+Ver §15 de este documento.
+
+### 16.6 Crear usuario Superadmin (si pendiente)
+
+Ver §13 de este documento.
+
+### 16.7 Habilitar confirmación de email en Supabase Auth (PRODUCCIÓN)
+
+En Supabase → **Authentication** → **Settings** → **Email**:
+- Activar **"Enable email confirmations"**
+- Configurar el template de confirmación con branding KitDigital
+- Verificar que Resend está configurado como SMTP custom (ver §8 de este documento si aplica)
+
+> Solo para producción. Mantener desactivado en proyecto de staging/dev.
+
+---
+
+## 17. Checklist de producción (orden sugerido)
+
+Usar esta lista después de tener Supabase con datos reales o de staging, migración **§16.1** aplicada si la DB era anterior a F13, y superadmin creado (**§13**).
+
+| Orden | Tarea | Documento |
+|------|--------|-----------|
+| 1 | SQL F13 ejecutado y columnas verificadas | §16.1 |
+| 2 | Usuario superadmin | §13 |
+| 3 | Dominio `kitdigital.ar` + wildcard `*.kitdigital.ar` en DNS y Vercel | §7 |
+| 4 | Todas las env vars en Vercel (alineadas a §8 + `CRON_SECRET` + `NEXT_PUBLIC_WHATSAPP_NUMBER`) | §8, §14, §16.3 |
+| 5 | `MP_WEBHOOK_SECRET` en Vercel = secret del webhook en panel MP | §2, §15 |
+| 6 | Webhook MP: URL `https://kitdigital.ar/api/webhooks/mercadopago` + eventos del §2 | §2 |
+| 7 | `CRON_SECRET` en Vercel (Production + Preview) | §14 |
+| 8 | `public/og-image.jpg` 1200×630 en el repo / deploy | §16.2 |
+| 9 | Deploy a Production; smoke test: login, admin, billing (sandbox o monto mínimo), compartir link OG | — |
+| 10 | Confirmación de email en Auth (cuando abras al público) | §16.7 |
+| 11 | Legal / consumidor | §18 |
+
+---
+
+## 18. Legal y Cumplimiento
 
 Checklist obligatorio antes del lanzamiento público:
 

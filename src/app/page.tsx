@@ -3,9 +3,24 @@ import Link from 'next/link'
 import { LandingNav } from '@/components/landing/nav'
 import { PricingCalculator } from '@/components/landing/pricing-calculator'
 
-const SLOTS_AVAILABLE = Number(process.env.NEXT_PUBLIC_SLOTS_AVAILABLE ?? '10')
+const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? ''
 
-export default function HomePage() {
+async function getSlotsAvailable(): Promise<number | null> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  try {
+    const res = await fetch(`${appUrl}/api/stores/capacity`, {
+      next: { revalidate: 60 },
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as { available: number | null }
+    return data.available
+  } catch {
+    return null
+  }
+}
+
+export default async function HomePage() {
+  const slots = await getSlotsAvailable()
   return (
     <div className="min-h-screen bg-white">
       <LandingNav />
@@ -69,20 +84,22 @@ export default function HomePage() {
           </div>
 
           {/* Scarcity counter */}
-          <div className="border border-white/10 rounded-2xl px-10 py-6 bg-white/[0.04] backdrop-blur-sm">
-            <div className="flex items-baseline gap-4 justify-center">
-              <span className="text-[4.5rem] leading-none font-bold tabular-nums font-mono">
-                {SLOTS_AVAILABLE}
-              </span>
-              <div className="text-left">
-                <p className="text-base font-semibold text-white leading-snug">catálogos</p>
-                <p className="text-base text-white/35 leading-snug">disponibles</p>
+          {slots !== null && (
+            <div className="border border-white/10 rounded-2xl px-10 py-6 bg-white/[0.04] backdrop-blur-sm">
+              <div className="flex items-baseline gap-4 justify-center">
+                <span className="text-[4.5rem] leading-none font-bold tabular-nums font-mono">
+                  {slots}
+                </span>
+                <div className="text-left">
+                  <p className="text-base font-semibold text-white leading-snug">catálogos</p>
+                  <p className="text-base text-white/35 leading-snug">disponibles</p>
+                </div>
               </div>
+              <p className="text-xs text-white/25 text-center mt-3 tracking-widest uppercase">
+                en este lanzamiento
+              </p>
             </div>
-            <p className="text-xs text-white/25 text-center mt-3 tracking-widest uppercase">
-              en este lanzamiento
-            </p>
-          </div>
+          )}
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-sm sm:max-w-none">
@@ -161,7 +178,9 @@ export default function HomePage() {
                 <p className="text-xs font-semibold text-[#1b1b1b] mb-3 uppercase tracking-wide">Soporte</p>
                 <ul className="space-y-2 text-xs text-[#6e6e73]">
                   <li><a href="mailto:soporte@kitdigital.ar" className="hover:text-[#1b1b1b] transition-colors">Email</a></li>
-                  <li><a href="https://wa.me/5491128441234" target="_blank" rel="noopener noreferrer" className="hover:text-[#1b1b1b] transition-colors">WhatsApp</a></li>
+                  {WHATSAPP_NUMBER && (
+                    <li><a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer" className="hover:text-[#1b1b1b] transition-colors">WhatsApp</a></li>
+                  )}
                 </ul>
               </div>
             </div>

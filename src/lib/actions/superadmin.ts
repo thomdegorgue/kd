@@ -244,6 +244,8 @@ export async function updatePlanPricing(
     trial_days?: number
     trial_max_products?: number
     base_modules?: string[]
+    annual_discount_months?: number
+    max_stores_total?: number | null
   },
 ): Promise<UpdatePlanPricingResult> {
   try {

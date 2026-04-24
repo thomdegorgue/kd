@@ -1,4 +1,4 @@
-import { createHmac } from 'crypto'
+import { createHmac, timingSafeEqual } from 'crypto'
 
 /**
  * Verifica la firma HMAC-SHA256 de un webhook de Mercado Pago.
@@ -44,7 +44,8 @@ export function verifyWebhookSignature(
     .update(template)
     .digest('hex')
 
-  // Comparación timing-safe no disponible directamente, usamos comparación simple
-  // (aceptable para webhooks donde el timing attack es poco práctico)
-  return expectedHash === v1
+  const expectedBuf = Buffer.from(expectedHash, 'hex')
+  const receivedBuf = Buffer.from(v1, 'hex')
+  if (expectedBuf.length !== receivedBuf.length) return false
+  return timingSafeEqual(expectedBuf, receivedBuf)
 }

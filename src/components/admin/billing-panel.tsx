@@ -25,20 +25,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   PRO_MODULES,
   computePriceBreakdown,
+  calculateAnnualPrice,
+  ANNUAL_INCLUDED_PRO_MODULES,
   formatARS,
   type PlanPricing,
+  type AnnualPlanPricing,
 } from '@/lib/billing/calculator'
 import {
   useBilling,
   useCreateSubscription,
   useCancelSubscription,
   useChangeTier,
+  useCreateAnnualSubscription,
 } from '@/lib/hooks/use-billing'
 import type { ModuleName, Plan } from '@/lib/types'
-import type { BillingInfo } from '@/lib/db/queries/billing'
 
 // ============================================================
 // LABEL MAP para módulos pro
@@ -138,9 +142,11 @@ export function BillingPanel() {
   const createSubscriptionMutation = useCreateSubscription()
   const cancelSubscriptionMutation = useCancelSubscription()
   const changeTierMutation = useChangeTier()
+  const createAnnualMutation = useCreateAnnualSubscription()
 
   const [selectedTier, setSelectedTier] = useState<number | null>(null)
   const [pendingProModules, setPendingProModules] = useState<Set<string> | null>(null)
+  const [annualTier, setAnnualTier] = useState<number>(100)
 
   if (isLoading) {
     return (
@@ -154,6 +160,8 @@ export function BillingPanel() {
 
   const { plan, billing } = data
   const billingStatus = billing.billing_status
+  const billingPeriod = billing.billing_period ?? 'monthly'
+  const annualPaidUntil = billing.annual_paid_until
   const currentTier = (billing.limits as Record<string, number>).max_products ?? 100
   const currentModules = billing.modules as Partial<Record<ModuleName, boolean>>
 
@@ -163,6 +171,13 @@ export function BillingPanel() {
     : currentModules
 
   const typedPlan = plan as Plan & PlanPricing
+  const annualPlan = plan as Plan & AnnualPlanPricing
+  const annualDiscountMonths =
+    (annualPlan as unknown as { annual_discount_months?: number }).annual_discount_months ?? 2
+  const monthlyEquivalent =
+    Math.ceil(annualTier / 100) * typedPlan.price_per_100_products * 12
+  const annualPrice = calculateAnnualPrice(annualPlan, annualTier)
+  const annualSavings = monthlyEquivalent - annualPrice
 
   const tierOptions = [100, 200, 300, 500, 1000, 2000]
 
@@ -200,12 +215,18 @@ export function BillingPanel() {
   const isBusy =
     createSubscriptionMutation.isPending ||
     cancelSubscriptionMutation.isPending ||
-    changeTierMutation.isPending
+    changeTierMutation.isPending ||
+    createAnnualMutation.isPending
 
   // ── DEMO → mostrar setup de suscripción ──────────────────────
   const isDemo = billingStatus === 'demo'
   const isActive = billingStatus === 'active'
   const isPastDue = billingStatus === 'past_due'
+  const isAnnual = billingPeriod === 'annual'
+
+  const PRO_MODULE_LABEL_LIST = ANNUAL_INCLUDED_PRO_MODULES.map(
+    (m) => PRO_MODULE_LABELS[m] ?? m,
+  )
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -226,10 +247,20 @@ export function BillingPanel() {
               })}
             </CardDescription>
           )}
-          {isActive && billing.current_period_end && (
+          {isActive && !isAnnual && billing.current_period_end && (
             <CardDescription>
               Próximo cobro:{' '}
               {new Date(billing.current_period_end).toLocaleDateString('es-AR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </CardDescription>
+          )}
+          {isActive && isAnnual && annualPaidUntil && (
+            <CardDescription>
+              Plan anual activo hasta el{' '}
+              {new Date(annualPaidUntil).toLocaleDateString('es-AR', {
                 day: 'numeric',
                 month: 'long',
                 year: 'numeric',
@@ -244,6 +275,93 @@ export function BillingPanel() {
         </CardHeader>
       </Card>
 
+      {/* Selector de modalidad */}
+      <Tabs defaultValue={isAnnual ? 'annual' : 'monthly'} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="monthly">Plan Mensual</TabsTrigger>
+          <TabsTrigger value="annual">Plan Anual (2 meses gratis)</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="annual" className="space-y-4 pt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Plan Anual — Pago único</CardTitle>
+              <CardDescription>
+                Pagás {12 - annualDiscountMonths} meses y recibís 12. Incluye todos los módulos
+                pro excepto Asistente IA.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Tier de productos</label>
+                <Select
+                  value={String(annualTier)}
+                  onValueChange={(v) => setAnnualTier(Number(v))}
+                >
+                  <SelectTrigger className="w-full sm:w-64">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tierOptions.map((t) => (
+                      <SelectItem key={t} value={String(t)}>
+                        {t} productos
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="rounded-lg border bg-muted/30 p-4 space-y-2.5">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Precio mensual equivalente</span>
+                  <span className="line-through text-muted-foreground">
+                    {formatARS(monthlyEquivalent)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Ahorro</span>
+                  <span className="font-medium text-emerald-600">
+                    −{formatARS(annualSavings)}
+                  </span>
+                </div>
+                <Separator />
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-sm">Total anual</span>
+                  <span className="text-lg font-bold">{formatARS(annualPrice)}</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium">Módulos pro incluidos</p>
+                <ul className="text-xs text-muted-foreground space-y-0.5 list-disc pl-5">
+                  {PRO_MODULE_LABEL_LIST.map((label) => (
+                    <li key={label}>{label}</li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground pt-1">
+                  Asistente IA se contrata aparte como add-on mensual.
+                </p>
+              </div>
+
+              <Button
+                onClick={() => createAnnualMutation.mutate(annualTier)}
+                disabled={isBusy}
+                size="lg"
+                className="gap-2 w-full sm:w-auto"
+              >
+                {createAnnualMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Zap className="h-4 w-4" />
+                )}
+                {isActive && isAnnual ? 'Renovar Plan Anual' : 'Contratar Plan Anual'}
+                <ChevronRight className="h-4 w-4 ml-auto" />
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="monthly" className="space-y-4 pt-4">
       {/* Tier de productos */}
       <Card>
         <CardHeader className="pb-3">
@@ -346,7 +464,7 @@ export function BillingPanel() {
           </Button>
         )}
 
-        {isActive && (
+        {isActive && !isAnnual && (
           <AlertDialog>
             <AlertDialogTrigger
               render={
@@ -376,6 +494,8 @@ export function BillingPanel() {
           </AlertDialog>
         )}
       </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

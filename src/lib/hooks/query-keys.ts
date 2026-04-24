@@ -57,6 +57,10 @@ export const queryKeys = {
   // Wholesale
   wholesale: (storeId: string) => ['wholesale', storeId] as const,
 
+  // Multiuser
+  storeUsers: (storeId: string) => ['store-users', storeId] as const,
+  invitations: (storeId: string) => ['invitations', storeId] as const,
+
   // Savings
   savings: (storeId: string) => ['savings', storeId] as const,
 
@@ -92,6 +96,8 @@ export const staleTimes = {
   savings: 2 * 60 * 1000,
   plans: 30 * 60 * 1000,
   billing: 60 * 1000,
+  storeUsers: 2 * 60 * 1000,
+  invitations: 60 * 1000,
 }
 
 /** gcTime por entidad (ms) — system/realtime.md */
@@ -116,4 +122,6 @@ export const gcTimes = {
   savings: 10 * 60 * 1000,
   plans: 60 * 60 * 1000,
   billing: 5 * 60 * 1000,
+  storeUsers: 10 * 60 * 1000,
+  invitations: 5 * 60 * 1000,
 }

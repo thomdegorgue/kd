@@ -45,6 +45,8 @@ const schema = z.object({
   trial_days: z.number().int().min(0),
   trial_max_products: z.number().int().min(1),
   base_modules: z.array(z.string()),
+  annual_discount_months: z.number().int().min(0).max(11),
+  max_stores_total: z.number().int().min(0).nullable(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -76,6 +78,10 @@ export function PlanPricingForm({ plan }: Props) {
       trial_days: plan.trial_days,
       trial_max_products: plan.trial_max_products,
       base_modules: currentBaseModules,
+      annual_discount_months:
+        (plan as unknown as { annual_discount_months?: number }).annual_discount_months ?? 2,
+      max_stores_total:
+        (plan as unknown as { max_stores_total?: number | null }).max_stores_total ?? null,
     },
   })
 
@@ -89,6 +95,8 @@ export function PlanPricingForm({ plan }: Props) {
         trial_days: values.trial_days,
         trial_max_products: values.trial_max_products,
         base_modules: values.base_modules,
+        annual_discount_months: values.annual_discount_months,
+        max_stores_total: values.max_stores_total,
       })
       setMessage(result.success ? 'Plan actualizado.' : result.error)
       if (result.success) router.refresh()
@@ -179,6 +187,44 @@ export function PlanPricingForm({ plan }: Props) {
           {errors.trial_max_products && (
             <p className="text-xs text-destructive">{errors.trial_max_products.message}</p>
           )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="annual_discount" className="text-sm font-medium">
+            Meses gratis en plan anual
+          </Label>
+          <Input
+            id="annual_discount"
+            type="number"
+            min={0}
+            max={11}
+            {...register('annual_discount_months', { valueAsNumber: true })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Cliente paga (12 − N) meses. Default = 2 (paga 10, recibe 12).
+          </p>
+          {errors.annual_discount_months && (
+            <p className="text-xs text-destructive">{errors.annual_discount_months.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="max_stores" className="text-sm font-medium">
+            Cap máximo de tiendas
+          </Label>
+          <Input
+            id="max_stores"
+            type="number"
+            min={0}
+            placeholder="Sin límite"
+            {...register('max_stores_total', {
+              setValueAs: (v) =>
+                v === '' || v === null || v === undefined ? null : Number(v),
+            })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Vacío = sin límite. Vale para `create_store` global.
+          </p>
         </div>
       </div>
 
