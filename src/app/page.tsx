@@ -125,21 +125,53 @@ export default function HomePage() {
       </section>
 
       {/* ─── FOOTER ──────────────────────────────────────────────── */}
-      <footer className="border-t border-[#e0e0e0] py-10 bg-white">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <Image
-              src="/logo.jpg"
-              alt="KitDigital"
-              width={22}
-              height={22}
-              className="rounded-md"
-            />
-            <span className="text-sm font-semibold text-[#1b1b1b]">KitDigital.ar</span>
+      <footer className="border-t border-[#e0e0e0] py-12 bg-white">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-8 mb-8">
+            <div className="flex items-center gap-2.5">
+              <Image
+                src="/logo.jpg"
+                alt="KitDigital"
+                width={24}
+                height={24}
+                className="rounded-md"
+              />
+              <span className="text-sm font-semibold text-[#1b1b1b]">KitDigital.ar</span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-8">
+              <div>
+                <p className="text-xs font-semibold text-[#1b1b1b] mb-3 uppercase tracking-wide">Producto</p>
+                <ul className="space-y-2 text-xs text-[#6e6e73]">
+                  <li><a href="/auth/signup" className="hover:text-[#1b1b1b] transition-colors">Crear catálogo</a></li>
+                  <li><a href="/#modulos" className="hover:text-[#1b1b1b] transition-colors">Módulos</a></li>
+                  <li><a href="/auth/login" className="hover:text-[#1b1b1b] transition-colors">Login</a></li>
+                </ul>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-[#1b1b1b] mb-3 uppercase tracking-wide">Legal</p>
+                <ul className="space-y-2 text-xs text-[#6e6e73]">
+                  <li><Link href="/terminos" className="hover:text-[#1b1b1b] transition-colors">Términos de servicio</Link></li>
+                  <li><Link href="/privacidad" className="hover:text-[#1b1b1b] transition-colors">Privacidad</Link></li>
+                </ul>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-[#1b1b1b] mb-3 uppercase tracking-wide">Soporte</p>
+                <ul className="space-y-2 text-xs text-[#6e6e73]">
+                  <li><a href="mailto:soporte@kitdigital.ar" className="hover:text-[#1b1b1b] transition-colors">Email</a></li>
+                  <li><a href="https://wa.me/5491128441234" target="_blank" rel="noopener noreferrer" className="hover:text-[#1b1b1b] transition-colors">WhatsApp</a></li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <p className="text-xs text-[#6e6e73]">
-            © 2025 KitDigital.ar · Catálogos digitales para emprendedores argentinos
-          </p>
+
+          <div className="border-t border-[#e0e0e0] pt-8">
+            <p className="text-xs text-[#6e6e73] text-center">
+              © {new Date().getFullYear()} KitDigital.ar · Catálogos digitales para emprendedores argentinos
+            </p>
+          </div>
         </div>
       </footer>
     </div>

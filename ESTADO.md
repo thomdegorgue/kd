@@ -352,7 +352,15 @@ F10 completa. Plataforma auditada y lista para MVP. No hay bloqueantes de códig
 
 ## F11 — Onboarding Pulido + Auth + Módulos + Banners CRUD
 
-### 2026-04-21
+### 2026-04-21 (completada)
+
+**Build y TypeScript:** `pnpm build` ✅ · `pnpm exec tsc --noEmit` ✅ (cero errores)
+
+---
+
+## F12 — MVP Final: Código crítico, Legal, Email (2026-04-21)
+
+### 2026-04-21 (completada)
 
 **Build y TypeScript:** `pnpm build` ✅ · `pnpm exec tsc --noEmit` ✅ (cero errores)
 
@@ -392,10 +400,43 @@ F10 completa. Plataforma auditada y lista para MVP. No hay bloqueantes de códig
 - [x] `src/app/(admin)/admin/banners/page.tsx` — UI drag-and-drop con ImageUploader
 - [x] DT2 (banners sin handler) — ✅ RESUELTO
 
-### Blockers Actuales
+#### BLOQUE 1 — Fix crítico de invitaciones
+- [x] URL de invitación: cambiar `/invitations/accept?token=X` → `/invite/{token}`
+- [x] Fallback a `https://kitdigital.ar` si no hay env var
 
-Los mismos que F10 (solo configuración manual):
-1. **CRON_SECRET** — Generar + configurar en Vercel (ver PASOS-MANUALES.md §14)
-2. **MP_WEBHOOK_SECRET** — Verificar que tiene valor real en Vercel (ver PASOS-MANUALES.md §15)
-3. **Superadmin** — Crear usuario en Supabase (ver PASOS-MANUALES.md §13)
-4. **Testing end-to-end** — Verificar flujo completo en producción
+#### BLOQUE 2 — Páginas legales
+- [x] `/terminos/page.tsx` — Términos y Condiciones (SaaS argentino)
+- [x] `/privacidad/page.tsx` — Política de Privacidad (Ley 25.326 Argentina)
+- [x] `src/app/page.tsx` footer actualizado: links a legales + redes + contacto
+- [x] Copyright dinámico con año actual
+
+#### BLOQUE 3 — Open Graph metadata (crítico para WhatsApp)
+- [x] `src/app/layout.tsx` — agregar `openGraph` + `twitter.card`
+- [x] URL: `https://kitdigital.ar/og-image.jpg` (crear manualmente 1200×630)
+
+#### BLOQUE 4 — Error pages
+- [x] `src/app/not-found.tsx` — 404 branded
+- [x] `src/app/global-error.tsx` — error boundary global
+
+#### BLOQUE 5 — Email con Resend
+- [x] `src/lib/email/resend.ts` — cliente singleton + sendEmail wrapper
+- [x] `src/lib/email/templates/invitation.tsx` — template de invitación
+- [x] `src/lib/email/templates/trial-expiring.tsx` — aviso 3 días antes vencer
+- [x] `src/lib/email/templates/store-archived.tsx` — aviso cuando pasa a archived
+- [x] `src/lib/executor/handlers/multiuser.ts` — enviar invitation email tras crear invitación
+- [x] `src/app/api/cron/check-billing/route.ts` — enviar emails en transiciones
+
+#### BLOQUE 6 — SEO
+- [x] `src/app/robots.ts` — bloquear /admin, /superadmin, /auth, /onboarding, /invite
+- [x] `src/app/sitemap.ts` — sitemap dinámico (core pages + TODO: catalogs públicos)
+
+#### BLOQUE 7 — Configuración Vercel
+- [x] `vercel.json` — agregar redirect www → apex (301 permanent)
+
+### Blockers Actuales (solo configuración manual)
+
+1. **OG Image** — Crear `public/og-image.jpg` (1200×630) manualmente con diseño del hero
+2. **CRON_SECRET** — Generar + configurar en Vercel (ver PASOS-MANUALES.md §14)
+3. **MP_WEBHOOK_SECRET** — Verificar que tiene valor real en Vercel (ver PASOS-MANUALES.md §15)
+4. **Superadmin** — Crear usuario en Supabase (ver PASOS-MANUALES.md §13)
+5. **Testing end-to-end** — Verificar flujo completo en producción

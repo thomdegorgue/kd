@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
+import { sendEmail } from '@/lib/email/resend'
+import { TrialExpiringEmail } from '@/lib/email/templates/trial-expiring'
+import { StoreArchivedEmail } from '@/lib/email/templates/store-archived'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
@@ -35,14 +38,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { data: expiredTrials, error } = await db
       .from('stores')
-      .select('id, trial_ends_at')
+      .select('id, name, trial_ends_at, owner_id')
       .eq('billing_status', 'demo')
       .lt('trial_ends_at', now.toISOString())
       .not('trial_ends_at', 'is', null)
 
     if (error) throw error
 
-    for (const store of (expiredTrials ?? []) as Array<{ id: string }>) {
+    for (const store of (expiredTrials ?? []) as Array<{ id: string; name: string; owner_id: string }>) {
       try {
         await db
           .from('stores')
@@ -56,6 +59,32 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           actor_id: null,
           data: { transitioned_at: now.toISOString() },
         })
+
+        // Send trial expiring email to store owner
+        const { data: ownerData, error: ownerError } = await db
+          .from('users')
+          .select('email')
+          .eq('id', store.owner_id)
+          .single()
+
+        if (!ownerError && ownerData) {
+          const ownerEmail = (ownerData as { email: string }).email
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kitdigital.ar'
+          const billingUrl = `${appUrl}/admin/billing`
+
+          const emailHtml = TrialExpiringEmail({
+            ownerEmail,
+            storeName: store.name,
+            daysLeft: 0,
+            billingUrl,
+          })
+
+          await sendEmail(
+            ownerEmail,
+            `Tu período de prueba de ${store.name} ha vencido — KitDigital`,
+            emailHtml
+          )
+        }
 
         results.trial_expired++
       } catch (err) {
@@ -77,14 +106,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const { data: overdueStores, error } = await db
       .from('stores')
-      .select('id, last_billing_failure_at')
+      .select('id, name, owner_id, last_billing_failure_at')
       .eq('billing_status', 'past_due')
       .lt('last_billing_failure_at', thirtyDaysAgo.toISOString())
       .not('last_billing_failure_at', 'is', null)
 
     if (error) throw error
 
-    for (const store of (overdueStores ?? []) as Array<{ id: string }>) {
+    for (const store of (overdueStores ?? []) as Array<{ id: string; name: string; owner_id: string }>) {
       try {
         await db
           .from('stores')
@@ -101,6 +130,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             transitioned_at: now.toISOString(),
           },
         })
+
+        // Send store archived email to owner
+        const { data: ownerData, error: ownerError } = await db
+          .from('users')
+          .select('email')
+          .eq('id', store.owner_id)
+          .single()
+
+        if (!ownerError && ownerData) {
+          const ownerEmail = (ownerData as { email: string }).email
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kitdigital.ar'
+          const restoreUrl = `${appUrl}/admin/billing`
+
+          const emailHtml = StoreArchivedEmail({
+            ownerEmail,
+            storeName: store.name,
+            restoreUrl,
+          })
+
+          await sendEmail(
+            ownerEmail,
+            `${store.name} ha sido pausada — KitDigital`,
+            emailHtml
+          )
+        }
 
         results.archived++
       } catch (err) {

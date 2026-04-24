@@ -5,6 +5,8 @@ import {
   updateStoreUserRoleSchema,
   removeStoreUserSchema,
 } from '@/lib/validations/multiuser'
+import { sendEmail } from '@/lib/email/resend'
+import { InvitationEmail } from '@/lib/email/templates/invitation'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
@@ -118,11 +120,38 @@ registerHandler({
 
     if (error) throw new Error(error.message)
 
-    // TODO: send invitation email via Resend (F8 or separate step)
-    // For now, return the invitation with the accept URL
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kitdigital.ar'
+    const acceptUrl = `${appUrl}/invite/${token}`
+
+    // Get store name for email
+    const { data: storeData, error: storeError } = await db
+      .from('stores')
+      .select('name')
+      .eq('id', context.store_id)
+      .single()
+
+    if (!storeError && storeData) {
+      const storeName = (storeData as { name: string }).name
+      const inviterName = 'El propietario de la tienda'
+
+      const emailHtml = InvitationEmail({
+        invitedEmail: email,
+        inviterName,
+        storeName,
+        acceptUrl,
+        role,
+      })
+
+      await sendEmail(
+        email,
+        `Invitación a colaborar en ${storeName} — KitDigital`,
+        emailHtml
+      )
+    }
+
     return {
       ...data,
-      accept_url: `${process.env.NEXT_PUBLIC_APP_URL}/invitations/accept?token=${token}`,
+      accept_url: acceptUrl,
     }
   },
 })

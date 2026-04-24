@@ -27,6 +27,26 @@ export const metadata: Metadata = {
   icons: {
     icon: '/logo.jpg',
   },
+  openGraph: {
+    title: 'KitDigital.ar — Tu catálogo digital con WhatsApp',
+    description: 'Publicá tus productos. Recibí pedidos por WhatsApp. Gestioná todo desde un panel simple.',
+    url: 'https://kitdigital.ar',
+    type: 'website',
+    images: [
+      {
+        url: 'https://kitdigital.ar/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'KitDigital.ar — Catálogos digitales para emprendedores',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'KitDigital.ar',
+    description: 'Tu catálogo digital con carrito WhatsApp',
+    images: ['https://kitdigital.ar/og-image.jpg'],
+  },
 }
 
 export default function RootLayout({
