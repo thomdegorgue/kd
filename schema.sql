@@ -221,6 +221,8 @@ CREATE TABLE products (
   name TEXT NOT NULL,
   description TEXT,
   price INTEGER NOT NULL CHECK (price >= 0),
+  compare_price INTEGER,
+  stock INTEGER,
   image_url TEXT,
   is_active BOOLEAN NOT NULL DEFAULT true,
   is_featured BOOLEAN NOT NULL DEFAULT false,

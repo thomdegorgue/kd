@@ -2,9 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Search } from 'lucide-react'
-import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { EntityToolbar } from '@/components/shared/entity-toolbar'
 import {
   Table,
   TableBody,
@@ -39,15 +38,12 @@ export default function CustomersPage() {
         <p className="text-sm text-muted-foreground">{total} clientes</p>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nombre o teléfono..."
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-          className="pl-9"
-        />
-      </div>
+      <EntityToolbar
+        placeholder="Buscar por nombre o teléfono..."
+        searchValue={search}
+        onSearchChange={(v) => { setSearch(v); setPage(1) }}
+        filterPreset="generic"
+      />
 
       {isLoading ? (
         <div className="space-y-2">

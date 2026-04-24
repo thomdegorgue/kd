@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ProductGrid } from '@/components/public/product-grid'
 import { CategoryFilter } from '@/components/public/category-filter'
 import { BannerCarousel } from '@/components/public/banner-carousel'
+import { TrustBadges } from '@/components/public/trust-badges'
 import { CartButton } from '@/components/public/cart-button'
 import { CartDrawer } from '@/components/public/cart-drawer'
 import { SearchBar } from '@/components/public/search-bar'
@@ -19,6 +20,8 @@ interface CatalogViewProps {
   banners: Banner[]
   hasBannersModule: boolean
   hasProductPageModule: boolean
+  hasShippingModule: boolean
+  hasStockModule: boolean
   slug: string
 }
 
@@ -28,6 +31,8 @@ export function CatalogView({
   banners,
   hasBannersModule,
   hasProductPageModule,
+  hasShippingModule,
+  hasStockModule,
   slug,
 }: CatalogViewProps) {
   const store = useStore()
@@ -80,6 +85,11 @@ export function CatalogView({
         <BannerCarousel banners={banners} />
       )}
 
+      {/* Trust Badges */}
+      {hasShippingModule && (
+        <TrustBadges />
+      )}
+
       {/* Search */}
       <SearchBar onSearch={setSearchQuery} />
 
@@ -94,6 +104,7 @@ export function CatalogView({
       <ProductGrid
         products={filteredProducts}
         onClickDetail={hasProductPageModule ? handleProductDetail : undefined}
+        stockModuleActive={hasStockModule}
       />
 
       {/* Cart FAB + Drawer */}

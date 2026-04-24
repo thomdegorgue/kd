@@ -125,6 +125,8 @@ export type StoreConfig = {
   font?: string
   show_prices?: boolean
   currency?: string
+  city?: string | null
+  hours?: string | null
   social?: {
     instagram?: string
     facebook?: string

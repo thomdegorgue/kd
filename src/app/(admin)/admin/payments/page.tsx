@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { EntityToolbar } from '@/components/shared/entity-toolbar'
 import { usePayments } from '@/lib/hooks/use-payments'
 import { useCurrency } from '@/lib/hooks/use-currency'
 import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/validations/payment'
@@ -25,6 +26,7 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'dest
 }
 
 export default function PaymentsPage() {
+  const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const { data, isLoading } = usePayments({ page, pageSize: 50 })
   const { formatPrice } = useCurrency()
@@ -39,6 +41,13 @@ export default function PaymentsPage() {
         <h2 className="text-lg font-semibold">Pagos</h2>
         <p className="text-sm text-muted-foreground">{total} registros</p>
       </div>
+
+      <EntityToolbar
+        placeholder="Buscar pagos..."
+        searchValue={search}
+        onSearchChange={(v) => { setSearch(v); setPage(1) }}
+        filterPreset="ventas"
+      />
 
       {isLoading ? (
         <div className="space-y-2">

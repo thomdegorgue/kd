@@ -504,3 +504,292 @@ F10 completa. Plataforma auditada y lista para MVP. No hay bloqueantes de códig
 - `sitemap.ts` chunkea en 10k URLs por archivo; usa `custom_domain` si `custom_domain_verified = true`, sino `{slug}.{apexHost}`.
 - Módulos en landing agrupados por `system/modules.md §Grupos de Módulos` (7 grupos: Catálogo y Ventas, Operaciones, Equipo, Comercial, Finanzas, Dominio, IA).
 - Insert de invitación limpiado: ya no se envía `accepted: false` (no existe en schema; el campo es `accepted_at`).
+
+---
+
+## F15 — Design Excellence: Admin Premium + Vitrine Premium (2026-04-24)
+
+**Estado:** EN PROGRESO — 35% completado (P1.1, P2.1-2.4 implementados, build limpio).
+**Objetivo:** Llevar el producto al nivel visual y funcional del /design/admin y /design/vitrine. Calidad Apple. Lista de primeras 100 ventas.
+**Documentación:** Pasos completados, pendientes y SQL migrations documentados en `PASOS-MANUALES.md §19` (fecha 2026-04-24).
+
+### Completado hoy (2026-04-24)
+
+**P1.1 — B0.7 Token counter** ✅
+- Assistant page now reads `ai_tokens_used` from `useStoreConfig()` 
+
+**P2.1 — compare_price** ✅ (código, SQL pendiente)
+- Validations: `compare_price` agregado a `createProductSchema` y `updateProductSchema`
+- Handlers: CRUD automático vía spread operator
+- ProductSheet: tab Ficha con campo "Precio anterior"
+- ProductCard: renderiza compare_price tachado + badge % descuento
+- TypeScript: `compare_price?: number | null` en `StoreConfig`
+
+**P2.2 — Trust badges** ✅
+- Nuevo componente `TrustBadges` en `src/components/public/trust-badges.tsx`
+- Integrado en `CatalogView`, muestra solo si `hasShippingModule=true`
+- Grid de 3 cards: Truck, Shield, RotateCcw
+
+**P2.3 — Stock badges** ✅ (SQL pendiente)
+- ProductCard con props `stockModuleActive`
+- Renderiza badge "Sin stock" si stock=0
+- Badge "Quedan N" si stock > 0 && <= 5
+- Botón "+" deshabilitado si sin stock
+- ProductGrid y CatalogView pasanprop
+
+**P2.4 — City/hours** ✅
+- `PublicLayout` header: muestra city+hours con icons MapPin/Clock
+- `StoreSettingsForm`: nuevos campos "Ciudad" y "Horarios" con botón "Guardar"
+- `StoreConfig` type: agregados `city?: string | null` y `hours?: string | null`
+
+**Build:** ✅ `pnpm build` exitoso, sin errores TypeScript
+
+### SQL MIGRATIONS REQUERIDAS (ejecutar en Supabase antes de testing)
+
+```sql
+-- P2.1: compare_price en products
+ALTER TABLE products ADD COLUMN compare_price INTEGER;
+
+-- P2.3: stock en products (si aún no existe)
+ALTER TABLE products ADD COLUMN stock INTEGER;
+
+-- City/hours ya en stores.config (JSONB) — NO necesita migración SQL
+```
+
+### BLOQUE 0 — Bugs críticos de producción (ejecutar primero, sin excepciones)
+
+- [ ] **B0.1 — Error "Server Components render" en producción**
+  - **Causa raíz:** El middleware crea dos respuestas (`createMiddlewareClient` retorna `response`, pero el branch `/admin` retorna `NextResponse.next(...)` diferente). Las cookies de sesión refrescadas por Supabase se escriben en la respuesta DESCARTADA — nunca llegan al browser. La sesión del usuario expira silenciosamente. En el siguiente request, `auth.getUser()` retorna `null` → el middleware no inyecta `x-store-context` → el layout llama a `getStoreContext()` → esta lanza `'StoreContext no disponible'` → Next.js muestra el error genérico de Server Components.
+  - **Fix 1 — `src/middleware.ts`:** En todos los branches que retornan `NextResponse.next(...)`, copiar las cookies de la respuesta de Supabase al response final: `response.cookies.getAll().forEach(c => finalResponse.cookies.set(c.name, c.value, c))`.
+  - **Fix 2 — `src/lib/auth/store-context.ts`:** Agregar fallback: si el header `x-store-context` no está disponible, resolver el store directamente vía `createClient()` + query a `store_users JOIN stores`. Retornar `null` (no lanzar) en `getStoreContextOrNull()`.
+  - **Fix 3 — `src/app/(admin)/admin/layout.tsx`:** Si `getStoreContext()` retorna null (fallback), redirigir a `/auth/login` en lugar de lanzar. Nunca debe causar un render error.
+
+- [ ] **B0.2 — Fix cron security guard**
+  - `src/app/api/cron/check-billing/route.ts:43`
+  - `if (cronSecret && ...)` → `if (!cronSecret || ...)`
+  - Sin este fix, cualquiera puede archivar tiendas manualmente.
+
+- [ ] **B0.3 — Fix signup: error silencioso en insert de `users`**
+  - `src/lib/actions/auth.ts:159`
+  - Agregar destructuring de `error` y rollback si falla: `const { error: uError } = await db.from('users').insert(...); if (uError) { await db.auth.admin.deleteUser(userId); return error }`
+
+- [ ] **B0.4 — Fix ReactQueryDevtools en producción**
+  - `src/app/providers.tsx:54`
+  - Envolver en `{process.env.NODE_ENV === 'development' && <ReactQueryDevtools />}`
+
+- [ ] **B0.5 — Fix mobile navigation rota**
+  - `src/components/admin/admin-shell.tsx`
+  - `AdminShell` pasa `renderTopbar={() => <BillingBanner />}` al `PanelShell` — esto reemplaza el `DefaultTopbar` completo, eliminando el botón hamburger en mobile.
+  - Fix: El `renderTopbar` debe recibir `{ openMobile }` y renderizar un topbar completo (hamburger + título de sección + billing banner si activo).
+  - Crear `AdminTopbar({ openMobile, billingStatus, daysLeft, sectionTitle })` en `admin-shell.tsx`.
+
+- [ ] **B0.6 — Fix category assignment en ProductForm**
+  - `src/components/admin/product-form.tsx` no tiene campo para asignar categorías.
+  - Agregar `MultiSelect` de categorías (usando `useCategories()` hook) al formulario.
+  - `create_product` y `update_product` ya aceptan `category_ids` — solo falta el campo en la UI.
+
+- [ ] **B0.7 — Fix token counter del Asistente**
+  - `src/app/(admin)/admin/assistant/page.tsx:259`
+  - Leer `stores.ai_tokens_used` usando `useBilling()` hook (que ya carga los datos de la tienda).
+  - Reemplazar `const tokensUsed = 0` por el valor real.
+
+### BLOQUE 1 — Admin Shell premium
+
+- [ ] **1.1 — Nuevo AdminTopbar** (reemplaza el topbar actual)
+  - Mobile: [☰ Menú] | [Nombre de sección] | [🔗 Ver catálogo] | [Avatar]
+  - Desktop: no se muestra (el sidebar siempre visible) — solo el topbar de billing
+  - Color: `bg-background border-b`. Altura: `h-11`. Sticky `top-0 z-40`.
+  - "Ver catálogo" abre `https://{slug}.kitdigital.ar` (o `/{slug}` en dev) en tab nueva.
+  - Avatar: iniciales del usuario, click → dropdown con "Cerrar sesión".
+
+- [ ] **1.2 — Sidebar header mejorado**
+  - Logo de la tienda (`stores.config.logo_url`) o avatar con inicial + `primary_color`.
+  - Nombre de la tienda (truncado a 20 chars con tooltip).
+  - Badge de estado: `DEMO` (amber) / `ACTIVO` (verde) / `VENCIDO` (rojo).
+  - Plan: indicador discreto abajo del nombre.
+
+- [ ] **1.3 — Sidebar footer**
+  - Botón "Ver catálogo" con ícono `ExternalLink`.
+  - Separador + nombre de usuario + "Salir" con ícono `LogOut`.
+
+- [ ] **1.4 — BillingBanner integrado en AdminTopbar**
+  - Mostrar banner de trial/vencido DEBAJO del topbar (no como replacement del topbar).
+  - `PanelShell.renderTopbar` debe soportar `renderBanner` prop o el banner debe ir fuera del PanelShell como wrapper.
+
+### BLOQUE 2 — EntityToolbar: llevar a las páginas reales
+
+- [ ] **2.1 — Mover `EntityToolbar` a `src/components/shared/`**
+  - Actualmente en `src/components/design/admin/entity-toolbar.tsx` (solo usado en el preview).
+  - Hacerlo genérico: `filterPreset` sigue igual pero las categorías vienen de una prop `categories?: {id: string, label: string}[]` (no hardcodeadas).
+  - Los exports PDF/CSV en el DropdownMenu se conectan a las funciones reales.
+
+- [ ] **2.2 — `EntityListPagination` a `src/components/shared/`**
+  - Actualmente en `src/components/design/admin/entity-list-pagination.tsx`.
+  - Sin cambios funcionales, solo mover.
+
+- [ ] **2.3 — Integrar EntityToolbar en todas las páginas admin**
+  - `/admin/products` — preset `'productos'`, con categorías reales de la tienda
+  - `/admin/orders` — preset `'pedidos'`, filtro por estado
+  - `/admin/customers` — preset `'generic'`
+  - `/admin/payments` — preset `'ventas'` (filtro por medio de pago)
+  - `/admin/stock` — preset `'stock'`
+  - `/admin/shipping` — preset `'envios'`
+  - `/admin/finance` — preset `'finanzas'`
+  - `/admin/expenses` — preset `'finanzas'`
+  - `/admin/tasks` — preset `'tareas'`
+  - `/admin/banners` — preset `'banners'`
+
+### BLOQUE 3 — Gestión de productos
+
+- [ ] **3.1 — Lista de productos premium**
+  - Cada fila: thumbnail imagen (40×40 redondeado) + nombre + badges categorías + precio + stock badge (sin stock = rojo, bajo = amber, ok = default) + estado (activo/inactivo) + acciones.
+  - Si `is_featured`: badge "⭐ Destacado" pequeño.
+  - EntityToolbar integrado (2.3).
+  - Selección múltiple para bulk-delete (checkbox + botón "Eliminar X productos").
+
+- [ ] **3.2 — ProductSheet: editar/crear desde Sheet lateral**
+  - Reemplazar navegación a `/admin/products/[id]` (full page) por un `Sheet` que se abre desde la lista.
+  - Trigger: click en la fila (o botón editar).
+  - Tabs dentro del Sheet: **Ficha** | **Categorías** | **Stock** | **Página** (si módulo product_page activo) | **Variantes** (si módulo variants activo).
+  - **Tab Ficha:** nombre*, precio*, precio comparativo (tachado en vitrine), descripción, imagen (ImageUploader), toggle activo, toggle destacado.
+  - **Tab Categorías:** multi-select de categorías de la tienda con checkboxes. Muestra las categorías actuales del producto pre-seleccionadas.
+  - **Tab Stock:** stock numérico simple (solo si NO usa variantes). Toggle "Gestionar stock".
+  - **Tab Página:** slug (auto-generado de nombre, editable), título SEO, descripción SEO. Solo visible si módulo product_page activo.
+  - **Tab Variantes:** tabla de combos con stock por combo. Solo visible si módulo variants activo.
+  - Guardar y crear desde el Sheet (no redirige).
+  - `/admin/products/new` y `/admin/products/[id]` redirigen a la lista (el Sheet se maneja client-side).
+
+### BLOQUE 4 — Gestión de pedidos
+
+- [ ] **4.1 — Lista de pedidos premium**
+  - Cards en mobile (no tabla) — más legible en pantallas pequeñas.
+  - Tabla en desktop: cliente + items count + total + estado color-coded + fecha + acciones.
+  - EntityToolbar con filtro de estado (preparación/en camino/entregado/cancelado).
+  - Click en fila → abre `OrderSheet` (no navega a página separada).
+
+- [ ] **4.2 — OrderSheet: detalle de pedido**
+  - Timeline visual: ○ Recibido → ● En preparación → ○ En camino → ○ Entregado.
+  - Click en un estado del timeline = cambiar estado (reemplaza los botones actuales).
+  - Lista de items: imagen (si existe) + nombre + cantidad + precio unitario + subtotal.
+  - Total del pedido.
+  - Sección "Cliente": nombre + WhatsApp (link wa.me) + dirección si la hay.
+  - Sección "Pago" (si módulo payments activo): estado pago + botón "Registrar cobro" abre mini-form inline.
+  - Sección "Envío" (si módulo shipping activo): código de tracking + link.
+  - Botones: [📱 WhatsApp al cliente] [📄 Descargar comprobante PDF] [🗑️ Cancelar pedido].
+
+### BLOQUE 5 — Catálogo público (vitrine)
+
+- [ ] **5.1 — Header premium**
+  - Logo (32×32 redondeado) + nombre tienda + sub-info (ciudad, horarios) — dato de `stores.config`.
+  - Búsqueda inline en header en desktop (hidden en mobile, icono search que expande).
+  - Botón carrito con badge contador, color `primary_color`.
+  - Sticky con `shadow-xs` al hacer scroll.
+
+- [ ] **5.2 — Trust badges (sección nueva)**
+  - Grid de 3: Envío en 24–48hs / Compra segura / Cambio sin costo.
+  - Cards pequeñas con ícono + texto. Configurable en `stores.config.trust_badges` (optional — si no hay, no se muestra).
+  - Por default: mostrar los 3 si el módulo `shipping` está activo.
+
+- [ ] **5.3 — Product cards mejoradas**
+  - Imagen con `aspect-square`, hover: ligero zoom.
+  - Precio tachado si hay `compare_price` (campo nuevo o usar metadata).
+  - Badge "Sin stock" semi-transparente sobre imagen si `stock <= 0` (cuando módulo stock activo).
+  - Badge "Destacado" (estrella) si `is_featured`.
+  - Botón "+" en esquina de la imagen para agregar al carrito rápido (sin abrir detalle).
+  - Animación stagger al cargar (`animate-fade-in` con delay escalonado).
+
+- [ ] **5.4 — Product detail sheet mejorado**
+  - Nombre + precio + precio comparativo + ahorro calculado.
+  - Selector de variantes (colores: swatches circulares; tallas: pills de texto). Solo si módulo variants activo y el producto tiene variantes.
+  - Contador de cantidad (- / N / +).
+  - Stock disponible: "Solo quedan X" si stock < 5.
+  - Descripción completa (con scroll).
+  - Botón "Agregar al carrito" grande + botón "Pedido directo WhatsApp".
+
+- [ ] **5.5 — Cart drawer mejorado**
+  - Cada item: thumbnail + nombre + variante (si aplica) + cantidad editable + precio.
+  - Subtotal claro.
+  - Nota de pedido (textarea opcional).
+  - Botón "Enviar pedido por WhatsApp" prominente + breakdown del mensaje.
+  - Si carrito vacío: empty state con ícono + "Aún no tenés productos en tu carrito".
+
+- [ ] **5.6 — Agregar `compare_price` al schema de producto**
+  - Columna `compare_price INTEGER` en tabla `products` (nullable).
+  - Agregar a `ProductForm` (tab Ficha) como campo "Precio anterior (tachado)".
+  - Agregar a `create_product` y `update_product` handlers.
+  - **SQL manual requerido:** `ALTER TABLE products ADD COLUMN compare_price INTEGER;`
+
+- [ ] **5.7 — Agregar city/hours a stores.config**
+  - `stores.config.city` (string, opcional).
+  - `stores.config.hours` (string, opcional, ej: "Lun–Sáb 9–18hs").
+  - Agregar a la página de configuración de tienda en admin.
+  - Mostrar en header del catálogo si están presentes.
+
+### BLOQUE 6 — Dashboard admin
+
+- [ ] **6.1 — Dashboard mejorado**
+  - 4 cards métricas en grid 2×2: **Ventas hoy** (suma de orders created_at=today) | **Pedidos pendientes** (count orders status=pending o preparing) | **Productos activos** | **Sin stock** (count products con stock=0 si módulo stock activo).
+  - Sección "Últimos pedidos" — tabla compacta de 5 más recientes con estado.
+  - Sección "Accesos rápidos" — botones: [+ Nuevo producto] [+ Nuevo pedido] [Ver catálogo] [Compartir por WhatsApp].
+  - Mensaje de bienvenida si onboarding recién completado.
+
+### BLOQUE 7 — Configuración de tienda mejorada
+
+- [ ] **7.1 — Sección general:** nombre, WhatsApp, descripción corta.
+- [ ] **7.2 — Sección apariencia:** logo (ImageUploader) + color picker (8 presets + libre) + preview live del header del catálogo (componente `MiniCatalogPreview`).
+- [ ] **7.3 — Sección dirección/horarios:** ciudad, horarios de atención. Guarda en `stores.config`.
+- [ ] **7.4 — Sección social:** links de redes (si módulo social activo).
+- [ ] **7.5 — Sección WhatsApp:** número de contacto + preview del mensaje de pedido.
+
+### BLOQUE 8 — Módulos: configuración mejorada
+
+- [ ] **8.1 — Toggle list por grupo** (igual que en /design/admin)
+  - Agrupar módulos igual que en la landing: Catálogo y Ventas, Operaciones, Equipo, Comercial, Finanzas, Dominio, IA.
+  - Cada módulo: ícono + nombre + descripción corta + toggle.
+  - Módulos CORE: sin toggle, badge "Incluido".
+  - Módulos PRO con billing activo: toggle habilitado.
+  - Módulos PRO sin billing activo: toggle disabled + "Requiere plan activo".
+
+### BLOQUE 9 — Otras secciones
+
+- [ ] **9.1 — Banners:** grid de cards con imagen 16:9 + título + estado (activo/pausado) + drag-and-drop visual (icono grip). Sheet para crear/editar banner.
+- [ ] **9.2 — Categorías:** lista con icono grip para reorder + badge con count de productos. Sheet para crear/editar.
+- [ ] **9.3 — Envíos:** EntityToolbar + cada envío con timeline de estados visual.
+- [ ] **9.4 — Finanzas/Gastos:** EntityToolbar + tabla con tipo color-coded (ingreso/egreso) + totales por período.
+- [ ] **9.5 — Savings (Cuenta de ahorro):** lista de cuentas con saldo + saldo total + lista de movimientos por cuenta.
+- [ ] **9.6 — Tareas:** EntityToolbar + checklist visual con checkbox + prioridad color.
+- [ ] **9.7 — Asistente:** fix token counter + mensajes con markdown renderizado.
+
+### Criterios de aceptación F15
+
+- [ ] Error "Server Components render" resuelto en producción.
+- [ ] Mobile navigation funcional (hamburger abre sidebar).
+- [ ] Todas las páginas admin tienen EntityToolbar donde corresponde.
+- [ ] ProductSheet funcional: crear y editar desde la lista, con asignación de categorías.
+- [ ] OrderSheet funcional: timeline de estados + items + WhatsApp.
+- [ ] Catálogo público con trust badges, compare price, y cart drawer mejorado.
+- [ ] Dashboard con las 4 métricas y últimos pedidos.
+- [ ] `pnpm build` + `pnpm exec tsc --noEmit` sin errores.
+- [ ] Testing en móvil: nav, crear producto, checkout WhatsApp.
+
+### SQL migrations requeridas en F15
+
+Ejecutar en Supabase ANTES de hacer deploy de F15:
+
+```sql
+-- 5.6: precio comparativo
+ALTER TABLE products ADD COLUMN compare_price INTEGER;
+
+-- 5.7: ciudad y horarios en config (no requiere SQL — usa JSONB existente stores.config)
+```
+
+Solo 1 migración SQL necesaria para F15.
+
+### Decisiones de arquitectura F15
+
+- `ProductSheet` usa el mismo patrón que `BannerSheet` (Sheet lateral con form interno). No elimina las rutas `/admin/products/[id]` — estas quedan como fallback para deep links, pero redirigen a la lista.
+- `OrderSheet` mismo patrón.
+- `EntityToolbar` movido a `src/components/shared/` para ser reutilizable en admin real (no solo en design preview). Las categorías hardcodeadas del design se reemplazan por prop dinámica.
+- `compare_price` en la vitrine: si `compare_price > price`, mostrar precio anterior tachado y calcular descuento `%`. Si no hay `compare_price`, mostrar solo el precio.
+- Trust badges: hardcodeados por defecto (los 3 estándar), con opción futura de configurar desde admin. No requiere tabla nueva.
+- City/hours en `stores.config` (JSONB) — no requiere migración SQL.

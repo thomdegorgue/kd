@@ -9,9 +9,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
 import { ImageUploader } from '@/components/shared/image-uploader'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import { useCurrency } from '@/lib/hooks/use-currency'
+import { useCategories } from '@/lib/hooks/use-categories'
 
 // Form schema — price in "pesos" (decimals), converts to cents on submit
 const formSchema = createProductSchema.extend({
@@ -35,6 +37,7 @@ export function ProductForm({
 }: ProductFormProps) {
   const { store_id } = useAdminContext()
   const { currency } = useCurrency()
+  const { data: categories } = useCategories()
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -45,13 +48,22 @@ export function ProductForm({
       image_url: defaultValues?.image_url ?? undefined,
       is_active: defaultValues?.is_active ?? true,
       is_featured: defaultValues?.is_featured ?? false,
+      category_ids: defaultValues?.category_ids ?? [],
     },
   })
+
+  const selectedCategoryIds = form.watch('category_ids') ?? []
 
   const handleSubmit = form.handleSubmit((data) => {
     // Convertir precio a centavos
     onSubmit({ ...data, price: Math.round(data.price * 100) })
   })
+
+  function toggleCategory(id: string) {
+    const current = form.getValues('category_ids') ?? []
+    const next = current.includes(id) ? current.filter((c) => c !== id) : [...current, id]
+    form.setValue('category_ids', next, { shouldDirty: true })
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-lg">
@@ -92,6 +104,30 @@ export function ProductForm({
           onUpload={(urls) => form.setValue('image_url', urls[0] ?? undefined, { shouldDirty: true })}
         />
       </div>
+
+      {categories && categories.length > 0 && (
+        <div className="space-y-2">
+          <Label>Categorías</Label>
+          <div className="border rounded-md divide-y max-h-40 overflow-y-auto">
+            {categories.map((cat) => {
+              const id = cat.id as string
+              const name = cat.name as string
+              return (
+                <label
+                  key={id}
+                  className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors"
+                >
+                  <Checkbox
+                    checked={selectedCategoryIds.includes(id)}
+                    onCheckedChange={() => toggleCategory(id)}
+                  />
+                  <span className="text-sm">{name}</span>
+                </label>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">

@@ -156,12 +156,16 @@ export async function signUp(
   const userId = authData.user.id
 
   // 3. Crear registro en tabla users (perfil)
-  await db.from('users').insert({
+  const { error: uError } = await db.from('users').insert({
     id: userId,
     email,
     full_name,
     role: 'user',
   })
+  if (uError) {
+    await db.auth.admin.deleteUser(userId)
+    return { success: false, error: { code: 'SYSTEM_ERROR' as const, message: 'Error al crear el usuario' } }
+  }
 
   // 4. Crear tienda (operación especial fuera del executor — no hay store_id previo)
   const createResult = await createStore({ store_name, store_slug, user_id: userId })

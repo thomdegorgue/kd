@@ -1,12 +1,15 @@
 import Image from 'next/image'
+import { MapPin, Clock } from 'lucide-react'
 
 interface StoreHeaderProps {
   name: string
   description: string | null
   coverUrl: string | null
+  city?: string | null
+  hours?: string | null
 }
 
-export function StoreHeader({ name, description, coverUrl }: StoreHeaderProps) {
+export function StoreHeader({ name, description, coverUrl, city, hours }: StoreHeaderProps) {
   return (
     <div className="space-y-4">
       {coverUrl && (
@@ -25,6 +28,22 @@ export function StoreHeader({ name, description, coverUrl }: StoreHeaderProps) {
         <h1 className="text-xl font-bold sm:text-2xl">{name}</h1>
         {description && (
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        )}
+        {(city || hours) && (
+          <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
+            {city && (
+              <div className="flex items-center gap-1.5">
+                <MapPin className="h-4 w-4" />
+                <span>{city}</span>
+              </div>
+            )}
+            {hours && (
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-4 w-4" />
+                <span>{hours}</span>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

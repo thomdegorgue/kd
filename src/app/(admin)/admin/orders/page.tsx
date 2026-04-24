@@ -1,10 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -14,14 +12,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { EntityToolbar } from '@/components/shared/entity-toolbar'
 import { OrderStatusBadge, ORDER_STATUS_OPTIONS } from '@/components/admin/order-status-badge'
+import { OrderSheet } from '@/components/admin/order-sheet'
 import { useOrders } from '@/lib/hooks/use-orders'
 import { useCurrency } from '@/lib/hooks/use-currency'
 import type { OrderStatus } from '@/lib/types'
+import Link from 'next/link'
 
 export default function OrdersPage() {
+  const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [page, setPage] = useState(1)
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   const { data, isLoading } = useOrders({
     page,
@@ -33,6 +37,11 @@ export default function OrdersPage() {
   const orders = data?.items ?? []
   const total = data?.total ?? 0
   const totalPages = Math.ceil(total / 50)
+
+  function openOrder(id: string) {
+    setSelectedOrderId(id)
+    setSheetOpen(true)
+  }
 
   return (
     <div className="p-4 sm:p-6 space-y-4">
@@ -46,6 +55,13 @@ export default function OrdersPage() {
           Nuevo
         </Link>
       </div>
+
+      <EntityToolbar
+        placeholder="Buscar pedidos..."
+        searchValue={search}
+        onSearchChange={(v) => { setSearch(v); setPage(1) }}
+        filterPreset="pedidos"
+      />
 
       {/* Status tabs */}
       <div className="flex gap-1 flex-wrap">
@@ -101,11 +117,13 @@ export default function OrdersPage() {
                     customer: { id: string; name: string; phone: string | null } | null
                   }
                   return (
-                    <TableRow key={o.id}>
+                    <TableRow
+                      key={o.id}
+                      className="cursor-pointer"
+                      onClick={() => openOrder(o.id)}
+                    >
                       <TableCell>
-                        <Link href={`/admin/orders/${o.id}`} className="font-medium hover:underline font-mono text-xs">
-                          {o.id.slice(0, 8)}...
-                        </Link>
+                        <span className="font-medium font-mono text-xs">{o.id.slice(0, 8)}...</span>
                       </TableCell>
                       <TableCell className="text-sm">
                         {o.customer?.name ?? '—'}
@@ -142,6 +160,12 @@ export default function OrdersPage() {
           )}
         </>
       )}
+
+      <OrderSheet
+        id={selectedOrderId}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+      />
     </div>
   )
 }

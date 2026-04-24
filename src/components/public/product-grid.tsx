@@ -8,9 +8,10 @@ interface ProductGridProps {
   products: Product[]
   isLoading?: boolean
   onClickDetail?: (productId: string) => void
+  stockModuleActive?: boolean
 }
 
-export function ProductGrid({ products, isLoading, onClickDetail }: ProductGridProps) {
+export function ProductGrid({ products, isLoading, onClickDetail, stockModuleActive }: ProductGridProps) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -40,6 +41,7 @@ export function ProductGrid({ products, isLoading, onClickDetail }: ProductGridP
           key={product.id}
           product={product}
           onClickDetail={onClickDetail}
+          stockModuleActive={stockModuleActive}
         />
       ))}
     </div>

@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { ModuleGate } from '@/components/shared/module-gate'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import { useAssistantChat } from '@/lib/hooks/use-assistant'
+import { useStoreConfig } from '@/lib/hooks/use-store-config'
 import type { ProposedAction } from '@/lib/actions/assistant'
 
 type LocalMessage = {
@@ -174,6 +175,7 @@ function ChatMessage({
 
 function AssistantChatContent() {
   const { modules, limits } = useAdminContext()
+  const { data: storeData } = useStoreConfig()
   const {
     messages: serverMessages,
     isLoading,
@@ -256,7 +258,7 @@ function AssistantChatContent() {
     return m
   })
 
-  const tokensUsed = 0 // TODO: obtener desde stores.ai_tokens_used
+  const tokensUsed = storeData?.ai_tokens_used ?? 0
   const tokensLimit = limits.ai_tokens
 
   return (

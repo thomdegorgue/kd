@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { EntityToolbar } from '@/components/shared/entity-toolbar'
 import {
   useFinanceEntries,
   useFinanceSummary,
@@ -56,6 +57,7 @@ const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOStr
 const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10)
 
 export default function FinancePage() {
+  const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<'income' | 'expense' | ''>('')
   const [showCreate, setShowCreate] = useState(false)
   const [dateFrom, setDateFrom] = useState(firstOfMonth)
@@ -104,6 +106,13 @@ export default function FinancePage() {
           Nueva entrada
         </Button>
       </div>
+
+      <EntityToolbar
+        placeholder="Buscar entradas..."
+        searchValue={search}
+        onSearchChange={setSearch}
+        filterPreset="finanzas"
+      />
 
       {/* Date range filter */}
       <div className="flex gap-2 flex-wrap items-end">

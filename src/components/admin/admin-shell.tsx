@@ -22,21 +22,38 @@ import {
   CreditCard,
   Boxes,
   Truck,
-  Tags,
   Receipt,
   AlertTriangle,
   Zap,
   Bot,
+  Menu,
+  ExternalLink,
+  LogOut,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useBilling } from '@/lib/hooks/use-billing'
 import { useStoreConfig } from '@/lib/hooks/use-store-config'
+import { signOut } from '@/lib/actions/auth'
 
 import { PanelShell, type PanelNavGroup } from '@/components/shared/panel-shell'
 import { AdminContext } from '@/lib/hooks/use-admin-context'
 import { queryKeys } from '@/lib/hooks/query-keys'
 import { createClient } from '@/lib/supabase/client'
-import type { StoreContext, ModuleName } from '@/lib/types'
+import type { StoreContext, ModuleName, StoreStatus, StoreConfig } from '@/lib/types'
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function getCatalogUrl(slug: string): string {
+  const isDev = process.env.NODE_ENV === 'development'
+  const domain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'kitdigital.ar'
+  return isDev ? `/${slug}` : `https://${slug}.${domain}`
+}
+
+// ============================================================
+// HOOKS / UTILS
+// ============================================================
 
 function useActiveKey(): string {
   const pathname = usePathname()
@@ -154,13 +171,78 @@ function buildNav(modules: Partial<Record<ModuleName, boolean>>): PanelNavGroup[
   ].filter((group) => group.items.length > 0)
 }
 
-function StoreSidebarHeader() {
+// ============================================================
+// SUB-COMPONENTES
+// ============================================================
+
+const STATUS_BADGE: Record<StoreStatus, { label: string; className: string }> = {
+  active: { label: 'ACTIVO', className: 'bg-green-100 text-green-700 border-green-200' },
+  demo: { label: 'DEMO', className: 'bg-amber-100 text-amber-700 border-amber-200' },
+  past_due: { label: 'VENCIDO', className: 'bg-red-100 text-red-700 border-red-200' },
+  suspended: { label: 'SUSPENDIDO', className: 'bg-red-100 text-red-700 border-red-200' },
+  archived: { label: 'ARCHIVADO', className: 'bg-gray-100 text-gray-600 border-gray-200' },
+}
+
+function StoreSidebarHeader({ storeContext }: { storeContext: StoreContext }) {
   const { data: store } = useStoreConfig()
+
+  const config = (store?.config ?? {}) as StoreConfig
+  const primaryColor = config.primary_color ?? '#1b1b1b'
+  const logoUrl = store?.logo_url
+  const storeName = store?.name ?? 'Mi tienda'
+  const initial = storeName[0].toUpperCase()
+
+  const displayStatus = storeContext.billing_status
+  const badge = STATUS_BADGE[displayStatus] ?? { label: displayStatus.toUpperCase(), className: 'bg-gray-100 text-gray-600 border-gray-200' }
+
   return (
-    <div className="flex items-center gap-2.5 px-4 py-3 border-b border-sidebar-border min-w-0">
-      <span className="text-xs font-semibold truncate">
-        {store?.name ?? 'Mi tienda'}
-      </span>
+    <div className="flex items-center gap-2.5 px-3 py-3 border-b border-sidebar-border min-w-0">
+      {logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={logoUrl} alt="" className="h-8 w-8 rounded-md object-cover shrink-0" />
+      ) : (
+        <div
+          className="h-8 w-8 rounded-md flex items-center justify-center text-white text-sm font-bold shrink-0"
+          style={{ backgroundColor: primaryColor }}
+        >
+          {initial}
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold truncate" title={storeName}>
+          {storeName}
+        </p>
+        <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded border leading-none ${badge.className}`}>
+          {badge.label}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function StoreSidebarFooter({ slug }: { slug: string }) {
+  const catalogUrl = getCatalogUrl(slug)
+
+  return (
+    <div className="p-2 space-y-0.5">
+      <a
+        href={catalogUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-semibold hover:bg-sidebar-accent/60 transition-colors"
+      >
+        <ExternalLink className="h-4 w-4 shrink-0 opacity-95" />
+        Ver catálogo
+      </a>
+      <form action={signOut}>
+        <button
+          type="submit"
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-semibold hover:bg-sidebar-accent/60 transition-colors text-left"
+        >
+          <LogOut className="h-4 w-4 shrink-0 opacity-95" />
+          Cerrar sesión
+        </button>
+      </form>
     </div>
   )
 }
@@ -208,6 +290,48 @@ function BillingBanner() {
   return null
 }
 
+function AdminTopbar({
+  openMobile,
+  activeLabel,
+  slug,
+}: {
+  openMobile: () => void
+  activeLabel: string
+  slug: string
+}) {
+  const catalogUrl = getCatalogUrl(slug)
+
+  return (
+    <div className="shrink-0">
+      <div className="h-11 bg-background border-b border-border flex items-center px-4 gap-3 sticky top-0 z-40">
+        <button
+          type="button"
+          onClick={openMobile}
+          className="lg:hidden text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Abrir menú"
+        >
+          <Menu className="h-4 w-4" />
+        </button>
+        <h1 className="text-sm font-semibold flex-1 truncate">{activeLabel}</h1>
+        <a
+          href={catalogUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Ver catálogo
+        </a>
+      </div>
+      <BillingBanner />
+    </div>
+  )
+}
+
+// ============================================================
+// COMPONENTE PRINCIPAL
+// ============================================================
+
 export function AdminShell({
   storeContext,
   children,
@@ -220,6 +344,11 @@ export function AdminShell({
   const storeId = storeContext.store_id
 
   const nav = useMemo(() => buildNav(storeContext.modules), [storeContext.modules])
+
+  const activeLabel = useMemo(
+    () => nav.flatMap((g) => g.items).find((i) => i.key === activeKey)?.label ?? 'Panel',
+    [nav, activeKey],
+  )
 
   // Supabase Realtime — orders, payments, stock
   useEffect(() => {
@@ -276,8 +405,15 @@ export function AdminShell({
       <PanelShell
         nav={nav}
         activeKey={activeKey}
-        renderSidebarHeader={() => <StoreSidebarHeader />}
-        renderTopbar={() => <BillingBanner />}
+        renderSidebarHeader={() => <StoreSidebarHeader storeContext={storeContext} />}
+        renderSidebarFooter={() => <StoreSidebarFooter slug={storeContext.slug} />}
+        renderTopbar={({ openMobile }) => (
+          <AdminTopbar
+            openMobile={openMobile}
+            activeLabel={activeLabel}
+            slug={storeContext.slug}
+          />
+        )}
       >
         {children}
       </PanelShell>

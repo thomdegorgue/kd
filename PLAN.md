@@ -548,3 +548,105 @@ Sin errores. Deploy a Vercel. Verificar en staging con cuenta de prueba:
 ---
 
 **Criterio global F13:** build limpio, billing anual procesable end-to-end, cap de tiendas respetado, bugs de auditoría corregidos, plataforma desplegada y verificada en producción.
+
+---
+
+## F15 — Design Excellence: Admin Premium + Vitrine Premium
+
+**Objetivo:** Llevar el producto al nivel visual y funcional de `/design/admin` y `/design/vitrine`. Calidad Apple. Producto listo para primeras 100 ventas con UX de producto premium.
+
+**Fuentes de verdad visual:**
+- Admin: `src/components/design/admin-preview.tsx` + `src/components/design/admin/entity-toolbar.tsx`
+- Vitrine (catálogo público): `src/components/design/vitrine-preview.tsx`
+
+**SQL manual requerido antes de deploy F15:**
+```sql
+ALTER TABLE products ADD COLUMN compare_price INTEGER;
+```
+
+### Bloque 0 — Bugs críticos (OBLIGATORIO PRIMERO)
+
+**0.1 — Fix error "Server Components render" en producción**
+
+Raíz: `middleware.ts` retorna un `NextResponse.next(...)` nuevo en el branch `/admin` sin copiar las cookies que Supabase escribió en el `response` de `createMiddlewareClient`. Las cookies de sesión refrescadas se pierden → sesión expira → `getStoreContext()` lanza → error.
+
+- Fix A — `src/middleware.ts`: Para todos los branches autenticados, copiar cookies del response de Supabase al response final.
+- Fix B — `src/lib/auth/store-context.ts`: `getStoreContextOrNull()` debe hacer fallback a query directa a DB si el header no existe.
+- Fix C — `src/app/(admin)/admin/layout.tsx`: Si `getStoreContext()` falla, redirigir a `/auth/login` (no lanzar).
+
+**0.2 — Fix cron security guard** — `src/app/api/cron/check-billing/route.ts:43` — `if (!cronSecret || ...)`
+
+**0.3 — Fix signup user insert error** — `src/lib/actions/auth.ts:159` — destructuring de error + rollback.
+
+**0.4 — Fix ReactQueryDevtools en prod** — `src/app/providers.tsx:54` — condicionar a `NODE_ENV=development`.
+
+**0.5 — Fix mobile nav rota** — `src/components/admin/admin-shell.tsx` — `renderTopbar` debe incluir hamburger + título de sección + billing banner. Crear `AdminTopbar` componente.
+
+**0.6 — Fix asignación de categorías en ProductForm** — `src/components/admin/product-form.tsx` — agregar MultiSelect de categorías con `useCategories()`.
+
+**0.7 — Fix token counter asistente** — `src/app/(admin)/admin/assistant/page.tsx:259` — leer desde `useBilling()`.
+
+**Criterio B0:** Ningún error de Server Components. Mobile nav funcional. ProductForm incluye categorías.
+
+### Bloque 1 — Admin Shell premium
+
+Referenciar `src/components/design/admin-preview.tsx` §sección sidebar/topbar para el diseño visual.
+
+- `AdminTopbar`: hamburger (mobile) + nombre de sección + "Ver catálogo" link (external) + avatar con dropdown (cerrar sesión).
+- Sidebar header: logo/avatar tienda + nombre + badge estado.
+- Sidebar footer: "Ver catálogo" + "Cerrar sesión".
+- `BillingBanner` como elemento separado debajo del topbar (no reemplaza el topbar entero).
+
+**Criterio B1:** Admin visible en móvil con navegación funcional. Sidebar footer con logout.
+
+### Bloque 2 — EntityToolbar a páginas reales
+
+- Mover `src/components/design/admin/entity-toolbar.tsx` → `src/components/shared/entity-toolbar.tsx`.
+- Hacer `categories` prop dinámica (no hardcodeada).
+- Integrar en: products, orders, customers, payments, stock, shipping, finance, expenses, tasks, banners.
+- Mover `EntityListPagination` → `src/components/shared/entity-list-pagination.tsx`.
+
+**Criterio B2:** Todas las listas tienen barra de búsqueda + botón filtros + menú exportar.
+
+### Bloque 3 — ProductSheet
+
+- Lista de productos: thumbnail + nombre + categorías + precio + stock badge.
+- ProductSheet (Sheet lateral): tabs Ficha | Categorías | Stock | Página | Variantes.
+- Tab Categorías: multi-select de categorías de la tienda (usa `useCategories()`).
+- `compare_price` en Tab Ficha (campo opcional).
+- Crear y editar desde la lista — sin navegación a página separada.
+
+**Criterio B3:** Crear producto con categorías funciona end-to-end desde Sheet.
+
+### Bloque 4 — OrderSheet
+
+- Lista de pedidos: cards en mobile, tabla en desktop.
+- OrderSheet: timeline visual de estados + items + cliente + pago + WhatsApp.
+- Cambiar estado tocando el step del timeline.
+
+**Criterio B4:** Estado de pedido cambia desde el timeline. WhatsApp al cliente funciona.
+
+### Bloque 5 — Vitrine premium
+
+- Header: logo + ciudad/horarios + búsqueda inline + carrito.
+- Trust badges (si módulo shipping activo).
+- Product cards: compare price tachado, badge sin stock, botón + rápido.
+- Product detail sheet: variantes, cantidad, stock disponible.
+- Cart drawer: thumbnails + nota de pedido.
+- SQL: `ALTER TABLE products ADD COLUMN compare_price INTEGER`.
+
+**Criterio B5:** Catálogo público carga con los nuevos componentes. Compare price muestra ahorro.
+
+### Bloque 6 — Dashboard + Settings
+
+- Dashboard: 4 cards métricas + últimos pedidos + accesos rápidos.
+- Settings: sección apariencia con preview live + ciudad/horarios.
+- Módulos: toggle grid por grupo (igual que landing).
+
+**Criterio B6:** Dashboard muestra métricas reales. Settings guarda city/hours.
+
+### Bloques 7–9 — Otras secciones (banners, categories, envíos, finanzas, savings, tareas, asistente)
+
+Ver `ESTADO.md §F15 BLOQUE 9` para detalle.
+
+**Criterio global F15:** Build limpio. Error Server Components resuelto. Admin premium en mobile y desktop. Vitrine premium con compare price y trust badges. Todos los bloques anteriores completos.

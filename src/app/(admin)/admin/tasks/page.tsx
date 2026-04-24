@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { EntityToolbar } from '@/components/shared/entity-toolbar'
 import { useTasks, useCreateTask, useCompleteTask, useDeleteTask } from '@/lib/hooks/use-tasks'
 import { createTaskSchema, TASK_STATUS_LABELS, type CreateTaskInput } from '@/lib/validations/task'
 import type { TaskStatus } from '@/lib/types'
@@ -31,6 +32,7 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline'> = {
 const STATUS_FILTERS = ['', 'pending', 'in_progress', 'done', 'cancelled'] as const
 
 export default function TasksPage() {
+  const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [showCreate, setShowCreate] = useState(false)
 
@@ -65,6 +67,13 @@ export default function TasksPage() {
           Nueva
         </Button>
       </div>
+
+      <EntityToolbar
+        placeholder="Buscar tareas..."
+        searchValue={search}
+        onSearchChange={setSearch}
+        filterPreset="tareas"
+      />
 
       {/* Status filter */}
       <div className="flex gap-1 flex-wrap">

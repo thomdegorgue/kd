@@ -482,3 +482,74 @@ Checklist obligatorio antes del lanzamiento público:
 - [ ] Evaluar si se necesita emitir **factura electrónica (AFIP)** por las suscripciones SaaS cobradas en ARS
 - [ ] Incluir cláusula de **procesamiento de datos por terceros** (Supabase, Cloudinary, Mercado Pago, OpenAI)
 - [ ] Páginas legales accesibles desde el footer del sitio institucional y el catálogo
+
+---
+
+## 19. F15 — Design Excellence (2026-04-24)
+
+### 19.1 SQL Migrations (OBLIGATORIO — BLOCKER)
+
+Ejecutar en Supabase **SQL Editor** antes de deployar F15. Son las únicas migraciones requeridas para esta fase.
+
+```sql
+-- F15: Agregar compare_price a products (precio tachado en vitrine)
+ALTER TABLE products ADD COLUMN IF NOT EXISTS compare_price INTEGER;
+
+-- Stock en products (si aún no existe en DB anterior)
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER;
+```
+
+**Verificación:** ir a **Table Editor** → tabla `products` → confirmar que existen columnas `compare_price` y `stock`.
+
+**schema.sql sincronizado:** ✅ `src/components/admin/product-sheet.tsx` ya incluye ambas columnas en la definición de tabla (línea 223–224).
+
+### 19.2 Pasos de implementación completados (P1.1–P2.4)
+
+✅ **P1.1** — Token counter del asistente (real, no hardcoded a 0)
+✅ **P2.1** — `compare_price` end-to-end: validations, handler, ProductSheet, ProductCard
+✅ **P2.2** — Trust badges en vitrine (Truck, Shield, RotateCcw)
+✅ **P2.3** — Stock badges en ProductCard (Sin stock, Quedan N)
+✅ **P2.4** — Ciudad/horarios en settings admin y store-header público
+
+**Build status:** `pnpm build` ✅ sin errores | `pnpm exec tsc --noEmit` ✅ sin errores
+
+### 19.3 Pasos pendientes (P3.1–P5.1 + Bloques 6–9)
+
+**PRIORIDAD 3 — ProductSheet tabs faltantes:**
+- [ ] P3.1: Tab Stock (visible si módulo `stock === true`; switch + input numérico)
+- [ ] P3.2: Tab Página (visible si módulo `product_page === true`; slug, título SEO, descripción SEO)
+- [ ] P3.3: Tab Variantes (visible si módulo `variants === true`; botón link a `/admin/products/{id}/variants`)
+
+**PRIORIDAD 4 — EntityToolbar: conectar filtros**
+- [ ] P4.1: Conectar `onApplyFilters` en `orders/page.tsx` (status filter)
+- [ ] P4.2: Conectar `onApplyFilters` en `products/page.tsx` (categorías filter)
+- [ ] P4.3: Conectar `dateFrom/dateTo` en finance y expenses
+
+**PRIORIDAD 5 — Módulos: toggle grid por grupo**
+- [ ] P5.1: Sección Módulos con 7 grupos (Catálogo, Operaciones, Equipo, Comercial, Finanzas, Dominio, IA)
+
+**Bloques 6–9 (sin verificar en F15):**
+- [ ] Banners: mejorar UI visual (grid 16:9 con drag-and-drop)
+- [ ] Categorías: lista con badge de count + Sheet para crear/editar
+- [ ] Asistente: renderizar markdown en mensajes
+- [ ] Savings: saldo total + movimientos por cuenta
+
+### 19.4 Testing & Verificación Post-SQL
+
+Después de ejecutar las migraciones en Supabase:
+
+1. Verificar columnas en **Table Editor** (compare_price, stock)
+2. `pnpm dev` → navegar a `/admin/products` → crear producto con compare_price > price
+3. Verificar vitrine pública: debe mostrar precio tachado + badge % OFF
+4. Verificar ProductCard con stock badges (módulo `stock` debe estar activo)
+5. Verificar settings admin: campos "Ciudad" y "Horarios" se guardan y aparecen en header público
+6. `pnpm build` + `pnpm exec tsc --noEmit` — sin errores
+
+### 19.5 Orden de ejecución recomendado (siguientes sesiones)
+
+1. Ejecutar SQL migration (§19.1) en Supabase ← **BLOCKER para deploy**
+2. Implementar P3.1–P3.3 (ProductSheet tabs)
+3. Implementar P4.1–P4.3 (EntityToolbar filters)
+4. Implementar P5.1 (Módulos grouped)
+5. Testing integral en staging
+6. Deploy F15 a producción

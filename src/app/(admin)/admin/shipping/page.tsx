@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { EntityToolbar } from '@/components/shared/entity-toolbar'
 import {
   useShippingMethods,
   useCreateShippingMethod,
@@ -63,6 +64,7 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline'> = {
 }
 
 export default function ShippingPage() {
+  const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'methods' | 'shipments'>('methods')
   const [editingMethod, setEditingMethod] = useState<Record<string, unknown> | null>(null)
   const [showNewMethod, setShowNewMethod] = useState(false)
@@ -120,6 +122,13 @@ export default function ShippingPage() {
   return (
     <div className="p-4 sm:p-6 space-y-4">
       <h2 className="text-lg font-semibold">Envíos</h2>
+
+      <EntityToolbar
+        placeholder="Buscar envíos..."
+        searchValue={search}
+        onSearchChange={setSearch}
+        filterPreset="envios"
+      />
 
       {/* Tabs */}
       <div className="flex gap-1">

@@ -110,6 +110,7 @@ Toda operación de dominio pasa por `executor({ name, store_id, actor, input })`
 6. **La IA no ejecuta acciones de dominio directamente**; siempre pasa por el executor.
 7. **`system/` es la Single Source of Truth.** Si algo no está ahí, no existe.
 8. **No hacer cambios especulativos.** Solo lo que el paso actual indica. Sin features extra, sin refactors no pedidos.
+9. **`schema.sql` es la fuente de verdad del esquema.** Cada migración SQL ejecutada en Supabase DEBE reflejarse en `schema.sql` inmediatamente. Si el código añade columnas, tipos, funciones, o triggers a la DB, actualizar `schema.sql` en el mismo commit/PR. Nunca dejar schema.sql desincronizado.
 
 ---
 

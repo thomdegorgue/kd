@@ -164,14 +164,25 @@ registerHandler({
     return { valid: true }
   },
   execute: async (input, context) => {
-    const validated = createProductSchema.parse(input)
+    const { category_ids, ...rest } = createProductSchema.parse(input)
     const { data, error } = await db
       .from('products')
-      .insert({ ...validated, store_id: context.store_id })
+      .insert({ ...rest, store_id: context.store_id })
       .select()
       .single()
 
     if (error) throw new Error(error.message)
+
+    if (category_ids && category_ids.length > 0) {
+      await db.from('product_categories').insert(
+        category_ids.map((cid: string) => ({
+          product_id: (data as { id: string }).id,
+          category_id: cid,
+          store_id: context.store_id,
+        }))
+      )
+    }
+
     return data
   },
 })
@@ -193,7 +204,7 @@ registerHandler({
     return { valid: true }
   },
   execute: async (input, context) => {
-    const { id, ...fields } = updateProductSchema.parse(input)
+    const { id, category_ids, ...fields } = updateProductSchema.parse(input)
 
     const { data, error } = await db
       .from('products')
@@ -206,6 +217,20 @@ registerHandler({
 
     if (error) throw new Error(error.message)
     if (!data) throw new Error('Producto no encontrado')
+
+    if (category_ids !== undefined) {
+      await db.from('product_categories').delete().eq('product_id', id).eq('store_id', context.store_id)
+      if (category_ids.length > 0) {
+        await db.from('product_categories').insert(
+          category_ids.map((cid: string) => ({
+            product_id: id,
+            category_id: cid,
+            store_id: context.store_id,
+          }))
+        )
+      }
+    }
+
     return data
   },
 })

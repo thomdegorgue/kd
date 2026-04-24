@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { EntityToolbar } from '@/components/shared/entity-toolbar'
 import {
   useExpenses,
   useExpensesSummary,
@@ -59,6 +60,7 @@ const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOStr
 const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10)
 
 export default function ExpensesPage() {
+  const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [dateFrom] = useState(firstOfMonth)
@@ -110,6 +112,13 @@ export default function ExpensesPage() {
           Nuevo gasto
         </Button>
       </div>
+
+      <EntityToolbar
+        placeholder="Buscar gastos..."
+        searchValue={search}
+        onSearchChange={setSearch}
+        filterPreset="finanzas"
+      />
 
       {/* Summary */}
       {summary && (

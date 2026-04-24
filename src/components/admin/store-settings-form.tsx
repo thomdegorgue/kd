@@ -27,12 +27,20 @@ export function StoreSettingsForm() {
 
   const storeConfig = store?.config as StoreConfig | null
   const [selectedColor, setSelectedColor] = useState(storeConfig?.primary_color ?? '#1b1b1b')
+  const [city, setCity] = useState((storeConfig?.city as string | undefined) ?? '')
+  const [hours, setHours] = useState((storeConfig?.hours as string | undefined) ?? '')
 
   useEffect(() => {
     if (storeConfig?.primary_color) {
       setSelectedColor(storeConfig.primary_color)
     }
-  }, [storeConfig?.primary_color])
+    if (storeConfig?.city) {
+      setCity(storeConfig.city as string)
+    }
+    if (storeConfig?.hours) {
+      setHours(storeConfig.hours as string)
+    }
+  }, [storeConfig?.primary_color, storeConfig?.city, storeConfig?.hours])
 
   const form = useForm<UpdateStoreInput>({
     resolver: zodResolver(updateStoreSchema),
@@ -119,6 +127,42 @@ export function StoreSettingsForm() {
           {updateMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
         </Button>
       </form>
+
+      <div className="space-y-6 border-t pt-6">
+        <div>
+          <h3 className="font-semibold mb-4">Información de ubicación y horarios</h3>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="city">Ciudad/Localidad</Label>
+              <Input
+                id="city"
+                placeholder="Ej: Buenos Aires"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="hours">Horarios de atención</Label>
+              <Input
+                id="hours"
+                placeholder="Ej: Lun–Sáb 9–18hs"
+                value={hours}
+                onChange={(e) => setHours(e.target.value)}
+              />
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => updateConfigMutation.mutate({ city: city || null, hours: hours || null })}
+              disabled={updateConfigMutation.isPending || (city === (storeConfig?.city as string | undefined || '') && hours === (storeConfig?.hours as string | undefined || ''))}
+            >
+              {updateConfigMutation.isPending ? 'Guardando...' : 'Guardar ubicación y horarios'}
+            </Button>
+          </div>
+        </div>
+      </div>
 
       <div className="space-y-3 border-t pt-6">
         <Label>Color principal de tu marca</Label>

@@ -11,19 +11,24 @@ Ante conflicto entre documentos, la prioridad es:
 3. `ESTADO.md` (estado actual)
 4. Todo lo demás
 
-## Estado del Proyecto (2026-04-22)
+## Estado del Proyecto (2026-04-24)
 
-F0–F12 completadas. Plataforma auditada, auth, onboarding, billing mensual, superadmin, email, SEO, páginas legales y módulos CRUD implementados. Ver `system/auditoria.md` y `auditoria.md` para los hallazgos.
+F0–F14 completadas. SQL migration 13.0 ejecutada. Env vars de producción configuradas. OG image creada. Superadmin creado. Deploy activo en Vercel.
 
-**Fase en curso: F13 — Go-to-Market.** Ver `ESTADO.md` §F13 para la lista completa de pasos.
+**Fase en curso: F15 — Design Excellence.** Ver `ESTADO.md` §F15 para el plan completo.
 
-**Blockers F13 (deben resolverse antes de deploy):**
-- SQL migration 13.0 → ejecutar en Supabase (ver PASOS-MANUALES.md §16) — **OBLIGATORIO PRIMERO**
-- `public/og-image.jpg` → crear manualmente 1200×630px
-- WhatsApp real → confirmar número para `src/app/terminos/page.tsx`
-- `CRON_SECRET` → configurar en Vercel (ver PASOS-MANUALES.md §14)
-- `MP_WEBHOOK_SECRET` → verificar en Vercel (ver PASOS-MANUALES.md §15)
-- Superadmin → crear en Supabase (ver PASOS-MANUALES.md §13)
+**Contexto F15:**
+- El product está deployado y funcional en producción.
+- Se detectó error "Server Components render" en admin → causa: cookies de sesión de Supabase se escriben en response descartado en middleware. Fix documentado en `ESTADO.md §F15 B0.1`.
+- Se detectó mobile navigation rota → `AdminShell.renderTopbar` reemplaza el `DefaultTopbar` entero (incluye el hamburger). Fix en `ESTADO.md §F15 B0.5`.
+- Prioridad F15: bugs críticos PRIMERO (Bloque 0), luego redesign admin + vitrine por bloques.
+- Las páginas de referencia de diseño están en `/design/admin` y `/design/vitrine` — SON la fuente de verdad visual para el redesign.
+- `EntityToolbar` ya implementado en `src/components/design/admin/entity-toolbar.tsx` — mover a `src/components/shared/` y conectar a páginas reales.
+
+**SQL manual requerido antes de deploy F15:**
+```sql
+ALTER TABLE products ADD COLUMN compare_price INTEGER;
+```
 
 ## Protocolo de Inicio de Sesión
 

@@ -35,6 +35,8 @@ export default async function StorePage({ params }: { params: Promise<{ slug: st
       banners={banners}
       hasBannersModule={!!store.modules.banners}
       hasProductPageModule={!!store.modules.product_page}
+      hasShippingModule={!!store.modules.shipping}
+      hasStockModule={!!store.modules.stock}
       slug={slug}
     />
   )

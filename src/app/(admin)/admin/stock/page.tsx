@@ -24,11 +24,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { EntityToolbar } from '@/components/shared/entity-toolbar'
 import { useStock, useUpdateStock } from '@/lib/hooks/use-stock'
 import { updateStockSchema, type UpdateStockInput } from '@/lib/validations/stock'
 import type { StockItem } from '@/lib/actions/stock'
 
 export default function StockPage() {
+  const [search, setSearch] = useState('')
   const [lowOnly, setLowOnly] = useState(false)
   const [editing, setEditing] = useState<StockItem | null>(null)
 
@@ -71,6 +73,13 @@ export default function StockPage() {
           Solo bajo stock
         </Button>
       </div>
+
+      <EntityToolbar
+        placeholder="Buscar productos..."
+        searchValue={search}
+        onSearchChange={setSearch}
+        filterPreset="stock"
+      />
 
       {isLoading ? (
         <div className="space-y-2">

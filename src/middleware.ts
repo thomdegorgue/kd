@@ -202,7 +202,11 @@ export async function middleware(request: NextRequest) {
     requestHeaders.set('x-store-context', JSON.stringify(storeContext))
     requestHeaders.set('x-user-id', user.id)
 
-    return NextResponse.next({ request: { headers: requestHeaders } })
+    const finalResponse = NextResponse.next({ request: { headers: requestHeaders } })
+    response.cookies.getAll().forEach((cookie) => {
+      finalResponse.cookies.set(cookie.name, cookie.value, cookie)
+    })
+    return finalResponse
   }
 
   // ──────────────────────────────────────────────
@@ -216,7 +220,11 @@ export async function middleware(request: NextRequest) {
     // Solo inyectamos el slug para que el Server Component lo use
     const requestHeaders = new Headers(request.headers)
     requestHeaders.set('x-store-slug', slug)
-    return NextResponse.next({ request: { headers: requestHeaders } })
+    const slugResponse = NextResponse.next({ request: { headers: requestHeaders } })
+    response.cookies.getAll().forEach((cookie) => {
+      slugResponse.cookies.set(cookie.name, cookie.value, cookie)
+    })
+    return slugResponse
   }
 
   return response

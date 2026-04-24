@@ -41,6 +41,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { ImageUploader } from '@/components/shared/image-uploader'
+import { EntityToolbar } from '@/components/shared/entity-toolbar'
 import { useBanners, useCreateBanner, useUpdateBanner, useDeleteBanner, useReorderBanners } from '@/lib/hooks/use-banners'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import type { Banner } from '@/lib/types'
@@ -127,6 +128,7 @@ export default function BannersPage() {
   const deleteMutation = useDeleteBanner()
   const reorderMutation = useReorderBanners()
 
+  const [search, setSearch] = useState('')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingBanner, setEditingBanner] = useState<BannerRow | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -212,6 +214,13 @@ export default function BannersPage() {
           Nuevo
         </Button>
       </div>
+
+      <EntityToolbar
+        placeholder="Buscar banners..."
+        searchValue={search}
+        onSearchChange={setSearch}
+        filterPreset="banners"
+      />
 
       {isLoading ? (
         <div className="space-y-2">
