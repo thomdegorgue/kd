@@ -8,6 +8,7 @@ interface PublicLayoutProps {
     logo_url: string | null
     whatsapp: string | null
     config?: {
+      primary_color?: string
       social?: {
         instagram?: string
         facebook?: string
@@ -18,10 +19,18 @@ interface PublicLayoutProps {
 }
 
 export function PublicLayout({ children, store }: PublicLayoutProps) {
+  const brandColor = store.config?.primary_color
+
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div
+      className="min-h-screen flex flex-col bg-background"
+      style={brandColor ? { '--brand-color': brandColor } as React.CSSProperties : undefined}
+    >
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
+      <header
+        className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur"
+        style={brandColor ? { borderBottomColor: `${brandColor}22` } : undefined}
+      >
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-3">
             {store.logo_url ? (
@@ -33,7 +42,10 @@ export function PublicLayout({ children, store }: PublicLayoutProps) {
                 className="h-8 w-8 rounded-full object-cover"
               />
             ) : (
-              <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
+              <div
+                className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                style={{ backgroundColor: brandColor ?? 'hsl(var(--primary))' }}
+              >
                 {store.name.charAt(0).toUpperCase()}
               </div>
             )}

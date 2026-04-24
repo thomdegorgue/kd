@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createServiceRoleClient } from '@supabase/supabase-js'
 import type { StoreContext, ModuleName, StoreStatus, StoreUserRole } from '@/lib/types'
 
 // ============================================================
@@ -99,7 +100,8 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith('/auth') ||
     pathname.startsWith('/invite') ||
-    pathname.startsWith('/design')
+    pathname.startsWith('/design') ||
+    pathname.startsWith('/api/')
   ) {
     return NextResponse.next()
   }
@@ -152,9 +154,15 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/auth/login?next=/admin', request.url))
     }
 
-    // Obtener la tienda activa del usuario
+    // Usar service role para la query de store — evita problemas de RLS en el join.
+    // La identidad ya fue verificada por auth.getUser() arriba.
+    const serviceClient = createServiceRoleClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: storeUser } = await (client as any)
+    const { data: storeUser } = await (serviceClient as any)
       .from('store_users')
       .select(`
         role,
@@ -169,7 +177,6 @@ export async function middleware(request: NextRequest) {
       .single()
 
     if (!storeUser || !storeUser.store) {
-      // Usuario sin tienda — redirigir a onboarding o error
       return NextResponse.redirect(new URL('/auth/no-store', request.url))
     }
 

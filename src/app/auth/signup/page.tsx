@@ -77,7 +77,7 @@ export default function SignupPage() {
               id="password"
               name="password"
               type="password"
-              placeholder="Mínimo 6 caracteres"
+              placeholder="Mínimo 8 caracteres"
               autoComplete="new-password"
               required
             />

@@ -3,7 +3,7 @@
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const STEPS = ['Tu tienda', 'Logo', 'Producto', '¡Listo!']
+const STEPS = ['Tu tienda', 'Diseño', 'Módulos', 'Producto']
 
 export function OnboardingSteps({ current }: { current: number }) {
   return (

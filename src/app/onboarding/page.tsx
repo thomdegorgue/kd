@@ -74,18 +74,12 @@ export default function OnboardingPage() {
               <Label htmlFor="whatsapp">
                 WhatsApp <span className="text-muted-foreground font-normal">(opcional)</span>
               </Label>
-              <div className="flex items-center gap-0">
-                <span className="h-9 rounded-l-md border border-r-0 bg-muted px-3 text-sm text-muted-foreground flex items-center">
-                  +54
-                </span>
-                <Input
-                  id="whatsapp"
-                  name="whatsapp"
-                  placeholder="9 11 2345-6789"
-                  className="rounded-l-none"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">Tus clientes te escribirán al hacer un pedido</p>
+              <Input
+                id="whatsapp"
+                name="whatsapp"
+                placeholder="5491155555555"
+              />
+              <p className="text-xs text-muted-foreground">Con código de país, sin + ni espacios. Ej: 5491155555555 (Argentina)</p>
               {fieldError('whatsapp') && <p className="text-xs text-destructive">{fieldError('whatsapp')}</p>}
             </div>
 

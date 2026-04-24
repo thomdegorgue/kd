@@ -10,7 +10,7 @@ export type LoginInput = z.infer<typeof loginSchema>
 export const signupSchema = z.object({
   full_name: z.string().min(2, 'Nombre mínimo 2 caracteres').max(100),
   email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'Contraseña mínimo 6 caracteres'),
+  password: z.string().min(8, 'Contraseña mínimo 8 caracteres'),
   store_name: z.string().min(2, 'Nombre de tienda mínimo 2 caracteres').max(100),
   store_slug: z
     .string()

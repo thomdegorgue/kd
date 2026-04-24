@@ -64,26 +64,61 @@ export async function onboardingStep1(
   redirect('/onboarding/logo')
 }
 
-// ── step2: logo ───────────────────────────────────────────────
+// ── step2: logo + color ──────────────────────────────────────
 
 export async function onboardingStep2(
   _prev: ActionResult | null,
   formData: FormData
 ): Promise<ActionResult> {
   const logoUrl = formData.get('logo_url') as string | null
+  const primaryColor = formData.get('primary_color') as string | null
 
   const storeId = await getOnboardingStoreId()
   if (!storeId) redirect('/auth/login')
 
-  if (logoUrl) {
-    const { error } = await db.from('stores').update({ logo_url: logoUrl }).eq('id', storeId)
+  const update: Record<string, unknown> = {}
+  if (logoUrl) update.logo_url = logoUrl
+
+  if (primaryColor) {
+    const { data: store } = await db.from('stores').select('config').eq('id', storeId).single()
+    const currentConfig = (store as { config?: Record<string, unknown> } | null)?.config ?? {}
+    update.config = { ...currentConfig, primary_color: primaryColor }
+  }
+
+  if (Object.keys(update).length > 0) {
+    const { error } = await db.from('stores').update(update).eq('id', storeId)
     if (error) return { success: false, error: { code: 'SYSTEM_ERROR', message: error.message } }
   }
+
+  redirect('/onboarding/modules')
+}
+
+// ── step3: módulos ───────────────────────────────────────────
+
+const OPTIONAL_BASE_MODULES = ['stock', 'payments', 'banners', 'social', 'product_page', 'shipping'] as const
+
+export async function onboardingStepModules(
+  _prev: ActionResult | null,
+  formData: FormData
+): Promise<ActionResult> {
+  const storeId = await getOnboardingStoreId()
+  if (!storeId) redirect('/auth/login')
+
+  const { data: store } = await db.from('stores').select('modules').eq('id', storeId).single()
+  const currentModules = (store as { modules?: Record<string, boolean> } | null)?.modules ?? {}
+
+  const updatedModules = { ...currentModules }
+  for (const mod of OPTIONAL_BASE_MODULES) {
+    updatedModules[mod] = formData.get(mod) === 'on'
+  }
+
+  const { error } = await db.from('stores').update({ modules: updatedModules }).eq('id', storeId)
+  if (error) return { success: false, error: { code: 'SYSTEM_ERROR', message: error.message } }
 
   redirect('/onboarding/product')
 }
 
-// ── step3: primer producto ────────────────────────────────────
+// ── step4: primer producto ────────────────────────────────────
 
 const productSchema = z.object({
   name: z.string().min(1, 'Nombre requerido').max(200),
@@ -118,7 +153,6 @@ export async function onboardingStep3(
     description: parsed.data.description ?? null,
     image_url: parsed.data.image_url || null,
     is_active: true,
-    stock: null,
   })
 
   if (error) return { success: false, error: { code: 'SYSTEM_ERROR', message: error.message } }

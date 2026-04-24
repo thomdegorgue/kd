@@ -444,7 +444,7 @@ F10 completa. Plataforma auditada y lista para MVP. No hay bloqueantes de códig
 
 ## F13 — Go-to-Market
 
-**Estado (2026-04-23):** código completo. Build limpio. Pendiente migración SQL (13.0), OG image (13.17), deploy (13.18).
+**Estado (2026-04-24):** código completo. Build limpio. Pendiente migración SQL (13.0), OG image (13.17), deploy (13.18).
 
 ### Pasos
 
@@ -467,6 +467,21 @@ F10 completa. Plataforma auditada y lista para MVP. No hay bloqueantes de códig
 - [x] 13.16 `terminos/page.tsx` — placeholder XXXX reemplazado por `NEXT_PUBLIC_WHATSAPP_NUMBER` con formateador; render condicional si no hay env var
 - [ ] 13.17 `public/og-image.jpg` — pendiente (paso manual humano, 1200×630)
 - [x] 13.18 `pnpm build` ✅ · `pnpm exec tsc --noEmit` ✅ · deploy pendiente
+
+## F14 — Onboarding Excelente + Bugs Críticos (2026-04-24)
+
+**Build:** `pnpm build` ✅ · `pnpm exec tsc --noEmit` ✅
+
+### Bugs corregidos
+- [x] **BUG 1** `onboarding.ts:121` — `stock: null` eliminado del insert en `products` (columna inexistente en schema)
+- [x] **BUG 2** `next.config.ts` — `images.remotePatterns` para `res.cloudinary.com` agregado (logo roto)
+- [x] **BUG 3** `middleware.ts` — query de `store_users JOIN stores` migrada a `supabaseServiceRole` para evitar problemas de RLS; identidad sigue verificada por `auth.getUser()` con JWT del usuario
+
+### Mejoras onboarding
+- [x] Nuevo paso 3: `/onboarding/modules` — selección visual de módulos opcionales (stock, pagos, banners, social, product_page, envíos). Grid de toggles con íconos. Core modules siempre activos.
+- [x] Paso 2 expandido: logo + color picker (8 colores preset + input type=color libre). Guarda `config.primary_color`.
+- [x] `OnboardingSteps` actualizado: 4 pasos ("Tu tienda", "Diseño", "Módulos", "Producto")
+- [x] Catálogo público: `public-layout.tsx` aplica `config.primary_color` como color del avatar inicial y borde del header
 
 ### Blockers F13 restantes
 

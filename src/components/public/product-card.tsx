@@ -46,6 +46,11 @@ export function ProductCard({ product, onClickDetail }: ProductCardProps) {
             Sin imagen
           </div>
         )}
+        {product.is_featured && (
+          <span className="absolute top-2 left-2 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-semibold text-amber-900 leading-none">
+            Destacado
+          </span>
+        )}
       </div>
 
       <CardContent className="p-3">

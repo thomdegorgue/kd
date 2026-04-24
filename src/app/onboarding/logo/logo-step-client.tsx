@@ -2,17 +2,30 @@
 
 import { useActionState, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ImageUploader } from '@/components/shared/image-uploader'
 import { onboardingStep2 } from '@/lib/actions/onboarding'
 import { OnboardingSteps } from '../_components/onboarding-steps'
 import type { ActionResult } from '@/lib/types'
 
+const PRESET_COLORS = [
+  '#1b1b1b',
+  '#2563eb',
+  '#7c3aed',
+  '#db2777',
+  '#dc2626',
+  '#ea580c',
+  '#16a34a',
+  '#0891b2',
+]
+
 export function LogoStepClient({ storeId }: { storeId: string }) {
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(onboardingStep2, null)
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [primaryColor, setPrimaryColor] = useState('#1b1b1b')
   const formRef = useRef<HTMLFormElement>(null)
 
   return (
@@ -21,9 +34,9 @@ export function LogoStepClient({ storeId }: { storeId: string }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Subí tu logo</CardTitle>
+          <CardTitle>Diseño de tu tienda</CardTitle>
           <CardDescription>
-            Recomendamos 200×200 px con fondo blanco o transparente. Podés cambiarlo después desde Configuración.
+            Subí tu logo y elegí el color principal. Podés cambiarlos después desde Configuración.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -35,20 +48,61 @@ export function LogoStepClient({ storeId }: { storeId: string }) {
             )}
 
             <input type="hidden" name="logo_url" value={logoUrl ?? ''} />
+            <input type="hidden" name="primary_color" value={primaryColor} />
 
-            {storeId && (
-              <ImageUploader
-                storeId={storeId}
-                folder="store"
-                maxFiles={1}
-                onUpload={(urls) => {
-                  setLogoUrl(urls[0] ?? null)
-                }}
-              />
-            )}
+            {/* Logo */}
+            <div className="space-y-2">
+              <Label>Logo <span className="text-muted-foreground font-normal">(opcional — 200×200 px recomendado)</span></Label>
+              {storeId && (
+                <ImageUploader
+                  storeId={storeId}
+                  folder="store"
+                  maxFiles={1}
+                  onUpload={(urls) => setLogoUrl(urls[0] ?? null)}
+                />
+              )}
+            </div>
+
+            {/* Color principal */}
+            <div className="space-y-3">
+              <Label>Color principal de tu marca</Label>
+              <div className="flex items-center gap-2 flex-wrap">
+                {PRESET_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setPrimaryColor(color)}
+                    className="relative w-8 h-8 rounded-full border-2 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    style={{
+                      backgroundColor: color,
+                      borderColor: primaryColor === color ? color : 'transparent',
+                      boxShadow: primaryColor === color ? `0 0 0 2px white, 0 0 0 4px ${color}` : undefined,
+                    }}
+                    title={color}
+                  >
+                    {primaryColor === color && (
+                      <Check className="h-3.5 w-3.5 text-white absolute inset-0 m-auto" />
+                    )}
+                  </button>
+                ))}
+                <div className="relative">
+                  <input
+                    type="color"
+                    value={primaryColor}
+                    onChange={(e) => setPrimaryColor(e.target.value)}
+                    className="w-8 h-8 rounded-full cursor-pointer border-2 border-border p-0.5 bg-transparent"
+                    title="Elegir color personalizado"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="w-4 h-4 rounded" style={{ backgroundColor: primaryColor }} />
+                <span>{primaryColor}</span>
+              </div>
+            </div>
 
             <div className="flex gap-3">
-              <Button render={<Link href="/onboarding/product" />} variant="ghost" className="flex-1">
+              <Button render={<Link href="/onboarding/modules" />} variant="ghost" className="flex-1">
                 Omitir
               </Button>
               <Button type="submit" className="flex-1" disabled={pending}>

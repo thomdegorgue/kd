@@ -22,7 +22,7 @@ export function ProductStepClient({ storeId }: { storeId: string }) {
 
   return (
     <div className="space-y-6">
-      <OnboardingSteps current={2} />
+      <OnboardingSteps current={3} />
 
       <Card>
         <CardHeader>

@@ -30,6 +30,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useBilling } from '@/lib/hooks/use-billing'
+import { useStoreConfig } from '@/lib/hooks/use-store-config'
 
 import { PanelShell, type PanelNavGroup } from '@/components/shared/panel-shell'
 import { AdminContext } from '@/lib/hooks/use-admin-context'
@@ -153,6 +154,17 @@ function buildNav(modules: Partial<Record<ModuleName, boolean>>): PanelNavGroup[
   ].filter((group) => group.items.length > 0)
 }
 
+function StoreSidebarHeader() {
+  const { data: store } = useStoreConfig()
+  return (
+    <div className="flex items-center gap-2.5 px-4 py-3 border-b border-sidebar-border min-w-0">
+      <span className="text-xs font-semibold truncate">
+        {store?.name ?? 'Mi tienda'}
+      </span>
+    </div>
+  )
+}
+
 function BillingBanner() {
   const { data } = useBilling()
 
@@ -180,17 +192,17 @@ function BillingBanner() {
         (new Date(billing.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
       ),
     )
-    if (daysLeft <= 3) {
-      return (
-        <Link
-          href="/admin/billing"
-          className="flex items-center justify-center gap-2 bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 font-medium hover:bg-amber-100 transition-colors"
-        >
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-          Tu prueba gratis vence en {daysLeft} {daysLeft === 1 ? 'día' : 'días'}. Activá tu suscripción.
-        </Link>
-      )
-    }
+    return (
+      <Link
+        href="/admin/billing"
+        className="flex items-center justify-center gap-2 bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 font-medium hover:bg-amber-100 transition-colors"
+      >
+        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+        {daysLeft <= 3
+          ? `Tu prueba gratis vence en ${daysLeft} ${daysLeft === 1 ? 'día' : 'días'}. Activá tu suscripción →`
+          : `Estás en el período de prueba (${daysLeft} días restantes). Activá tu plan para seguir vendiendo →`}
+      </Link>
+    )
   }
 
   return null
@@ -264,11 +276,7 @@ export function AdminShell({
       <PanelShell
         nav={nav}
         activeKey={activeKey}
-        renderSidebarHeader={() => (
-          <div className="flex items-center gap-2.5 px-4 py-3 border-b border-sidebar-border">
-            <span className="text-xs font-semibold truncate">Admin</span>
-          </div>
-        )}
+        renderSidebarHeader={() => <StoreSidebarHeader />}
         renderTopbar={() => <BillingBanner />}
       >
         {children}

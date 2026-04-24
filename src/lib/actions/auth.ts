@@ -24,7 +24,7 @@ export async function sendPasswordReset(
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'
   const supabase = await createClient()
   await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${appUrl}/auth/reset-password`,
+    redirectTo: `${appUrl}/auth/callback?type=recovery&next=/auth/reset-password`,
   })
 
   return { success: true, data: null }

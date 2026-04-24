@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
+import { ANNUAL_INCLUDED_PRO_MODULES } from '@/lib/billing/calculator'
 import { sendEmail } from '@/lib/email/resend'
 import { TrialExpiringEmail } from '@/lib/email/templates/trial-expiring'
 import { StoreArchivedEmail } from '@/lib/email/templates/store-archived'
@@ -196,16 +197,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         // Desactivar módulos pro al vencer
         const currentModules = store.modules ?? {}
         const proDisabled: Record<string, boolean> = { ...currentModules }
-        for (const m of [
-          'variants',
-          'wholesale',
-          'finance',
-          'expenses',
-          'savings_account',
-          'multiuser',
-          'custom_domain',
-          'tasks',
-        ]) {
+        for (const m of ANNUAL_INCLUDED_PRO_MODULES) {
           if (proDisabled[m]) proDisabled[m] = false
         }
 
