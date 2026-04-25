@@ -58,30 +58,36 @@ function getCatalogUrl(slug: string): string {
 
 function useActiveKey(): string {
   const pathname = usePathname()
-  const segment = pathname.replace('/admin', '').split('/').filter(Boolean)[0] ?? ''
 
-  const keyMap: Record<string, string> = {
-    '': 'dashboard',
-    products: 'products',
-    categories: 'categories',
-    orders: 'orders',
-    customers: 'customers',
-    settings: 'settings',
-    banners: 'banners',
-    stock: 'stock',
-    shipping: 'shipping',
-    payments: 'payments',
-    tasks: 'tasks',
-    finance: 'finance',
-    expenses: 'expenses',
-    savings: 'savings',
-    multiuser: 'multiuser',
-    domain: 'domain',
-    billing: 'billing',
-    assistant: 'assistant',
+  // Ordered from most specific (longest) to least specific so the first match wins
+  const hrefToKey: Array<[string, string]> = [
+    ['/admin/settings/modules', 'modules'],
+    ['/admin/settings/team', 'multiuser'],
+    ['/admin/settings/domain', 'domain'],
+    ['/admin/settings', 'settings'],
+    ['/admin/ventas', 'ventas'],
+    ['/admin/products', 'products'],
+    ['/admin/categories', 'categories'],
+    ['/admin/orders', 'orders'],
+    ['/admin/customers', 'customers'],
+    ['/admin/banners', 'banners'],
+    ['/admin/stock', 'stock'],
+    ['/admin/shipping', 'shipping'],
+    ['/admin/payments', 'payments'],
+    ['/admin/tasks', 'tasks'],
+    ['/admin/finance', 'finance'],
+    ['/admin/expenses', 'expenses'],
+    ['/admin/savings', 'savings'],
+    ['/admin/wholesale', 'wholesale'],
+    ['/admin/billing', 'billing'],
+    ['/admin/assistant', 'assistant'],
+    ['/admin', 'dashboard'],
+  ]
+
+  for (const [href, key] of hrefToKey) {
+    if (pathname === href || pathname.startsWith(href + '/')) return key
   }
-
-  return keyMap[segment] ?? 'dashboard'
+  return 'dashboard'
 }
 
 function buildNav(modules: Partial<Record<ModuleName, boolean>>): PanelNavGroup[] {

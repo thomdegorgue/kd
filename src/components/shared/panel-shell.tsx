@@ -45,7 +45,7 @@ export function PanelShell(props: {
     nav,
     activeKey,
     className,
-    topOffsetClassName = 'top-10',
+    topOffsetClassName = 'top-0',
     renderSidebarHeader,
     renderSidebarFooter,
     renderTopbar,
@@ -187,8 +187,8 @@ export function PanelShell(props: {
   )
 
   return (
-    <div className={cn('min-h-[calc(100dvh-40px)] flex', className)}>
-      <aside className={cn('hidden lg:flex flex-col w-52 shrink-0 sticky self-start h-[calc(100dvh-40px)]', topOffsetClassName)}>
+    <div className={cn('min-h-dvh flex', className)}>
+      <aside className={cn('hidden lg:flex flex-col w-52 shrink-0 sticky self-start h-dvh', topOffsetClassName)}>
         <Sidebar variant="desktop" />
       </aside>
 

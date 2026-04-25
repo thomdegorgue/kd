@@ -1067,6 +1067,27 @@ ALTER TABLE stores ADD COLUMN ai_tokens_reset_at TIMESTAMPTZ DEFAULT NOW();
 
 ---
 
+## F_ADMIN_FIX — Admin: Layout, Active States, Redis Safe (2026-04-25)
+
+**Estado:** COMPLETO — build limpio ✅ · tsc --noEmit ✅
+
+### Cambios aplicados
+
+- [x] **panel-shell.tsx** — Layout corregido: outer div `min-h-dvh` (no `min-h-[calc(100dvh-40px)]`); sidebar `sticky top-0 h-dvh` (no `top-10 h-[calc(100dvh-40px)]`); default `topOffsetClassName = 'top-0'`. El sidebar ya no arranca 40px por debajo del viewport.
+- [x] **admin-shell.tsx** — `useActiveKey()` reescrito con matching de pathname contra hrefs (más específico primero). Corrige: `ventas`, `wholesale`, `modules` (`/admin/settings/modules`), `multiuser` (`/admin/settings/team`), `domain` (`/admin/settings/domain`) que nunca marcaban activo.
+- [x] **redis.ts** — `Redis.fromEnv()` ahora protegido con guard de env vars + try/catch. Retorna no-op fallback cuando Redis no está configurado en lugar de lanzar (causa raíz del "Server Components render" error cuando `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` no están en `.env.local`).
+- [x] **app/(admin)/admin/loading.tsx** — Skeleton de carga para el admin. Mueve el "flash" de página en blanco entre navegaciones a un estado de loading visual.
+- [x] **ProductSheet** (src/components/admin/product-sheet.tsx) — Tabs Ficha/Categorías/Stock/Página/Variantes implementados. `compare_price`, `stock`, `product_page`, `category_ids` todos funcionales.
+- [x] **product-detail-view.tsx** — Página de detalle pública con variantes, galería, specs, compare_price, JSON-LD.
+
+### SQL pendiente (no cambió)
+```sql
+ALTER TABLE products ADD COLUMN compare_price INTEGER;
+ALTER TABLE products ADD COLUMN stock INTEGER; -- si aún no existe
+```
+
+---
+
 ## Blockers Globales Pre-Launch
 
 Antes de cualquier venta real, verificar:
