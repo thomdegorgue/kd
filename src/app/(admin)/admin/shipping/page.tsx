@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Pencil, Trash2, Copy } from 'lucide-react'
+import { Plus, Pencil, Trash2, Copy, CheckCircle2, Circle, XCircle, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -63,6 +63,70 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline'> = {
   cancelled: 'outline',
 }
 
+const STATUS_FLOW: ShipmentStatus[] = ['preparing', 'in_transit', 'delivered']
+
+function ShipmentTimeline({
+  status,
+  onAdvance,
+  disabled,
+}: {
+  status: ShipmentStatus
+  onAdvance?: (next: ShipmentStatus) => void
+  disabled?: boolean
+}) {
+  if (status === 'cancelled') {
+    return (
+      <div className="flex items-center gap-2 text-destructive">
+        <XCircle className="h-4 w-4" />
+        <span className="text-sm font-medium">Cancelado</span>
+      </div>
+    )
+  }
+
+  const currentIdx = STATUS_FLOW.indexOf(status)
+  return (
+    <div className="flex items-center gap-1">
+      {STATUS_FLOW.map((s, idx) => {
+        const isPast = idx <= currentIdx
+        const isCurrent = idx === currentIdx
+        const canClick = onAdvance && idx === currentIdx + 1
+        return (
+          <div key={s} className="flex items-center flex-1">
+            <button
+              type="button"
+              onClick={() => {
+                if (!canClick) return
+                onAdvance?.(s)
+              }}
+              disabled={!canClick || disabled}
+              className={`flex flex-col items-center gap-1 min-w-0 ${canClick ? 'cursor-pointer' : 'cursor-default'}`}
+              aria-label={`Marcar como ${SHIPMENT_STATUS_LABELS[s] ?? s}`}
+            >
+              {isPast ? (
+                <CheckCircle2 className={`h-4 w-4 ${isCurrent ? 'text-primary' : 'text-primary/50'}`} />
+              ) : (
+                <Circle className="h-4 w-4 text-muted-foreground/30" />
+              )}
+              <span
+                className={`text-[10px] text-center leading-tight ${
+                  isCurrent ? 'text-primary font-medium' : isPast ? 'text-muted-foreground' : 'text-muted-foreground/40'
+                }`}
+              >
+                {SHIPMENT_STATUS_LABELS[s] ?? s}
+              </span>
+            </button>
+            {idx < STATUS_FLOW.length - 1 && (
+              <div
+                className={`h-px flex-1 mx-1 mb-4 ${idx < currentIdx ? 'bg-primary/50' : 'bg-muted'}`}
+              />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function ShippingPage() {
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'methods' | 'shipments'>('methods')
@@ -81,6 +145,16 @@ export default function ShippingPage() {
   const shipments = shipmentsData?.items ?? []
   const shipTotal = shipmentsData?.total ?? 0
   const shipPages = Math.ceil(shipTotal / 50)
+
+  const filteredShipments = useMemo(() => {
+    if (!search.trim()) return shipments
+    const q = search.toLowerCase()
+    return (shipments as Record<string, unknown>[]).filter((s) => {
+      const code = String(s.tracking_code ?? '').toLowerCase()
+      const order = String(s.order_id ?? '').toLowerCase()
+      return code.includes(q) || order.includes(q)
+    })
+  }, [shipments, search])
 
   const form = useForm<MethodForm>({
     resolver: zodResolver(methodFormSchema),
@@ -218,27 +292,98 @@ export default function ShippingPage() {
             <div className="space-y-2">
               {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
-          ) : shipments.length === 0 ? (
+          ) : filteredShipments.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">
               No hay envíos registrados.
             </div>
           ) : (
             <>
-              <div className="border rounded-lg overflow-x-auto">
+              {/* Mobile: cards */}
+              <div className="grid gap-3 sm:hidden">
+                {(filteredShipments as Record<string, unknown>[]).map((s) => {
+                  const status = s.status as ShipmentStatus
+                  const transitions = SHIPMENT_TRANSITIONS[status] ?? []
+                  const next = transitions.find((t) => t !== 'cancelled') as ShipmentStatus | undefined
+                  return (
+                    <div key={s.id as string} className="rounded-xl border bg-card p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground flex items-center gap-2">
+                            <Truck className="h-3.5 w-3.5" />
+                            Envío
+                          </p>
+                          <div className="mt-1 flex items-center gap-2">
+                            <span className="font-mono text-sm font-semibold truncate">{s.tracking_code as string}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => {
+                                navigator.clipboard.writeText(s.tracking_code as string)
+                                toast.success('Código copiado')
+                              }}
+                              aria-label="Copiar código"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground font-mono">
+                            Pedido {(s.order_id as string).slice(0, 8)}...
+                          </p>
+                        </div>
+                        <Badge variant={STATUS_VARIANT[status] ?? 'outline'}>
+                          {SHIPMENT_STATUS_LABELS[status] ?? status}
+                        </Badge>
+                      </div>
+
+                      <ShipmentTimeline
+                        status={status}
+                        disabled={updateStatusMutation.isPending}
+                        onAdvance={(nextStatus) =>
+                          updateStatusMutation.mutate({ id: s.id as string, status: nextStatus })
+                        }
+                      />
+
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          {new Date(s.created_at as string).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
+                        </span>
+                        <div className="flex gap-2">
+                          {next && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8"
+                              disabled={updateStatusMutation.isPending}
+                              onClick={() => updateStatusMutation.mutate({ id: s.id as string, status: next })}
+                            >
+                              Marcar: {SHIPMENT_STATUS_LABELS[next] ?? next}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Desktop/tablet: table */}
+              <div className="hidden sm:block border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Código</TableHead>
                       <TableHead>Pedido</TableHead>
-                      <TableHead>Estado</TableHead>
+                      <TableHead className="min-w-[260px]">Estado</TableHead>
                       <TableHead>Fecha</TableHead>
-                      <TableHead />
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(shipments as Record<string, unknown>[]).map((s) => {
+                    {(filteredShipments as Record<string, unknown>[]).map((s) => {
                       const status = s.status as ShipmentStatus
                       const transitions = SHIPMENT_TRANSITIONS[status] ?? []
+                      const next = transitions.find((t) => t !== 'cancelled') as ShipmentStatus | undefined
                       return (
                         <TableRow key={s.id as string}>
                           <TableCell>
@@ -261,32 +406,34 @@ export default function ShippingPage() {
                             {(s.order_id as string).slice(0, 8)}...
                           </TableCell>
                           <TableCell>
-                            <Badge variant={STATUS_VARIANT[status] ?? 'outline'}>
-                              {SHIPMENT_STATUS_LABELS[status] ?? status}
-                            </Badge>
+                            <ShipmentTimeline
+                              status={status}
+                              disabled={updateStatusMutation.isPending}
+                              onAdvance={(nextStatus) =>
+                                updateStatusMutation.mutate({ id: s.id as string, status: nextStatus })
+                              }
+                            />
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {new Date(s.created_at as string).toLocaleDateString('es-AR', {
                               day: '2-digit', month: '2-digit',
                             })}
                           </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              {transitions.filter((t) => t !== 'cancelled').map((t) => (
+                          <TableCell className="text-right">
+                            <div className="flex gap-1 justify-end">
+                              {next && (
                                 <Button
-                                  key={t}
                                   variant="outline"
                                   size="sm"
                                   className="text-xs h-7"
                                   disabled={updateStatusMutation.isPending}
-                                  onClick={() => updateStatusMutation.mutate({
-                                    id: s.id as string,
-                                    status: t as ShipmentStatus,
-                                  })}
+                                  onClick={() =>
+                                    updateStatusMutation.mutate({ id: s.id as string, status: next })
+                                  }
                                 >
-                                  {SHIPMENT_STATUS_LABELS[t] ?? t}
+                                  {SHIPMENT_STATUS_LABELS[next] ?? next}
                                 </Button>
-                              ))}
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>

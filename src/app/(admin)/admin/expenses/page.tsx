@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus, Trash2 } from 'lucide-react'
@@ -63,8 +63,8 @@ export default function ExpensesPage() {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [dateFrom] = useState(firstOfMonth)
-  const [dateTo] = useState(lastOfMonth)
+  const [dateFrom, setDateFrom] = useState(firstOfMonth)
+  const [dateTo, setDateTo] = useState(lastOfMonth)
 
   const { data, isLoading } = useExpenses({
     category: categoryFilter || undefined,
@@ -78,6 +78,16 @@ export default function ExpensesPage() {
 
   const expenses = data?.items ?? []
   const total = data?.total ?? 0
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return expenses
+    const q = search.toLowerCase()
+    return (expenses as Record<string, unknown>[]).filter((e) => {
+      const desc = String(e.description ?? '').toLowerCase()
+      const cat = String(e.category ?? '').toLowerCase()
+      return desc.includes(q) || cat.includes(q)
+    })
+  }, [expenses, search])
 
   const form = useForm<ExpenseFormInput>({
     resolver: zodResolver(expenseFormSchema),
@@ -119,6 +129,18 @@ export default function ExpensesPage() {
         onSearchChange={setSearch}
         filterPreset="finanzas"
       />
+
+      {/* Date range filter */}
+      <div className="flex gap-2 flex-wrap items-end">
+        <div className="space-y-1">
+          <Label className="text-xs">Desde</Label>
+          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36 h-8 text-xs" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Hasta</Label>
+          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36 h-8 text-xs" />
+        </div>
+      </div>
 
       {/* Summary */}
       {summary && (
@@ -164,53 +186,89 @@ export default function ExpensesPage() {
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
         </div>
-      ) : expenses.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground text-sm">
           No hay gastos para el período.
         </div>
       ) : (
-        <div className="border rounded-lg overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Descripción</TableHead>
-                <TableHead>Categoría</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead className="text-right">Monto</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(expenses as Record<string, unknown>[]).map((e) => (
-                <TableRow key={e.id as string}>
-                  <TableCell className="text-sm">{e.description as string}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="text-xs">
-                      {EXPENSE_CATEGORY_LABELS[e.category as string] ?? e.category as string}
+        <>
+          {/* Mobile: cards */}
+          <div className="sm:hidden divide-y divide-border/60 rounded-xl border overflow-hidden bg-card">
+            {(filtered as Record<string, unknown>[]).map((e) => (
+              <div key={e.id as string} className="p-4 flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate">{e.description as string}</p>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {EXPENSE_CATEGORY_LABELS[e.category as string] ?? (e.category as string)}
                     </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {new Date(e.date as string).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-medium text-destructive">
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <p className="text-sm tabular-nums font-semibold text-destructive">
                     -{formatPrice(e.amount as number)}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      disabled={deleteMutation.isPending}
-                      onClick={() => deleteMutation.mutate(e.id as string)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    </Button>
-                  </TableCell>
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={deleteMutation.isPending}
+                    onClick={() => deleteMutation.mutate(e.id as string)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop/tablet: table */}
+          <div className="hidden sm:block border rounded-lg overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead>Categoría</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead className="text-right">Monto</TableHead>
+                  <TableHead />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {(filtered as Record<string, unknown>[]).map((e) => (
+                  <TableRow key={e.id as string}>
+                    <TableCell className="text-sm">{e.description as string}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-xs">
+                        {EXPENSE_CATEGORY_LABELS[e.category as string] ?? e.category as string}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(e.date as string).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums font-medium text-destructive">
+                      -{formatPrice(e.amount as number)}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        disabled={deleteMutation.isPending}
+                        onClick={() => deleteMutation.mutate(e.id as string)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>

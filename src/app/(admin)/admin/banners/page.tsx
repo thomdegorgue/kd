@@ -12,12 +12,12 @@ import {
 } from '@dnd-kit/core'
 import {
   SortableContext,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
   useSortable,
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Pencil, Trash2, Plus, Link as LinkIcon } from 'lucide-react'
+import { GripVertical, Pencil, Trash2, Plus, Link as LinkIcon, Image as ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -71,50 +71,65 @@ function SortableItem({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 p-3 bg-background border rounded-lg overflow-hidden"
+      className="group relative overflow-hidden rounded-xl border bg-card"
     >
-      <button
-        type="button"
-        className="cursor-grab touch-none text-muted-foreground hover:text-foreground shrink-0"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
-
-      <div className="w-20 h-12 bg-muted rounded flex-shrink-0 relative overflow-hidden">
-        {banner.image_url && (
-          <Image
-            src={banner.image_url}
-            alt={banner.title || 'Banner'}
-            fill
-            className="object-cover"
-          />
+      <div className="relative aspect-video bg-muted">
+        {banner.image_url ? (
+          <Image src={banner.image_url} alt={banner.title || 'Banner'} fill className="object-cover" />
+        ) : (
+          <div className="flex h-full items-center justify-center text-muted-foreground">
+            <ImageIcon className="h-5 w-5" />
+          </div>
         )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/0 to-black/0" />
+
+        <div className="absolute left-3 top-3 flex items-center gap-2">
+          <button
+            type="button"
+            className="cursor-grab touch-none rounded-md bg-background/85 backdrop-blur px-2 py-1 text-muted-foreground hover:text-foreground shadow-sm"
+            {...attributes}
+            {...listeners}
+            aria-label="Arrastrar para reordenar"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+          <Badge variant={banner.is_active ? 'default' : 'outline'} className="bg-background/85 backdrop-blur">
+            {banner.is_active ? 'Activo' : 'Pausado'}
+          </Badge>
+        </div>
+
+        <div className="absolute right-3 top-3 flex gap-1">
+          <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/85 hover:bg-background" onClick={onEdit}>
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/85 hover:bg-background text-destructive" onClick={onDelete}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
 
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{banner.title || '(sin título)'}</p>
-        {banner.subtitle && <p className="text-xs text-muted-foreground truncate">{banner.subtitle}</p>}
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold truncate">{banner.title || '(sin título)'}</p>
+            {banner.subtitle && <p className="text-xs text-muted-foreground line-clamp-1">{banner.subtitle}</p>}
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={banner.is_active}
+              onCheckedChange={(v) => onEdit() /* abre sheet para editar; toggle vive ahí */}
+              aria-label="Editar estado"
+              className="opacity-0 pointer-events-none"
+            />
+          </div>
+        </div>
+
         {banner.link_url && (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-            <LinkIcon className="h-3 w-3" />
+          <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <LinkIcon className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{banner.link_url}</span>
           </div>
         )}
-      </div>
-
-      <Badge variant={banner.is_active ? 'default' : 'outline'} className="shrink-0">
-        {banner.is_active ? 'Activo' : 'Inactivo'}
-      </Badge>
-
-      <div className="flex gap-1 shrink-0">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={onDelete}>
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
       </div>
     </div>
   )
@@ -223,9 +238,15 @@ export default function BannersPage() {
       />
 
       {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full" />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-xl border overflow-hidden">
+              <Skeleton className="aspect-video w-full" />
+              <div className="p-4 space-y-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </div>
           ))}
         </div>
       ) : items.length === 0 ? (
@@ -234,8 +255,8 @@ export default function BannersPage() {
         </div>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={items.map((b) => b.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
+          <SortableContext items={items.map((b) => b.id)} strategy={rectSortingStrategy}>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {items.map((banner) => (
                 <SortableItem
                   key={banner.id}

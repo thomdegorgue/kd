@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Send, Bot, User, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
@@ -30,6 +32,42 @@ function parseAssistantMessage(content: string): { text: string; proposed_action
     // no es JSON válido
   }
   return { text: content }
+}
+
+function MarkdownMessage({ content }: { content: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        a: ({ children, ...props }) => (
+          <a
+            {...props}
+            target="_blank"
+            rel="noreferrer"
+            className="underline underline-offset-2 text-primary hover:opacity-90"
+          >
+            {children}
+          </a>
+        ),
+        p: ({ children }) => <p className="whitespace-pre-wrap break-words">{children}</p>,
+        ul: ({ children }) => <ul className="list-disc pl-5 space-y-1">{children}</ul>,
+        ol: ({ children }) => <ol className="list-decimal pl-5 space-y-1">{children}</ol>,
+        li: ({ children }) => <li className="break-words">{children}</li>,
+        code: ({ children }) => (
+          <code className="px-1 py-0.5 rounded bg-background/60 border font-mono text-[0.85em]">
+            {children}
+          </code>
+        ),
+        pre: ({ children }) => (
+          <pre className="mt-2 p-3 rounded-lg bg-background/60 border overflow-x-auto text-[0.85em] leading-relaxed">
+            {children}
+          </pre>
+        ),
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  )
 }
 
 function TokenCounter({ used, limit }: { used: number; limit: number }) {
@@ -151,7 +189,7 @@ function ChatMessage({
                 Pensando...
               </span>
             ) : (
-              parsed.text
+              <MarkdownMessage content={parsed.text} />
             )}
           </div>
           {!message.isOptimistic && actions.length > 0 && (

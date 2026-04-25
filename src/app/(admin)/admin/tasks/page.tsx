@@ -1,15 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Trash2, CheckCircle2 } from 'lucide-react'
+import { Plus, Trash2, Calendar, PlayCircle, CheckCircle2, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { EntityToolbar } from '@/components/shared/entity-toolbar'
-import { useTasks, useCreateTask, useCompleteTask, useDeleteTask } from '@/lib/hooks/use-tasks'
+import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/lib/hooks/use-tasks'
 import { createTaskSchema, TASK_STATUS_LABELS, type CreateTaskInput } from '@/lib/validations/task'
 import type { TaskStatus } from '@/lib/types'
 
@@ -31,6 +32,13 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline'> = {
 
 const STATUS_FILTERS = ['', 'pending', 'in_progress', 'done', 'cancelled'] as const
 
+function isOverdue(dueDate: string): boolean {
+  const today = new Date()
+  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+  const d = new Date(dueDate).getTime()
+  return d < t
+}
+
 export default function TasksPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
@@ -38,11 +46,21 @@ export default function TasksPage() {
 
   const { data, isLoading } = useTasks({ status: statusFilter || undefined })
   const createMutation = useCreateTask()
-  const completeMutation = useCompleteTask()
+  const updateMutation = useUpdateTask()
   const deleteMutation = useDeleteTask()
 
   const tasks = data?.items ?? []
   const total = data?.total ?? 0
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return tasks
+    const q = search.toLowerCase()
+    return (tasks as Record<string, unknown>[]).filter((t) => {
+      const title = String((t as { title?: string }).title ?? '').toLowerCase()
+      const desc = String((t as { description?: string | null }).description ?? '').toLowerCase()
+      return title.includes(q) || desc.includes(q)
+    })
+  }, [tasks, search])
 
   const form = useForm<CreateTaskInput>({
     resolver: zodResolver(createTaskSchema),
@@ -101,7 +119,7 @@ export default function TasksPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {tasks.map((t) => {
+          {(filtered as Record<string, unknown>[]).map((t) => {
             const task = t as unknown as {
               id: string
               title: string
@@ -109,26 +127,38 @@ export default function TasksPage() {
               status: TaskStatus
               due_date: string | null
             }
-            const isDone = task.status === 'done' || task.status === 'cancelled'
+            const isDone = task.status === 'done'
+            const isCancelled = task.status === 'cancelled'
+            const overdue = task.due_date ? isOverdue(task.due_date) : false
+
+            const canEdit = !updateMutation.isPending
+
+            async function setStatus(status: TaskStatus) {
+              await updateMutation.mutateAsync({ id: task.id, status })
+            }
 
             return (
               <div
                 key={task.id}
                 className="flex items-start gap-3 p-3 border rounded-lg bg-card"
               >
-                <button
-                  className="mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
-                  disabled={isDone || completeMutation.isPending}
-                  onClick={() => completeMutation.mutate(task.id)}
-                  title="Marcar como hecho"
-                >
-                  <CheckCircle2
-                    className={`h-5 w-5 ${isDone ? 'text-muted-foreground/40' : ''}`}
+                <div className="mt-0.5 shrink-0">
+                  <Checkbox
+                    checked={isDone}
+                    disabled={isCancelled || !canEdit}
+                    onCheckedChange={(checked) => {
+                      setStatus(checked ? 'done' : 'pending')
+                    }}
+                    aria-label="Marcar como hecho"
                   />
-                </button>
+                </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${isDone ? 'line-through text-muted-foreground' : ''}`}>
+                  <p
+                    className={`text-sm font-medium ${
+                      isDone || isCancelled ? 'line-through text-muted-foreground' : ''
+                    }`}
+                  >
                     {task.title}
                   </p>
                   {task.description && (
@@ -139,11 +169,55 @@ export default function TasksPage() {
                       {TASK_STATUS_LABELS[task.status] ?? task.status}
                     </Badge>
                     {task.due_date && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className={`text-xs flex items-center gap-1 ${overdue && !isDone && !isCancelled ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        <Calendar className="h-3.5 w-3.5" />
                         Vence {new Date(task.due_date).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
                       </span>
                     )}
                   </div>
+
+                  {!isCancelled && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {task.status !== 'in_progress' && task.status !== 'done' && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          disabled={!canEdit}
+                          onClick={() => setStatus('in_progress')}
+                        >
+                          <PlayCircle className="h-3.5 w-3.5 mr-1" />
+                          En progreso
+                        </Button>
+                      )}
+                      {task.status !== 'done' && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={!canEdit}
+                          onClick={() => setStatus('done')}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                          Hecho
+                        </Button>
+                      )}
+                      {task.status !== 'cancelled' && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs text-destructive hover:text-destructive"
+                          disabled={!canEdit}
+                          onClick={() => setStatus('cancelled')}
+                        >
+                          <XCircle className="h-3.5 w-3.5 mr-1" />
+                          Cancelar
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <Button

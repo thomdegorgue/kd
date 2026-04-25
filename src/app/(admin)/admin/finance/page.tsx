@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus, Trash2 } from 'lucide-react'
@@ -75,6 +75,16 @@ export default function FinancePage() {
 
   const entries = data?.items ?? []
   const total = data?.total ?? 0
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return entries
+    const q = search.toLowerCase()
+    return (entries as Record<string, unknown>[]).filter((e) => {
+      const desc = String(e.description ?? '').toLowerCase()
+      const cat = String(e.category ?? '').toLowerCase()
+      return desc.includes(q) || cat.includes(q)
+    })
+  }, [entries, search])
 
   const form = useForm<FinanceFormInput>({
     resolver: zodResolver(financeFormSchema),
@@ -175,49 +185,85 @@ export default function FinancePage() {
           No hay entradas para el período seleccionado.
         </div>
       ) : (
-        <div className="border rounded-lg overflow-x-auto">
-          <p className="text-xs text-muted-foreground px-4 py-2">{total} entradas</p>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Descripción</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead className="text-right">Monto</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(entries as Record<string, unknown>[]).map((e) => (
-                <TableRow key={e.id as string}>
-                  <TableCell className="text-sm">{e.description as string}</TableCell>
-                  <TableCell>
-                    <Badge variant={e.type === 'income' ? 'default' : 'secondary'}>
-                      {FINANCE_TYPE_LABELS[e.type as string] ?? e.type as string}
+        <>
+          {/* Mobile: cards */}
+          <div className="sm:hidden divide-y divide-border/60 rounded-xl border overflow-hidden bg-card">
+            {(filtered as Record<string, unknown>[]).map((e) => (
+              <div key={e.id as string} className="p-4 flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate">{e.description as string}</p>
+                    <Badge variant={e.type === 'income' ? 'default' : 'secondary'} className="text-[10px]">
+                      {FINANCE_TYPE_LABELS[e.type as string] ?? (e.type as string)}
                     </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {new Date(e.date as string).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                  </TableCell>
-                  <TableCell className={`text-right tabular-nums font-medium ${e.type === 'income' ? 'text-green-600' : 'text-destructive'}`}>
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <p className={`text-sm tabular-nums font-semibold ${e.type === 'income' ? 'text-green-600' : 'text-destructive'}`}>
                     {e.type === 'income' ? '+' : '-'}{formatPrice(e.amount as number)}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      disabled={deleteMutation.isPending}
-                      onClick={() => deleteMutation.mutate(e.id as string)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    </Button>
-                  </TableCell>
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={deleteMutation.isPending}
+                    onClick={() => deleteMutation.mutate(e.id as string)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop/tablet: table */}
+          <div className="hidden sm:block border rounded-lg overflow-x-auto">
+            <p className="text-xs text-muted-foreground px-4 py-2">{total} entradas</p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead className="text-right">Monto</TableHead>
+                  <TableHead />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {(filtered as Record<string, unknown>[]).map((e) => (
+                  <TableRow key={e.id as string}>
+                    <TableCell className="text-sm">{e.description as string}</TableCell>
+                    <TableCell>
+                      <Badge variant={e.type === 'income' ? 'default' : 'secondary'}>
+                        {FINANCE_TYPE_LABELS[e.type as string] ?? e.type as string}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(e.date as string).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    </TableCell>
+                    <TableCell className={`text-right tabular-nums font-medium ${e.type === 'income' ? 'text-green-600' : 'text-destructive'}`}>
+                      {e.type === 'income' ? '+' : '-'}{formatPrice(e.amount as number)}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        disabled={deleteMutation.isPending}
+                        onClick={() => deleteMutation.mutate(e.id as string)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>

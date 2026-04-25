@@ -24,7 +24,7 @@ const PRESET_COLORS = [
 
 export function StoreSettingsForm() {
   const { data: store, isLoading } = useStoreConfig()
-  const { store_id } = useAdminContext()
+  const { store_id, modules } = useAdminContext()
   const updateMutation = useUpdateStore()
   const updateConfigMutation = useUpdateStoreConfig()
 
@@ -33,6 +33,13 @@ export function StoreSettingsForm() {
   const [city, setCity] = useState((storeConfig?.city as string | undefined) ?? '')
   const [hours, setHours] = useState((storeConfig?.hours as string | undefined) ?? '')
   const [showWhatsAppPreview, setShowWhatsAppPreview] = useState(false)
+  const [social, setSocial] = useState({
+    instagram: (storeConfig?.social?.instagram ?? '') as string,
+    facebook: (storeConfig?.social?.facebook ?? '') as string,
+    tiktok: (storeConfig?.social?.tiktok ?? '') as string,
+    twitter: (storeConfig?.social?.twitter ?? '') as string,
+  })
+  const [showSocialPreview, setShowSocialPreview] = useState(false)
 
   useEffect(() => {
     if (storeConfig?.primary_color) {
@@ -44,7 +51,15 @@ export function StoreSettingsForm() {
     if (storeConfig?.hours) {
       setHours(storeConfig.hours as string)
     }
-  }, [storeConfig?.primary_color, storeConfig?.city, storeConfig?.hours])
+    if (storeConfig?.social) {
+      setSocial({
+        instagram: (storeConfig.social.instagram ?? '') as string,
+        facebook: (storeConfig.social.facebook ?? '') as string,
+        tiktok: (storeConfig.social.tiktok ?? '') as string,
+        twitter: (storeConfig.social.twitter ?? '') as string,
+      })
+    }
+  }, [storeConfig?.primary_color, storeConfig?.city, storeConfig?.hours, storeConfig?.social])
 
   const form = useForm<UpdateStoreInput>({
     resolver: zodResolver(updateStoreSchema),
@@ -228,6 +243,95 @@ export function StoreSettingsForm() {
           </div>
         )}
       </div>
+
+      {modules.social && (
+        <div className="space-y-4 border-t pt-6">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="font-semibold">Redes sociales</h3>
+              <p className="text-xs text-muted-foreground">
+                Se muestran en el footer de tu catálogo.
+              </p>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={() => setShowSocialPreview((v) => !v)}>
+              {showSocialPreview ? 'Ocultar' : 'Ver preview'}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="social-instagram" className="text-xs">Instagram (usuario)</Label>
+              <Input
+                id="social-instagram"
+                placeholder="mitienda"
+                value={social.instagram}
+                onChange={(e) => setSocial((s) => ({ ...s, instagram: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="social-tiktok" className="text-xs">TikTok (usuario)</Label>
+              <Input
+                id="social-tiktok"
+                placeholder="mitienda"
+                value={social.tiktok}
+                onChange={(e) => setSocial((s) => ({ ...s, tiktok: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="social-facebook" className="text-xs">Facebook (URL)</Label>
+              <Input
+                id="social-facebook"
+                placeholder="https://facebook.com/..."
+                value={social.facebook}
+                onChange={(e) => setSocial((s) => ({ ...s, facebook: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="social-twitter" className="text-xs">X/Twitter (usuario)</Label>
+              <Input
+                id="social-twitter"
+                placeholder="mitienda"
+                value={social.twitter}
+                onChange={(e) => setSocial((s) => ({ ...s, twitter: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              updateConfigMutation.mutate({
+                social: {
+                  instagram: social.instagram.trim() || undefined,
+                  facebook: social.facebook.trim() || undefined,
+                  tiktok: social.tiktok.trim() || undefined,
+                  twitter: social.twitter.trim() || undefined,
+                },
+              })
+            }
+            disabled={updateConfigMutation.isPending}
+          >
+            {updateConfigMutation.isPending ? 'Guardando...' : 'Guardar redes'}
+          </Button>
+
+          {showSocialPreview && (
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <p className="text-xs font-medium text-muted-foreground">Preview footer</p>
+              <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                {social.instagram.trim() && <span>Instagram</span>}
+                {social.facebook.trim() && <span>Facebook</span>}
+                {social.tiktok.trim() && <span>TikTok</span>}
+                {social.twitter.trim() && <span>X</span>}
+                {!social.instagram.trim() &&
+                  !social.facebook.trim() &&
+                  !social.tiktok.trim() &&
+                  !social.twitter.trim() && <span>Sin redes configuradas</span>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="space-y-3 border-t pt-6">
         <Label>Color principal de tu marca</Label>

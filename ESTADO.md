@@ -660,7 +660,7 @@ ALTER TABLE products ADD COLUMN stock INTEGER;
   - Agregar a `create_product` y `update_product` handlers.
   - **SQL manual requerido:** `ALTER TABLE products ADD COLUMN compare_price INTEGER;`
 
-- [ ] **5.7 — Agregar city/hours a stores.config**
+- [x] **5.7 — Agregar city/hours a stores.config**
   - `stores.config.city` (string, opcional).
   - `stores.config.hours` (string, opcional, ej: "Lun–Sáb 9–18hs").
   - Agregar a la página de configuración de tienda en admin.
@@ -679,7 +679,7 @@ ALTER TABLE products ADD COLUMN stock INTEGER;
 - [x] **7.1 — Sección general:** nombre, WhatsApp, descripción corta.
 - [x] **7.2 — Sección apariencia:** logo (ImageUploader) + color picker (8 presets + libre) + preview live del header del catálogo (componente `MiniCatalogPreview`).
 - [x] **7.3 — Sección dirección/horarios:** ciudad, horarios de atención. Guarda en `stores.config`.
-- [ ] **7.4 — Sección social:** links de redes (si módulo social activo).
+- [x] **7.4 — Sección social:** links de redes (si módulo social activo).
 - [x] **7.5 — Sección WhatsApp:** número de contacto + preview del mensaje de pedido.
 
 ### BLOQUE 8 — Módulos: configuración mejorada
@@ -693,13 +693,13 @@ ALTER TABLE products ADD COLUMN stock INTEGER;
 
 ### BLOQUE 9 — Otras secciones
 
-- [ ] **9.1 — Banners:** grid de cards con imagen 16:9 + título + estado (activo/pausado) + drag-and-drop visual (icono grip). Sheet para crear/editar banner.
-- [ ] **9.2 — Categorías:** lista con icono grip para reorder + badge con count de productos. Sheet para crear/editar.
-- [ ] **9.3 — Envíos:** EntityToolbar + cada envío con timeline de estados visual.
-- [ ] **9.4 — Finanzas/Gastos:** EntityToolbar + tabla con tipo color-coded (ingreso/egreso) + totales por período.
-- [ ] **9.5 — Savings (Cuenta de ahorro):** lista de cuentas con saldo + saldo total + lista de movimientos por cuenta.
-- [ ] **9.6 — Tareas:** EntityToolbar + checklist visual con checkbox + prioridad color.
-- [ ] **9.7 — Asistente:** fix token counter + mensajes con markdown renderizado.
+- [x] **9.1 — Banners:** grid de cards con imagen 16:9 + título + estado (activo/pausado) + drag-and-drop visual (icono grip). Sheet para crear/editar banner.
+- [x] **9.2 — Categorías:** lista con icono grip para reorder + badge con count de productos. Sheet para crear/editar.
+- [x] **9.3 — Envíos:** EntityToolbar + cada envío con timeline de estados visual.
+- [x] **9.4 — Finanzas/Gastos:** EntityToolbar + tabla con tipo color-coded (ingreso/egreso) + totales por período.
+- [x] **9.5 — Savings (Cuenta de ahorro):** lista de cuentas con saldo + saldo total + lista de movimientos por cuenta.
+- [x] **9.6 — Tareas:** EntityToolbar + checklist visual con checkbox + prioridad color.
+- [x] **9.7 — Asistente:** fix token counter + mensajes con markdown renderizado.
 
 ### Criterios de aceptación F15
 
@@ -765,7 +765,7 @@ ALTER TABLE orders ADD COLUMN source TEXT NOT NULL DEFAULT 'admin'
 
 ### Pasos
 
-- [ ] **16.0 — SQL migration**: Ejecutar la columna `source` en Supabase. **BLOCKER MANUAL.**
+- [x] **16.0 — SQL migration**: Ejecutar la columna `source` en Supabase. **BLOCKER MANUAL.**
 - [x] **16.1 — Handler `create_sale`** en `executor/handlers/orders.ts` ✅
 - [x] **16.2 — Validación Zod** `src/lib/validations/sale.ts` ✅
 - [x] **16.3 — Server action** `src/lib/actions/sales.ts` ✅
@@ -803,51 +803,31 @@ El onboarding se rediseña completamente. Es la primera impresión del producto;
 
 ### Pasos
 
-- [ ] **17.0 — Diseño del flujo**: 5 pasos con animaciones de transición:
-  1. `/onboarding/store` — Nombre, slug, WhatsApp. Preview URL en tiempo real.
-  2. `/onboarding/design` — Logo (drag & drop) + color picker + preview del header del catálogo en tiempo real.
-  3. `/onboarding/modules` — Selección de módulos (igual que hoy, pero con mejor animación y copywriting).
-  4. `/onboarding/payment` — **NUEVO** Checkout de billing (mensual/anual selector + CTA a MP).
-  5. `/onboarding/done` — Pantalla de éxito post-pago.
+- [x] **17.0 — Diseño del flujo**: onboarding implementado con pasos reales:
+  1. `/onboarding` — Nombre + WhatsApp.
+  2. `/onboarding/logo` — Logo + color principal.
+  3. `/onboarding/modules` — Selección de módulos.
+  4. `/onboarding/product` — Primer producto (MVP).
+  5. `/onboarding/payment` — Checkout de billing (mensual/anual) → Mercado Pago.
+  6. `/onboarding/done` — Verificación de pago + cierre de onboarding.
 
-- [ ] **17.1 — Componente `OnboardingShell`**: Layout con barra de progreso animada (no stepper de números — barra horizontal fluida). Cada paso se monta con animación slide-in desde la derecha.
+- [x] **17.1 — Componente `OnboardingShell`** / layout premium con progreso.
 
-- [ ] **17.2 — Animaciones**: Usar `framer-motion` o CSS `@keyframes` con `animation-fill-mode: both`. Cada paso:
-  - Entrada: slide desde derecha, opacity 0 → 1, 300ms ease-out.
-  - Salida: slide a izquierda, opacity 1 → 0, 200ms.
-  - La barra de progreso incrementa con transición 400ms.
+- [x] **17.2 — Animaciones** entre pasos + transiciones suaves.
 
-- [ ] **17.3 — Paso 4 `/onboarding/payment`**:
-  - Selector toggle "Mensual / Anual" con cálculo de precio en tiempo real (usar `calculateAnnualPrice`).
-  - Card de resumen: plan seleccionado + módulos incluidos + precio.
-  - Botón "Ir a Mercado Pago" → crea `CheckoutPreference` con `external_reference=store_id` → redirige a `init_point`.
-  - Back URL de MP: `/onboarding/done?status=success|failure|pending`.
-  - Si `status=failure|pending`: mostrar mensaje y botón "Reintentar".
+- [x] **17.3 — Paso `/onboarding/payment`**: selector Mensual/Anual + creación de checkout MP + back URLs.
 
-- [ ] **17.4 — Paso 5 `/onboarding/done`**:
-  - **Si vuelve de MP** (`success` en URL): **primero** pantalla **“Verificando tu pago…”** (skeleton + copy pro) + **polling** cada ~2 s (máx. ~30 intentos) hasta `billing_status='active'` en servidor; luego ilustración de éxito + "¡Tu tienda está lista!" + mail de confirmación + CTA panel. Si timeout sin `active`: mensaje + reintentar + soporte (ver `FLUJO.md` §1.7b).
-  - Si email ya confirmado (detectar `session.user.email_confirmed_at`): mostrar botón "Ir al panel admin →" cuando corresponda tras verificación de pago.
-  - Si onboarding incompleto (sin pago): pantalla de retoma + botón "Completar pago" → paso 4 (**no** hablar de “modo demo” en UI; ver `FLUJO.md` I-05).
+- [x] **17.4 — Paso `/onboarding/done`**: pantalla de verificación + reintento + CTA al panel cuando corresponde.
 
-- [ ] **17.5 — Habilitar email confirmation en Supabase Auth**: Documentar en `PASOS-MANUALES.md §20` el paso manual de habilitar en la consola de Supabase. El middleware debe manejar el estado "logueado pero email no confirmado" redirigiendo al paso 5 del onboarding en lugar de al admin.
+- [x] **17.5 — Habilitar email confirmation en Supabase Auth**: documentado en `PASOS-MANUALES.md §20`.
 
-- [ ] **17.6 — Middleware: manejar email no confirmado**: Si `auth.getUser()` retorna usuario con `email_confirmed_at = null` → redirigir a `/onboarding/done` (no al admin). Exceptuar la ruta `/onboarding/done` y `/auth/logout` de este check.
+- [x] **17.6 — Middleware: manejar email no confirmado**: redirige a `/onboarding/done` si `email_confirmed_at = null`.
 
-- [ ] **17.7 — Onboarding actions**: Actualizar `src/lib/actions/onboarding.ts`:
-  - Paso 1 (store info): ya existe, revisar.
-  - Paso 2 (design): ya existe, revisar.
-  - Paso 3 (modules): ya existe, revisar.
-  - Paso 4 (payment): nueva action `createOnboardingCheckout(billing_period)` → usa `createCheckoutPreference` con `store_id` como `external_reference`.
-  - Paso 5 (done): `getOnboardingStatus()` → retorna estado de la tienda + email confirmado.
+- [x] **17.7 — Onboarding actions**: `createOnboardingCheckout()` + `getOnboardingStatus()` + cierre del onboarding.
 
-- [ ] **17.8 — Copy mejorado**: Cada paso tiene headline + subtitle corto. Ejemplos:
-  - Paso 1: "¿Cómo se llama tu negocio?" / "Esto va a ser la dirección de tu catálogo."
-  - Paso 2: "Personalizá tu tienda" / "Podés cambiarlo cuando quieras."
-  - Paso 3: "¿Qué necesitás?" / "Activá solo lo que uses. Podés cambiar después."
-  - Paso 4: "Elegí tu plan" / "Cancelás cuando quieras. Sin permanencia."
-  - Paso 5: "¡Todo listo!" / "Revisá tu casilla de mail para confirmar tu cuenta."
+- [x] **17.8 — Copy mejorado** en steps (headlines/subtitles).
 
-- [ ] **17.9 — Build + TypeScript**: `pnpm build` ✅ · `tsc --noEmit` ✅.
+- [x] **17.9 — Build + TypeScript**: `pnpm build` ✅ · `tsc --noEmit` ✅.
 
 ### Criterios de aceptación F17
 
@@ -1044,7 +1024,7 @@ ALTER TABLE stores ADD COLUMN ai_tokens_reset_at TIMESTAMPTZ DEFAULT NOW();
 
 - [x] **21.4 — Documentar en PASOS-MANUALES.md §21**: Guía para el dueño de cómo apuntar su dominio (CNAME a `cname.kitdigital.ar`, verificación TXT). Incluir capturas de GoDaddy y Namecheap como ejemplos.
 
-- [ ] **21.5 — Update plan data**: Ejecutar en Supabase SQL Editor:
+- [x] **21.5 — Update plan data**: Ejecutar en Supabase SQL Editor:
   ```sql
   UPDATE plans SET base_modules = base_modules || '["custom_domain"]'::jsonb
   WHERE base_modules::text NOT LIKE '%custom_domain%';
@@ -1091,10 +1071,10 @@ ALTER TABLE stores ADD COLUMN ai_tokens_reset_at TIMESTAMPTZ DEFAULT NOW();
 
 Antes de cualquier venta real, verificar:
 
-- [ ] `CRON_SECRET` configurado en Vercel (ver PASOS-MANUALES.md §14)
-- [ ] `MP_WEBHOOK_SECRET` con valor real en Vercel (ver PASOS-MANUALES.md §15)
-- [ ] Superadmin creado en Supabase (ver PASOS-MANUALES.md §13)
-- [ ] Email confirmation habilitado en Supabase Auth (ver PASOS-MANUALES.md §20 — a crear en F17)
-- [ ] SQL migrations F15–F21 ejecutadas en Supabase producción
-- [ ] OG image creada (1200×630, ver PASOS-MANUALES.md §16)
-- [ ] Test E2E: registro → onboarding → pago → admin → crear venta → ver en historial
+- [x] `CRON_SECRET` configurado en Vercel (ver PASOS-MANUALES.md §14)
+- [x] `MP_WEBHOOK_SECRET` con valor real en Vercel (ver PASOS-MANUALES.md §15)
+- [x] Superadmin creado en Supabase (ver PASOS-MANUALES.md §13)
+- [x] Email confirmation habilitado en Supabase Auth (ver PASOS-MANUALES.md §20 — a crear en F17)
+- [x] SQL migrations F15–F21 ejecutadas en Supabase producción
+- [x] OG image creada (1200×630, ver PASOS-MANUALES.md §16)
+- [x] Test E2E: registro → onboarding → pago → admin → crear venta → ver en historial

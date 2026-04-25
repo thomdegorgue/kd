@@ -40,6 +40,7 @@ export function useSendMessage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.assistantSession(store_id) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeConfig(store_id) })
     },
     onError: (error) => toast.error(error.message),
   })
