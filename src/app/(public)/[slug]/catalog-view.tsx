@@ -9,6 +9,7 @@ import { TrustBadges } from '@/components/public/trust-badges'
 import { CartButton } from '@/components/public/cart-button'
 import { CartDrawer } from '@/components/public/cart-drawer'
 import { SearchBar } from '@/components/public/search-bar'
+import { StoreHeader } from '@/components/public/store-header'
 import { useStore } from '@/components/public/store-context'
 import { useCartStore } from '@/lib/stores/cart-store'
 import { loadMoreProducts } from '@/lib/actions/catalog-public'
@@ -108,6 +109,15 @@ export function CatalogView({
 
   return (
     <div className="container mx-auto space-y-6 px-4 py-6">
+      {/* Header premium */}
+      <StoreHeader
+        name={store.name}
+        description={store.description}
+        coverUrl={store.cover_url}
+        city={store.config?.city ?? null}
+        hours={store.config?.hours ?? null}
+      />
+
       {/* Banners */}
       {hasBannersModule && banners.length > 0 && (
         <BannerCarousel banners={banners} />

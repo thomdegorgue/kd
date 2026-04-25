@@ -3,10 +3,12 @@
 import { executeAction } from './helpers'
 
 export type DashboardStats = {
-  products_count: number
+  products_active: number
+  orders_pending: number
+  out_of_stock: number
   orders_month: number
-  customers_count: number
   revenue_month: number
+  sales_today: number
 }
 
 export async function getDashboardStats() {

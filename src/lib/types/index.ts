@@ -127,6 +127,7 @@ export type StoreConfig = {
   currency?: string
   city?: string | null
   hours?: string | null
+  trust_badges?: string[] | null
   social?: {
     instagram?: string
     facebook?: string

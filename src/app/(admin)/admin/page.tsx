@@ -100,17 +100,17 @@ export default function AdminDashboardPage() {
   const { data, isLoading } = useDashboardStats()
   const { data: recentOrdersData, isLoading: ordersLoading } = useOrders({ page: 1, pageSize: 5 })
   const { formatPrice } = useCurrency()
-  const { slug } = useAdminContext()
+  const { slug, modules } = useAdminContext()
   const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'kitdigital.ar'
 
-  const isEmpty = !isLoading && (data?.products_count ?? 0) === 0 && (data?.orders_month ?? 0) === 0
+  const isEmpty = !isLoading && (data?.products_active ?? 0) === 0 && (data?.orders_month ?? 0) === 0
   const recentOrders = recentOrdersData?.items ?? []
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div>
         <h2 className="text-lg font-semibold">Dashboard</h2>
-        <p className="text-sm text-muted-foreground">Resumen de tu tienda este mes.</p>
+        <p className="text-sm text-muted-foreground">Resumen de tu tienda.</p>
       </div>
 
       {isEmpty ? (
@@ -120,26 +120,26 @@ export default function AdminDashboardPage() {
           {/* Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
-              title="Productos"
-              value={String(data?.products_count ?? 0)}
-              icon={Package}
-              loading={isLoading}
-            />
-            <StatCard
-              title="Pedidos (mes)"
-              value={String(data?.orders_month ?? 0)}
-              icon={ShoppingCart}
-              loading={isLoading}
-            />
-            <StatCard
-              title="Ingresos (mes)"
-              value={formatPrice(data?.revenue_month ?? 0)}
+              title="Ventas hoy"
+              value={formatPrice(data?.sales_today ?? 0)}
               icon={DollarSign}
               loading={isLoading}
             />
             <StatCard
-              title="Clientes"
-              value={String(data?.customers_count ?? 0)}
+              title="Pedidos pendientes"
+              value={String(data?.orders_pending ?? 0)}
+              icon={Package}
+              loading={isLoading}
+            />
+            <StatCard
+              title="Productos activos"
+              value={String(data?.products_active ?? 0)}
+              icon={ShoppingCart}
+              loading={isLoading}
+            />
+            <StatCard
+              title="Sin stock"
+              value={modules.stock ? String(data?.out_of_stock ?? 0) : '—'}
               icon={Users}
               loading={isLoading}
             />
@@ -153,7 +153,7 @@ export default function AdminDashboardPage() {
                 <Plus className="h-4 w-4 mr-1" />
                 Nuevo producto
               </Link>
-              <Link href="/admin/orders/new" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+              <Link href="/admin/orders?new=1" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
                 <Plus className="h-4 w-4 mr-1" />
                 Nuevo pedido
               </Link>

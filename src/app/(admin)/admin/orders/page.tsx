@@ -49,14 +49,21 @@ export default function OrdersPage() {
   }
 
   const urlEdit = searchParams.get('edit')
-  const urlKey = useMemo(() => `${urlEdit ?? ''}`, [urlEdit])
+  const urlNew = searchParams.get('new')
+  const urlKey = useMemo(() => `${urlEdit ?? ''}|${urlNew ?? ''}`, [urlEdit, urlNew])
 
   useEffect(() => {
-    if (!urlEdit) return
     if (sheetOpen) return
-    setSelectedOrderId(urlEdit)
-    setSheetOpen(true)
-  }, [urlKey, urlEdit, sheetOpen])
+    if (urlEdit) {
+      setSelectedOrderId(urlEdit)
+      setSheetOpen(true)
+      return
+    }
+    if (urlNew === '1') {
+      setSelectedOrderId(null)
+      setSheetOpen(true)
+    }
+  }, [urlKey, urlEdit, urlNew, sheetOpen])
 
   return (
     <div className="p-4 sm:p-6 space-y-4">
@@ -65,7 +72,7 @@ export default function OrdersPage() {
           <h2 className="text-lg font-semibold">Pedidos</h2>
           <p className="text-sm text-muted-foreground">{total} pedidos</p>
         </div>
-        <Link href="/admin/orders/new" className={buttonVariants({ size: 'sm' })}>
+        <Link href="/admin/orders?new=1" className={buttonVariants({ size: 'sm' })}>
           <Plus className="h-4 w-4 mr-1" />
           Nuevo
         </Link>
@@ -221,6 +228,7 @@ export default function OrdersPage() {
           if (!open) {
             const sp = new URLSearchParams(searchParams.toString())
             sp.delete('edit')
+            sp.delete('new')
             const qs = sp.toString()
             router.replace(qs ? `/admin/orders?${qs}` : '/admin/orders')
           }

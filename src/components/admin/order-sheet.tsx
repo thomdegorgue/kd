@@ -1,6 +1,7 @@
 'use client'
 
-import { MessageCircle, CheckCircle2, Circle, XCircle } from 'lucide-react'
+import { useState } from 'react'
+import { MessageCircle, CheckCircle2, Circle, XCircle, Search, Trash2, Plus } from 'lucide-react'
 import {
   Sheet,
   SheetContent,
@@ -9,12 +10,21 @@ import {
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { OrderStatusBadge } from '@/components/admin/order-status-badge'
-import { useOrder, useUpdateOrderStatus, useCancelOrder } from '@/lib/hooks/use-orders'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useOrder, useUpdateOrderStatus, useCancelOrder, useCreateOrder } from '@/lib/hooks/use-orders'
 import { useCurrency } from '@/lib/hooks/use-currency'
 import type { OrderStatus } from '@/lib/types'
+import { useProducts } from '@/lib/hooks/use-products'
+import { useRouter } from 'next/navigation'
+import { useForm, useFieldArray } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 
 const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'delivered']
 const STATUS_LABELS: Record<OrderStatus, string> = {
@@ -38,10 +48,58 @@ type OrderSheetProps = {
 }
 
 export function OrderSheet({ id, open, onOpenChange }: OrderSheetProps) {
+  const router = useRouter()
+  const isCreate = !id
   const { data: order, isLoading } = useOrder(id ?? '')
   const updateStatus = useUpdateOrderStatus()
   const cancelMutation = useCancelOrder()
+  const createMutation = useCreateOrder()
   const { formatPrice } = useCurrency()
+
+  const { data: productsData } = useProducts({ pageSize: 200 })
+  const products = (productsData?.items ?? []) as unknown as {
+    id: string
+    name: string
+    price: number
+    is_active: boolean
+  }[]
+
+  const createFormSchema = z.object({
+    customer_name: z.string().optional(),
+    customer_phone: z.string().optional(),
+    notes: z.string().optional(),
+    items: z.array(z.object({
+      product_id: z.string().uuid(),
+      product_name: z.string(),
+      quantity: z.number().int().min(1),
+      unit_price: z.number().int().min(0),
+    })).min(1, 'Agregá al menos un producto'),
+  })
+  type CreateFormValues = z.infer<typeof createFormSchema>
+
+  const [productSearch, setProductSearch] = useState('')
+  const form = useForm<CreateFormValues>({
+    resolver: zodResolver(createFormSchema),
+    defaultValues: { customer_name: '', customer_phone: '', notes: '', items: [] },
+  })
+  const { fields, append, remove } = useFieldArray({ control: form.control, name: 'items' })
+  const watchedItems = form.watch('items')
+  const totalCreate = watchedItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
+
+  function addProduct(product: { id: string; name: string; price: number }) {
+    const existing = watchedItems.findIndex((i) => i.product_id === product.id)
+    if (existing >= 0) {
+      form.setValue(`items.${existing}.quantity`, watchedItems[existing].quantity + 1, { shouldDirty: true })
+    } else {
+      append({ product_id: product.id, product_name: product.name, quantity: 1, unit_price: product.price })
+    }
+    setProductSearch('')
+  }
+
+  const filteredProducts = products
+    .filter((p) => p.is_active)
+    .filter((p) => !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase()))
+    .slice(0, 10)
 
   const status = order?.status as OrderStatus | undefined
   const items = (order?.items ?? []) as Array<{
@@ -61,6 +119,146 @@ export function OrderSheet({ id, open, onOpenChange }: OrderSheetProps) {
   const next = status ? nextStatus(status) : null
   const isCancelled = status === 'cancelled'
   const isDelivered = status === 'delivered'
+
+  // Create mode UI
+  if (isCreate) {
+    const onSubmitCreate = form.handleSubmit(async (data) => {
+      const customer = data.customer_name
+        ? { name: data.customer_name, phone: data.customer_phone || undefined }
+        : undefined
+
+      const created = await createMutation.mutateAsync({
+        items: data.items.map((i) => ({ ...i, variant_id: undefined })),
+        customer,
+        notes: data.notes || undefined,
+        total: totalCreate,
+      })
+
+      const createdId = (created as { id?: string } | null)?.id
+      onOpenChange(false)
+      if (createdId) {
+        router.replace(`/admin/orders?edit=${createdId}`)
+      } else {
+        router.replace('/admin/orders')
+      }
+    })
+
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="w-full sm:max-w-lg flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+            <SheetTitle>Nuevo pedido</SheetTitle>
+          </SheetHeader>
+
+          <form onSubmit={onSubmitCreate} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Productos</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar producto..."
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+
+                  {productSearch && filteredProducts.length > 0 && (
+                    <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
+                      {filteredProducts.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted text-left"
+                          onClick={() => addProduct(p)}
+                        >
+                          <span className="truncate">{p.name}</span>
+                          <span className="text-muted-foreground tabular-nums">{formatPrice(p.price)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {fields.length > 0 && (
+                    <div className="space-y-2">
+                      {fields.map((field, index) => (
+                        <div key={field.id} className="flex items-center gap-2 text-sm">
+                          <span className="flex-1 truncate">{field.product_name}</span>
+                          <Input
+                            type="number"
+                            min={1}
+                            className="w-16 text-center"
+                            {...form.register(`items.${index}.quantity`, { valueAsNumber: true })}
+                          />
+                          <span className="text-muted-foreground tabular-nums w-20 text-right">
+                            {formatPrice(watchedItems[index]?.unit_price * (watchedItems[index]?.quantity ?? 1))}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive shrink-0"
+                            onClick={() => remove(index)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                      <div className="flex justify-between pt-2 border-t font-medium">
+                        <span>Total</span>
+                        <span className="tabular-nums">{formatPrice(totalCreate)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {form.formState.errors.items && (
+                    <p className="text-sm text-destructive">{form.formState.errors.items.message}</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Cliente (opcional)</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="os-customer-name" className="text-xs">Nombre</Label>
+                      <Input id="os-customer-name" {...form.register('customer_name')} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="os-customer-phone" className="text-xs">Teléfono</Label>
+                      <Input id="os-customer-phone" {...form.register('customer_phone')} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-2">
+                <Label htmlFor="os-notes">Notas</Label>
+                <Textarea id="os-notes" rows={2} {...form.register('notes')} />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t shrink-0 flex gap-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" className="flex-1" disabled={createMutation.isPending || fields.length === 0}>
+                <Plus className="h-4 w-4 mr-1" />
+                {createMutation.isPending ? 'Creando...' : 'Crear'}
+              </Button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
+    )
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

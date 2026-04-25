@@ -253,6 +253,7 @@ export type Database = {
           name: string
           description: string | null
           price: number
+          compare_price: number | null
           image_url: string | null
           is_active: boolean
           is_featured: boolean
@@ -268,6 +269,7 @@ export type Database = {
           name: string
           description?: string | null
           price: number
+          compare_price?: number | null
           image_url?: string | null
           is_active?: boolean
           is_featured?: boolean

@@ -9,6 +9,24 @@ export const PUBLIC_PAGE_SIZE = 48
 
 export type ProductsPage = { products: Product[]; total: number }
 
+export type PublicProductVariantAttribute = {
+  id: string
+  name: string
+}
+
+export type PublicProductVariant = {
+  id: string
+  price: number | null
+  is_active: boolean
+  sort_order: number
+  values: Record<string, string> // attribute_id -> value
+}
+
+export type PublicProductDetail = Product & {
+  variant_attributes?: PublicProductVariantAttribute[]
+  variants?: PublicProductVariant[]
+}
+
 /**
  * Lista productos activos de una tienda para el catálogo público.
  * Página 1 sin filtros: cacheada 60s en Upstash Redis.
@@ -95,4 +113,83 @@ export async function getProductPublic(
 
   if (error || !data) return null
   return data as Product
+}
+
+/**
+ * Obtiene un producto individual activo para la página de detalle pública,
+ * y opcionalmente adjunta variantes si están habilitadas.
+ */
+export async function getProductPublicDetail(
+  storeId: string,
+  productId: string,
+  options?: { includeVariants?: boolean },
+): Promise<PublicProductDetail | null> {
+  const product = await getProductPublic(storeId, productId)
+  if (!product) return null
+
+  if (!options?.includeVariants) return product as PublicProductDetail
+
+  const [{ data: attrs }, { data: variants }] = await Promise.all([
+    db
+      .from('variant_attributes')
+      .select('id,name')
+      .eq('store_id', storeId)
+      .eq('product_id', productId),
+    db
+      .from('variants')
+      .select('id,price,is_active,sort_order')
+      .eq('store_id', storeId)
+      .eq('product_id', productId)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true }),
+  ])
+
+  const variantList = (variants ?? []) as Array<{
+    id: string
+    price: number | null
+    is_active: boolean
+    sort_order: number
+  }>
+
+  if (!variantList.length) return product as PublicProductDetail
+
+  const variantIds = variantList.map((v) => v.id)
+  const { data: values } = await db
+    .from('variant_values')
+    .select('variant_id,attribute_id,value')
+    .eq('store_id', storeId)
+    .in('variant_id', variantIds)
+
+  const byVariantId = new Map<string, Record<string, string>>()
+  for (const v of variantList) byVariantId.set(v.id, {})
+
+  const vv = (values ?? []) as Array<{ variant_id: string; attribute_id: string; value: string }>
+  for (const row of vv) {
+    const map = byVariantId.get(row.variant_id)
+    if (!map) continue
+    map[row.attribute_id] = row.value
+  }
+
+  const detail: PublicProductDetail = {
+    ...(product as PublicProductDetail),
+    variant_attributes: ((attrs ?? []) as Array<{ id: string; name: string }>).map((a) => ({
+      id: a.id,
+      name: a.name,
+    })),
+    variants: variantList.map((v) => ({
+      id: v.id,
+      price: v.price,
+      is_active: v.is_active,
+      sort_order: v.sort_order,
+      values: byVariantId.get(v.id) ?? {},
+    })),
+  }
+
+  // Si no hay atributos o variantes, no mandamos campos (evita UI vacía).
+  if (!detail.variant_attributes?.length || !detail.variants?.length) {
+    delete detail.variant_attributes
+    delete detail.variants
+  }
+
+  return detail
 }

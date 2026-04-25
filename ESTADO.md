@@ -620,18 +620,18 @@ ALTER TABLE products ADD COLUMN stock INTEGER;
 
 ### BLOQUE 5 — Catálogo público (vitrine)
 
-- [ ] **5.1 — Header premium**
+- [x] **5.1 — Header premium**
   - Logo (32×32 redondeado) + nombre tienda + sub-info (ciudad, horarios) — dato de `stores.config`.
   - Búsqueda inline en header en desktop (hidden en mobile, icono search que expande).
   - Botón carrito con badge contador, color `primary_color`.
   - Sticky con `shadow-xs` al hacer scroll.
 
-- [ ] **5.2 — Trust badges (sección nueva)**
+- [x] **5.2 — Trust badges (sección nueva)**
   - Grid de 3: Envío en 24–48hs / Compra segura / Cambio sin costo.
   - Cards pequeñas con ícono + texto. Configurable en `stores.config.trust_badges` (optional — si no hay, no se muestra).
   - Por default: mostrar los 3 si el módulo `shipping` está activo.
 
-- [ ] **5.3 — Product cards mejoradas**
+- [x] **5.3 — Product cards mejoradas**
   - Imagen con `aspect-square`, hover: ligero zoom.
   - Precio tachado si hay `compare_price` (campo nuevo o usar metadata).
   - Badge "Sin stock" semi-transparente sobre imagen si `stock <= 0` (cuando módulo stock activo).
@@ -639,7 +639,7 @@ ALTER TABLE products ADD COLUMN stock INTEGER;
   - Botón "+" en esquina de la imagen para agregar al carrito rápido (sin abrir detalle).
   - Animación stagger al cargar (`animate-fade-in` con delay escalonado).
 
-- [ ] **5.4 — Product detail sheet mejorado**
+- [x] **5.4 — Product detail sheet mejorado**
   - Nombre + precio + precio comparativo + ahorro calculado.
   - Selector de variantes (colores: swatches circulares; tallas: pills de texto). Solo si módulo variants activo y el producto tiene variantes.
   - Contador de cantidad (- / N / +).
@@ -647,14 +647,14 @@ ALTER TABLE products ADD COLUMN stock INTEGER;
   - Descripción completa (con scroll).
   - Botón "Agregar al carrito" grande + botón "Pedido directo WhatsApp".
 
-- [ ] **5.5 — Cart drawer mejorado**
+- [x] **5.5 — Cart drawer mejorado**
   - Cada item: thumbnail + nombre + variante (si aplica) + cantidad editable + precio.
   - Subtotal claro.
   - Nota de pedido (textarea opcional).
   - Botón "Enviar pedido por WhatsApp" prominente + breakdown del mensaje.
   - Si carrito vacío: empty state con ícono + "Aún no tenés productos en tu carrito".
 
-- [ ] **5.6 — Agregar `compare_price` al schema de producto**
+- [x] **5.6 — Agregar `compare_price` al schema de producto**
   - Columna `compare_price INTEGER` en tabla `products` (nullable).
   - Agregar a `ProductForm` (tab Ficha) como campo "Precio anterior (tachado)".
   - Agregar a `create_product` y `update_product` handlers.
@@ -668,7 +668,7 @@ ALTER TABLE products ADD COLUMN stock INTEGER;
 
 ### BLOQUE 6 — Dashboard admin
 
-- [ ] **6.1 — Dashboard mejorado**
+- [x] **6.1 — Dashboard mejorado**
   - 4 cards métricas en grid 2×2: **Ventas hoy** (suma de orders created_at=today) | **Pedidos pendientes** (count orders status=pending o preparing) | **Productos activos** | **Sin stock** (count products con stock=0 si módulo stock activo).
   - Sección "Últimos pedidos" — tabla compacta de 5 más recientes con estado.
   - Sección "Accesos rápidos" — botones: [+ Nuevo producto] [+ Nuevo pedido] [Ver catálogo] [Compartir por WhatsApp].
@@ -676,15 +676,15 @@ ALTER TABLE products ADD COLUMN stock INTEGER;
 
 ### BLOQUE 7 — Configuración de tienda mejorada
 
-- [ ] **7.1 — Sección general:** nombre, WhatsApp, descripción corta.
-- [ ] **7.2 — Sección apariencia:** logo (ImageUploader) + color picker (8 presets + libre) + preview live del header del catálogo (componente `MiniCatalogPreview`).
-- [ ] **7.3 — Sección dirección/horarios:** ciudad, horarios de atención. Guarda en `stores.config`.
+- [x] **7.1 — Sección general:** nombre, WhatsApp, descripción corta.
+- [x] **7.2 — Sección apariencia:** logo (ImageUploader) + color picker (8 presets + libre) + preview live del header del catálogo (componente `MiniCatalogPreview`).
+- [x] **7.3 — Sección dirección/horarios:** ciudad, horarios de atención. Guarda en `stores.config`.
 - [ ] **7.4 — Sección social:** links de redes (si módulo social activo).
-- [ ] **7.5 — Sección WhatsApp:** número de contacto + preview del mensaje de pedido.
+- [x] **7.5 — Sección WhatsApp:** número de contacto + preview del mensaje de pedido.
 
 ### BLOQUE 8 — Módulos: configuración mejorada
 
-- [ ] **8.1 — Toggle list por grupo** (igual que en /design/admin)
+- [x] **8.1 — Toggle list por grupo** (igual que en /design/admin)
   - Agrupar módulos igual que en la landing: Catálogo y Ventas, Operaciones, Equipo, Comercial, Finanzas, Dominio, IA.
   - Cada módulo: ícono + nombre + descripción corta + toggle.
   - Módulos CORE: sin toggle, badge "Incluido".

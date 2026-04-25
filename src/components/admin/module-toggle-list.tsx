@@ -15,41 +15,53 @@ type ModuleInfo = {
   label: string
   description: string
   tier: 'core' | 'base' | 'pro'
+  group:
+    | 'catalog_sales'
+    | 'operations'
+    | 'team'
+    | 'commercial'
+    | 'finance'
+    | 'domain'
+    | 'ai'
 }
 
 const ALL_MODULES: ModuleInfo[] = [
-  { id: 'catalog', label: 'Catálogo', description: 'Configuración pública de la tienda', tier: 'core' },
-  { id: 'products', label: 'Productos', description: 'CRUD de productos', tier: 'core' },
-  { id: 'categories', label: 'Categorías', description: 'Agrupación de productos', tier: 'core' },
-  { id: 'cart', label: 'Carrito', description: 'Carrito de compras + WhatsApp', tier: 'core' },
-  { id: 'orders', label: 'Pedidos', description: 'Gestión de pedidos', tier: 'core' },
-  { id: 'stock', label: 'Stock', description: 'Control de inventario', tier: 'base' },
-  { id: 'payments', label: 'Pagos', description: 'Registro de cobros', tier: 'base' },
-  { id: 'banners', label: 'Banners', description: 'Carrusel de imágenes', tier: 'base' },
-  { id: 'social', label: 'Redes sociales', description: 'Links en el footer', tier: 'base' },
-  { id: 'product_page', label: 'Página de producto', description: 'Detalle extendido', tier: 'base' },
-  { id: 'shipping', label: 'Envíos', description: 'Métodos de envío + tracking', tier: 'base' },
-  { id: 'variants', label: 'Variantes', description: 'Talles, colores, etc.', tier: 'pro' },
-  { id: 'wholesale', label: 'Mayorista', description: 'Precios mayoristas', tier: 'pro' },
-  { id: 'finance', label: 'Finanzas', description: 'Flujo de caja', tier: 'pro' },
-  { id: 'expenses', label: 'Gastos', description: 'Egresos detallados', tier: 'pro' },
-  { id: 'savings_account', label: 'Ahorros', description: 'Cuentas de ahorro virtuales', tier: 'pro' },
-  { id: 'multiuser', label: 'Equipo', description: 'Múltiples usuarios', tier: 'pro' },
-  { id: 'custom_domain', label: 'Dominio propio', description: 'Tu dominio personalizado', tier: 'base' },
-  { id: 'tasks', label: 'Tareas', description: 'Lista de tareas del negocio', tier: 'pro' },
-  { id: 'assistant', label: 'Asistente IA', description: 'Asistente inteligente', tier: 'pro' },
+  { id: 'catalog', label: 'Catálogo', description: 'Configuración pública de la tienda', tier: 'core', group: 'catalog_sales' },
+  { id: 'products', label: 'Productos', description: 'CRUD de productos', tier: 'core', group: 'catalog_sales' },
+  { id: 'categories', label: 'Categorías', description: 'Agrupación de productos', tier: 'core', group: 'catalog_sales' },
+  { id: 'cart', label: 'Carrito', description: 'Carrito de compras + WhatsApp', tier: 'core', group: 'catalog_sales' },
+  { id: 'orders', label: 'Pedidos', description: 'Gestión de pedidos', tier: 'core', group: 'catalog_sales' },
+  { id: 'banners', label: 'Banners', description: 'Carrusel de imágenes', tier: 'base', group: 'commercial' },
+  { id: 'social', label: 'Redes sociales', description: 'Links en el footer', tier: 'base', group: 'commercial' },
+  { id: 'product_page', label: 'Página de producto', description: 'Detalle extendido', tier: 'base', group: 'commercial' },
+  { id: 'shipping', label: 'Envíos', description: 'Métodos de envío + tracking', tier: 'base', group: 'operations' },
+  { id: 'stock', label: 'Stock', description: 'Control de inventario', tier: 'base', group: 'operations' },
+  { id: 'payments', label: 'Pagos', description: 'Registro de cobros', tier: 'base', group: 'catalog_sales' },
+  { id: 'variants', label: 'Variantes', description: 'Talles, colores, etc.', tier: 'pro', group: 'operations' },
+  { id: 'tasks', label: 'Tareas', description: 'Lista de tareas del negocio', tier: 'pro', group: 'team' },
+  { id: 'multiuser', label: 'Equipo', description: 'Múltiples usuarios', tier: 'pro', group: 'team' },
+  { id: 'wholesale', label: 'Mayorista', description: 'Precios mayoristas', tier: 'pro', group: 'commercial' },
+  { id: 'finance', label: 'Finanzas', description: 'Flujo de caja', tier: 'pro', group: 'finance' },
+  { id: 'expenses', label: 'Gastos', description: 'Egresos detallados', tier: 'pro', group: 'finance' },
+  { id: 'savings_account', label: 'Ahorros', description: 'Cuentas de ahorro virtuales', tier: 'pro', group: 'finance' },
+  { id: 'custom_domain', label: 'Dominio propio', description: 'Tu dominio personalizado', tier: 'base', group: 'domain' },
+  { id: 'assistant', label: 'Asistente IA', description: 'Asistente inteligente', tier: 'pro', group: 'ai' },
 ]
 
-const TIER_LABELS: Record<string, string> = {
-  core: 'Core — siempre activos',
-  base: 'Base — incluidos en el plan',
-  pro: 'Pro — add-on mensual',
-}
+const GROUPS: Array<{ id: ModuleInfo['group']; label: string; description: string }> = [
+  { id: 'catalog_sales', label: 'Catálogo y Ventas', description: 'Tu tienda pública y la gestión de pedidos.' },
+  { id: 'operations', label: 'Operaciones', description: 'Stock, envíos y variantes para operar mejor.' },
+  { id: 'team', label: 'Equipo', description: 'Roles, colaboradores y tareas.' },
+  { id: 'commercial', label: 'Comercial', description: 'Banners, redes, mayorista y más conversión.' },
+  { id: 'finance', label: 'Finanzas', description: 'Caja, gastos y ahorro.' },
+  { id: 'domain', label: 'Dominio', description: 'Dominio propio para tu marca.' },
+  { id: 'ai', label: 'IA', description: 'Automatizaciones y asistencia inteligente.' },
+]
 
-const TIER_VARIANTS: Record<string, 'default' | 'secondary' | 'outline'> = {
-  core: 'default',
-  base: 'secondary',
-  pro: 'outline',
+function TierPill({ tier }: { tier: ModuleInfo['tier'] }) {
+  if (tier === 'core') return <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">Incluido</Badge>
+  if (tier === 'base') return <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">Base</Badge>
+  return <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">Pro</Badge>
 }
 
 export function ModuleToggleList() {
@@ -58,20 +70,24 @@ export function ModuleToggleList() {
   const isOwner = user_role === 'owner'
   const hasActiveSub = billing_status === 'active'
 
-  const grouped = {
-    core: ALL_MODULES.filter((m) => m.tier === 'core'),
-    base: ALL_MODULES.filter((m) => m.tier === 'base'),
-    pro: ALL_MODULES.filter((m) => m.tier === 'pro'),
-  }
+  const byGroup = new Map<ModuleInfo['group'], ModuleInfo[]>()
+  for (const g of GROUPS) byGroup.set(g.id, [])
+  for (const m of ALL_MODULES) byGroup.get(m.group)?.push(m)
 
   return (
     <div className="space-y-8">
-      {(Object.entries(grouped) as [string, ModuleInfo[]][]).map(([tier, mods]) => (
-        <div key={tier}>
-          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            {TIER_LABELS[tier]}
-            <Badge variant={TIER_VARIANTS[tier]}>{mods.length}</Badge>
-          </h3>
+      {GROUPS.map((g) => {
+        const mods = byGroup.get(g.id) ?? []
+        if (mods.length === 0) return null
+        return (
+          <div key={g.id}>
+            <div className="mb-3">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold">{g.label}</h3>
+                <Badge variant="secondary">{mods.length}</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">{g.description}</p>
+            </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {mods.map((mod) => {
               const isCore = CORE_MODULES.includes(mod.id)
@@ -85,11 +101,7 @@ export function ModuleToggleList() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className="text-sm font-medium">{mod.label}</p>
-                        {isPro && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
-                            Pro
-                          </Badge>
-                        )}
+                        <TierPill tier={mod.tier} />
                       </div>
                       <p className="text-xs text-muted-foreground truncate">{mod.description}</p>
                       {proLocked && (
@@ -114,8 +126,9 @@ export function ModuleToggleList() {
               )
             })}
           </div>
-        </div>
-      ))}
+          </div>
+        )
+      })}
     </div>
   )
 }

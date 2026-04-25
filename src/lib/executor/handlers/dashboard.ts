@@ -23,38 +23,45 @@ registerHandler({
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString()
 
-    const [productsRes, ordersMonthRes, customersRes, revenueRes, salesTodayRes] = await Promise.all([
+    const [productsActiveRes, pendingOrdersRes, outOfStockRes, lastMonthOrdersRes, revenueMonthRes, salesTodayRes] =
+      await Promise.all([
       db
         .from('products')
         .select('*', { count: 'exact', head: true })
         .eq('store_id', storeId)
+        .eq('is_active', true)
         .is('deleted_at', null),
+      db
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('store_id', storeId)
+        .in('status', ['pending', 'preparing']),
+      db
+        .from('stock_items')
+        .select('product_id, quantity')
+        .eq('store_id', storeId)
+        .eq('track_stock', true),
       db
         .from('orders')
         .select('*', { count: 'exact', head: true })
         .eq('store_id', storeId)
         .gte('created_at', monthStart),
       db
-        .from('customers')
-        .select('*', { count: 'exact', head: true })
-        .eq('store_id', storeId),
+        .from('orders')
+        .select('total')
+        .eq('store_id', storeId)
+        .neq('status', 'cancelled')
+        .gte('created_at', monthStart),
       db
         .from('orders')
         .select('total')
         .eq('store_id', storeId)
-        .gte('created_at', monthStart)
-        .neq('status', 'cancelled'),
-      db
-        .from('orders')
-        .select('total')
-        .eq('store_id', storeId)
-        .eq('source', 'admin')
         .neq('status', 'cancelled')
         .gte('created_at', todayStart)
         .lte('created_at', todayEnd),
     ])
 
-    const revenue = (revenueRes.data as { total: number }[] | null)?.reduce(
+    const revenue_month = (revenueMonthRes.data as { total: number }[] | null)?.reduce(
       (sum: number, o: { total: number }) => sum + (o.total ?? 0),
       0
     ) ?? 0
@@ -64,11 +71,18 @@ registerHandler({
       0
     ) ?? 0
 
+    const outOfStockProductIds = new Set(
+      ((outOfStockRes.data ?? []) as Array<{ product_id: string; quantity: number }>).filter(
+        (r) => (r.quantity ?? 0) <= 0,
+      ).map((r) => r.product_id),
+    )
+
     return {
-      products_count: productsRes.count ?? 0,
-      orders_month: ordersMonthRes.count ?? 0,
-      customers_count: customersRes.count ?? 0,
-      revenue_month: revenue,
+      products_active: productsActiveRes.count ?? 0,
+      orders_pending: pendingOrdersRes.count ?? 0,
+      out_of_stock: outOfStockProductIds.size,
+      orders_month: lastMonthOrdersRes.count ?? 0,
+      revenue_month,
       sales_today,
     }
   },

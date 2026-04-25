@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { updateStoreSchema, type UpdateStoreInput } from '@/lib/validations/store'
@@ -13,6 +13,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ImageUploader } from '@/components/shared/image-uploader'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import type { StoreConfig } from '@/lib/types'
+import { buildWhatsAppMessage } from '@/lib/utils/whatsapp'
+import { MessageCircle } from 'lucide-react'
+import { MiniCatalogPreview } from '@/components/admin/mini-catalog-preview'
 
 const PRESET_COLORS = [
   '#1b1b1b', '#2563eb', '#7c3aed', '#db2777',
@@ -29,6 +32,7 @@ export function StoreSettingsForm() {
   const [selectedColor, setSelectedColor] = useState(storeConfig?.primary_color ?? '#1b1b1b')
   const [city, setCity] = useState((storeConfig?.city as string | undefined) ?? '')
   const [hours, setHours] = useState((storeConfig?.hours as string | undefined) ?? '')
+  const [showWhatsAppPreview, setShowWhatsAppPreview] = useState(false)
 
   useEffect(() => {
     if (storeConfig?.primary_color) {
@@ -72,6 +76,20 @@ export function StoreSettingsForm() {
   const onSaveColor = () => {
     updateConfigMutation.mutate({ primary_color: selectedColor })
   }
+
+  const whatsappPreview = useMemo(() => {
+    const storeWhatsapp = form.getValues('whatsapp') ?? store?.whatsapp ?? ''
+    return buildWhatsAppMessage({
+      storeConfig: { name: store?.name ?? 'Tu tienda', whatsapp: storeWhatsapp },
+      items: [
+        { name: 'Producto de ejemplo', quantity: 2, unit_price: 12500 },
+        { name: 'Otro producto', quantity: 1, unit_price: 8900, variant_label: 'Color: Negro · Talle: M' },
+      ],
+      customerName: 'María',
+      deliveryType: 'pickup',
+      customerNotes: 'Si puede ser, sin cambios. Gracias.',
+    }).messageText
+  }, [form, store?.name, store?.whatsapp])
 
   return (
     <div className="space-y-8 max-w-lg">
@@ -128,6 +146,24 @@ export function StoreSettingsForm() {
         </Button>
       </form>
 
+      <div className="space-y-3 border-t pt-6">
+        <h3 className="font-semibold">Apariencia</h3>
+        <p className="text-xs text-muted-foreground">
+          Vista previa del header del catálogo con tus datos actuales.
+        </p>
+        <MiniCatalogPreview
+          name={form.watch('name') ?? store?.name ?? 'Tu tienda'}
+          description={form.watch('description') ?? store?.description ?? null}
+          coverUrl={form.watch('cover_url') ?? store?.cover_url ?? null}
+          city={city || null}
+          hours={hours || null}
+          config={{
+            ...(storeConfig ?? {}),
+            primary_color: selectedColor,
+          }}
+        />
+      </div>
+
       <div className="space-y-6 border-t pt-6">
         <div>
           <h3 className="font-semibold mb-4">Información de ubicación y horarios</h3>
@@ -162,6 +198,35 @@ export function StoreSettingsForm() {
             </Button>
           </div>
         </div>
+      </div>
+
+      <div className="space-y-4 border-t pt-6">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="font-semibold">WhatsApp</h3>
+            <p className="text-xs text-muted-foreground">
+              Vista previa del mensaje que va a recibir el cliente cuando haga el pedido.
+            </p>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => setShowWhatsAppPreview((v) => !v)}>
+            {showWhatsAppPreview ? 'Ocultar' : 'Ver preview'}
+          </Button>
+        </div>
+
+        {showWhatsAppPreview && (
+          <div className="rounded-lg border bg-muted/30 p-3">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <MessageCircle className="h-4 w-4 text-green-600" />
+              Mensaje de ejemplo
+            </div>
+            <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-background p-3 text-xs text-muted-foreground leading-relaxed border">
+{whatsappPreview}
+            </pre>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Este preview es un ejemplo. El mensaje real incluye los productos del carrito y la nota del cliente.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3 border-t pt-6">

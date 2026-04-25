@@ -127,6 +127,25 @@ input[type="color"] {
   background: transparent;
   cursor: pointer;
 }
+
+/* ============================================================
+   Animations — minimal, reusable
+   ============================================================ */
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 260ms ease-out both;
+}
 input[type="color"]::-webkit-color-swatch-wrapper {
   padding: 0;
 }

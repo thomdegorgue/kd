@@ -36,13 +36,18 @@ export function ProductGrid({ products, isLoading, onClickDetail, stockModuleAct
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-      {products.map((product) => (
-        <ProductCard
+      {products.map((product, idx) => (
+        <div
           key={product.id}
-          product={product}
-          onClickDetail={onClickDetail}
-          stockModuleActive={stockModuleActive}
-        />
+          className="animate-fade-in-up"
+          style={{ animationDelay: `${Math.min(idx * 25, 250)}ms` }}
+        >
+          <ProductCard
+            product={product}
+            onClickDetail={onClickDetail}
+            stockModuleActive={stockModuleActive}
+          />
+        </div>
       ))}
     </div>
   )
