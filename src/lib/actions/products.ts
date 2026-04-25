@@ -1,7 +1,7 @@
 'use server'
 
 import { executeAction } from './helpers'
-import type { CreateProductInput, UpdateProductInput } from '@/lib/validations/product'
+import type { CreateProductInput, UpdateProductInput, UpdateProductPageInput } from '@/lib/validations/product'
 
 export type ProductListResult = {
   items: Record<string, unknown>[]
@@ -37,4 +37,8 @@ export async function deleteProduct(id: string) {
 
 export async function reorderProducts(ids: string[]) {
   return executeAction<{ updated: boolean }>('reorder_products', { ids })
+}
+
+export async function updateProductPage(input: UpdateProductPageInput) {
+  return executeAction<{ id: string; metadata: Record<string, unknown> }>('update_product_page', input)
 }

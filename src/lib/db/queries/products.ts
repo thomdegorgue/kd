@@ -22,6 +22,13 @@ export type PublicProductVariant = {
   values: Record<string, string> // attribute_id -> value
 }
 
+export type ProductPageMeta = {
+  active?: boolean
+  long_description?: string
+  specs?: Array<{ key: string; value: string }>
+  gallery_urls?: string[]
+}
+
 export type PublicProductDetail = Product & {
   variant_attributes?: PublicProductVariantAttribute[]
   variants?: PublicProductVariant[]

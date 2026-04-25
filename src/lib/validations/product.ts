@@ -10,6 +10,7 @@ export const createProductSchema = z.object({
   is_featured: z.boolean().optional(),
   sort_order: z.number().int().optional(),
   category_ids: z.array(z.string().uuid()).optional(),
+  stock: z.number().int().min(0).nullable().optional(),
 })
 
 export type CreateProductInput = z.infer<typeof createProductSchema>
@@ -25,6 +26,7 @@ export const updateProductSchema = z.object({
   is_featured: z.boolean().optional(),
   sort_order: z.number().int().optional(),
   category_ids: z.array(z.string().uuid()).optional(),
+  stock: z.number().int().min(0).nullable().optional(),
 })
 
 export type UpdateProductInput = z.infer<typeof updateProductSchema>
@@ -34,3 +36,13 @@ export const reorderProductsSchema = z.object({
 })
 
 export type ReorderProductsInput = z.infer<typeof reorderProductsSchema>
+
+export const updateProductPageSchema = z.object({
+  product_id: z.string().uuid(),
+  active: z.boolean().optional(),
+  long_description: z.string().max(5000).optional(),
+  specs: z.array(z.object({ key: z.string().max(100), value: z.string().max(200) })).max(20).optional(),
+  gallery_urls: z.array(z.string().url()).max(10).optional(),
+})
+
+export type UpdateProductPageInput = z.infer<typeof updateProductPageSchema>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import { ArrowLeft, MessageCircle, Minus, Plus, Sparkles } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, MessageCircle, Minus, Plus, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -12,7 +12,7 @@ import { useStore } from '@/components/public/store-context'
 import { formatPriceShort } from '@/lib/utils/currency'
 import { buildWhatsAppMessage } from '@/lib/utils/whatsapp'
 import type { Product } from '@/lib/types'
-import type { PublicProductDetail, PublicProductVariant } from '@/lib/db/queries/products'
+import type { PublicProductDetail, PublicProductVariant, ProductPageMeta } from '@/lib/db/queries/products'
 
 interface ProductDetailViewProps {
   product: PublicProductDetail
@@ -49,6 +49,7 @@ export function ProductDetailView({ product, slug }: ProductDetailViewProps) {
 
   const [qty, setQty] = useState(1)
   const [selected, setSelected] = useState<Record<string, string>>({})
+  const [galleryIdx, setGalleryIdx] = useState(0)
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'
   const domain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'kitdigital.ar'
@@ -67,6 +68,12 @@ export function ProductDetailView({ product, slug }: ProductDetailViewProps) {
   const lowStock = typeof stock === 'number' && stock > 0 && stock < 5
 
   const hasVariants = !!store.modules.variants && !!product.variant_attributes?.length && !!product.variants?.length
+
+  const pageMeta = ((product.metadata as Record<string, unknown> | null)?.page as ProductPageMeta | undefined)
+  const hasProductPage = !!store.modules.product_page && pageMeta?.active === true
+  const gallery = hasProductPage ? (pageMeta?.gallery_urls ?? []) : []
+  const longDesc = hasProductPage ? pageMeta?.long_description : undefined
+  const specs = hasProductPage ? (pageMeta?.specs ?? []) : []
 
   // Inicializar selección (primer valor por atributo, si existe)
   useEffect(() => {
@@ -342,6 +349,95 @@ export function ProductDetailView({ product, slug }: ProductDetailViewProps) {
           </div>
         </div>
       </div>
+
+      {/* Extended product page content */}
+      {gallery.length > 0 && (
+        <div className="mt-8 space-y-3">
+          <p className="text-sm font-medium">Galería</p>
+          <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted">
+            <Image
+              src={gallery[galleryIdx]}
+              alt={`${product.name} imagen ${galleryIdx + 1}`}
+              fill
+              sizes="(max-width: 768px) 100vw, 80vw"
+              className="object-cover"
+            />
+            {gallery.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setGalleryIdx((i) => (i - 1 + gallery.length) % gallery.length)}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-1.5 shadow-sm hover:bg-background"
+                  aria-label="Anterior"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGalleryIdx((i) => (i + 1) % gallery.length)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-1.5 shadow-sm hover:bg-background"
+                  aria-label="Siguiente"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
+                  {gallery.map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setGalleryIdx(i)}
+                      className={`h-1.5 w-1.5 rounded-full transition-colors ${i === galleryIdx ? 'bg-white' : 'bg-white/50'}`}
+                      aria-label={`Ir a imagen ${i + 1}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          {gallery.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {gallery.map((url, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setGalleryIdx(i)}
+                  className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${i === galleryIdx ? 'border-primary' : 'border-transparent'}`}
+                  aria-label={`Miniatura ${i + 1}`}
+                >
+                  <Image src={url} alt={`Miniatura ${i + 1}`} fill className="object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {longDesc && (
+        <div className="mt-8 space-y-3">
+          <p className="text-sm font-medium">Descripción detallada</p>
+          <div className="rounded-xl border bg-muted/20 p-4">
+            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{longDesc}</p>
+          </div>
+        </div>
+      )}
+
+      {specs.length > 0 && (
+        <div className="mt-8 space-y-3">
+          <p className="text-sm font-medium">Especificaciones</p>
+          <div className="overflow-hidden rounded-xl border">
+            <table className="w-full text-sm">
+              <tbody>
+                {specs.map((spec, i) => (
+                  <tr key={i} className={i % 2 === 0 ? 'bg-muted/30' : ''}>
+                    <td className="w-2/5 px-4 py-2.5 font-medium text-muted-foreground">{spec.key}</td>
+                    <td className="px-4 py-2.5">{spec.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

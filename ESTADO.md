@@ -715,7 +715,7 @@ ALTER TABLE products ADD COLUMN stock INTEGER;
 
 ### Pendientes menores F15 (nice-to-have, no bloquea F16)
 
-- Bloque 3.2: tabs Stock/Página/Variantes en ProductSheet (condicionales a módulos) — MVP funcional sin ellas.
+- [x] Bloque 3.2: tabs Stock/Página/Variantes en ProductSheet implementados (2026-04-25). Stock en form RHF; Página con estado local + `update_product_page` handler + galería/specs/descripción larga en vitrine; Variantes con link a `/admin/products/[id]/variants`.
 - Bloque 5.4: stock "Solo quedan X" en detail sheet — ya aplicado en ProductCard, falta en detalle.
 - Bloque 5.5: formulario de checkout en cart drawer (DP-06) — se mueve a F19.
 - Bloque 6.1: card "Sin stock" en Dashboard — se puede agregar al revisitar.

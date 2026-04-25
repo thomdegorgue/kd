@@ -8,8 +8,10 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  updateProductPage,
   type ProductFilters,
 } from '@/lib/actions/products'
+import type { UpdateProductPageInput } from '@/lib/validations/product'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import { queryKeys, staleTimes, gcTimes } from '@/lib/hooks/query-keys'
 
@@ -99,6 +101,27 @@ export function useDeleteProduct() {
       queryClient.invalidateQueries({ queryKey: queryKeys.products(store_id) })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboardStats(store_id) })
       toast.success('Producto eliminado')
+    },
+    onError: (error) => {
+      toast.error(error.message)
+    },
+  })
+}
+
+export function useUpdateProductPage() {
+  const queryClient = useQueryClient()
+  const { store_id } = useAdminContext()
+
+  return useMutation({
+    mutationFn: async (input: UpdateProductPageInput) => {
+      const result = await updateProductPage(input)
+      if (!result.success) throw new Error(result.error.message)
+      return result.data
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.products(store_id) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.product(store_id, variables.product_id) })
+      toast.success('Página guardada')
     },
     onError: (error) => {
       toast.error(error.message)

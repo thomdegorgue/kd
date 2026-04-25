@@ -1,6 +1,6 @@
 import { registerHandler } from '../registry'
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
-import { createProductSchema, updateProductSchema, reorderProductsSchema } from '@/lib/validations/product'
+import { createProductSchema, updateProductSchema, reorderProductsSchema, updateProductPageSchema } from '@/lib/validations/product'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
@@ -319,5 +319,51 @@ registerHandler({
 
     await Promise.all(updates)
     return { updated: true }
+  },
+})
+
+// ── update_product_page ─────────────────────────────────────
+
+registerHandler({
+  name: 'update_product_page',
+  requires: ['product_page'],
+  permissions: ['owner', 'admin'],
+  event_type: 'product_page_updated',
+  invalidates: ['products:{store_id}'],
+  validate: (input) => {
+    const result = updateProductPageSchema.safeParse(input)
+    if (!result.success) {
+      const issue = result.error.issues[0]
+      return { valid: false, code: 'INVALID_INPUT', message: issue.message, field: String(issue.path[0]) }
+    }
+    return { valid: true }
+  },
+  execute: async (input, context) => {
+    const { product_id, ...pageData } = updateProductPageSchema.parse(input)
+
+    // Leer metadata actual para hacer merge parcial
+    const { data: existing, error: readErr } = await db
+      .from('products')
+      .select('metadata')
+      .eq('id', product_id)
+      .eq('store_id', context.store_id)
+      .is('deleted_at', null)
+      .single()
+
+    if (readErr || !existing) throw new Error('Producto no encontrado')
+
+    const currentMeta = (existing.metadata as Record<string, unknown> | null) ?? {}
+    const updatedMeta = { ...currentMeta, page: { ...(currentMeta.page as Record<string, unknown> ?? {}), ...pageData } }
+
+    const { data, error } = await db
+      .from('products')
+      .update({ metadata: updatedMeta })
+      .eq('id', product_id)
+      .eq('store_id', context.store_id)
+      .select('id, metadata')
+      .single()
+
+    if (error) throw new Error(error.message)
+    return data
   },
 })
