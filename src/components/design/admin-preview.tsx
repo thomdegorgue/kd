@@ -427,7 +427,7 @@ const MODULE_CATALOG = [
   { key: 'wholesale',     label: 'Mayorista',          desc: 'Tienda mayorista separada',           tier: 'pro',  icon: BarChart2   },
   { key: 'finance',       label: 'Finanzas',           desc: 'Estadísticas de ingresos y gastos',   tier: 'pro',  icon: DollarSign  },
   { key: 'multiuser',     label: 'Multi-usuario',      desc: 'Roles y colaboradores',               tier: 'pro',  icon: Users       },
-  { key: 'custom_domain', label: 'Dominio propio',     desc: 'dominio.com personalizado',           tier: 'pro',  icon: Globe       },
+  { key: 'custom_domain', label: 'Dominio propio',     desc: 'dominio.com personalizado',           tier: 'base', icon: Globe       },
   { key: 'assistant',     label: 'Asistente IA',       desc: 'Chat con GPT-4o-mini',                tier: 'pro',  icon: Bot         },
 ]
 

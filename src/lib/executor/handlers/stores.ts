@@ -23,7 +23,7 @@ export async function createStore(input: CreateStoreInput): Promise<ActionResult
   // Obtener el plan base
   const { data: plan, error: planError } = await db
     .from('plans')
-    .select('id, base_modules, max_stores_total')
+    .select('id, base_modules, max_stores_total, trial_max_products')
     .eq('name', 'base')
     .single()
 
@@ -70,7 +70,7 @@ export async function createStore(input: CreateStoreInput): Promise<ActionResult
       billing_status: 'demo',
       plan_id: plan.id,
       modules,
-      limits: { max_products: 30, max_orders: 100, ai_tokens: 0 },
+      limits: { max_products: (plan.trial_max_products as number | null) ?? 100, max_orders: 100, ai_tokens: 0 },
       config: { onboarding: { completed: false } },
     })
     .select('id, slug')

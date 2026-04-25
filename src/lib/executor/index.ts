@@ -200,6 +200,22 @@ export async function executor<T = unknown>(
     })()
   }
 
+  // Revalidar ISR del catálogo público cuando cambian datos visibles al visitante
+  const CATALOG_KEYS = ['products:', 'store:slug:']
+  const affectsCatalog = handler.invalidates.some((k) =>
+    CATALOG_KEYS.some((prefix) => k.startsWith(prefix)),
+  )
+  if (affectsCatalog && storeContext?.slug) {
+    void (async () => {
+      try {
+        const { revalidatePath } = await import('next/cache')
+        revalidatePath(`/${storeContext.slug}`)
+      } catch {
+        // No crítico — ISR se regenera por TTL si falla
+      }
+    })()
+  }
+
   // ──────────────────────────────────────────────
   // PASO 10 — Retornar resultado
   // ──────────────────────────────────────────────

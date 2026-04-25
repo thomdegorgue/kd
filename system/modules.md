@@ -10,15 +10,15 @@ Los módulos se agrupan lógicamente para la landing page, el panel de billing y
 |-------|------|---------|
 | Catálogo y Ventas | base | `catalog`, `products`, `categories`, `cart`, `orders`, `product_page`, `banners`, `social` |
 | Operaciones | base | `stock`, `shipping`, `payments` |
+| Dominio | base | `custom_domain` |
 | Equipo | pro | `multiuser`, `tasks` |
 | Comercial | pro | `variants`, `wholesale` |
 | Finanzas | pro | `finance`, `expenses`, `savings_account` |
-| Dominio | pro | `custom_domain` |
 | IA | pro* | `assistant` |
 
 > **\*IA — Plan Anual:** el módulo `assistant` es el único módulo pro **excluido** del plan anual. Siempre es add-on mensual, independientemente del billing_period.
 
-**Totales:** 11 módulos base · 9 módulos pro (8 incluidos en anual + 1 solo mensual)
+**Totales:** 12 módulos base · 8 módulos pro (7 incluidos en anual + 1 solo mensual)
 
 ---
 

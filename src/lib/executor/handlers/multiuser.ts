@@ -106,14 +106,17 @@ registerHandler({
 
     const { data, error } = await db
       .from('store_invitations')
-      .insert({
-        store_id: context.store_id,
-        email,
-        role,
-        token,
-        expires_at: expiresAt,
-        invited_by: context.user_id,
-      })
+      .upsert(
+        {
+          store_id: context.store_id,
+          email,
+          role,
+          token,
+          expires_at: expiresAt,
+          invited_by: context.user_id,
+        },
+        { onConflict: 'store_id,email' }
+      )
       .select()
       .single()
 

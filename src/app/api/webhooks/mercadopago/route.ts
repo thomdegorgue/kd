@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
 import { verifyWebhookSignature } from '@/lib/billing/verify-signature'
 import { getPreapproval, getPayment } from '@/lib/billing/mercadopago'
-import { apiLimiter } from '@/lib/ratelimit'
 import { ANNUAL_INCLUDED_PRO_MODULES } from '@/lib/billing/calculator'
+import { sendEmail } from '@/lib/email/resend'
+import { WelcomeEmail } from '@/lib/email/templates/welcome'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // ============================================================
 // TIPOS
@@ -67,27 +70,63 @@ async function resolveStoreId(
   return data?.id ?? null
 }
 
+async function getStoreOwnerEmail(storeId: string): Promise<string | null> {
+  const { data, error } = await db
+    .from('store_users')
+    .select('user_id, users:user_id(email)')
+    .eq('store_id', storeId)
+    .eq('role', 'owner')
+    .limit(1)
+    .maybeSingle()
+
+  if (error || !data) return null
+  const users = (data as { users?: { email?: string } | { email?: string }[] }).users
+  if (Array.isArray(users)) return users[0]?.email ?? null
+  return users?.email ?? null
+}
+
+async function sendWelcomeEmailIfFirstPayment(storeId: string): Promise<void> {
+  // Si ya hubo pagos aprobados antes, no es el “primer pago”.
+  const { count } = await db
+    .from('billing_payments')
+    .select('*', { count: 'exact', head: true })
+    .eq('store_id', storeId)
+    .eq('status', 'approved')
+
+  if ((count ?? 0) !== 1) return
+
+  const ownerEmail = await getStoreOwnerEmail(storeId)
+  if (!ownerEmail) return
+
+  const { data: store } = await db
+    .from('stores')
+    .select('name, slug')
+    .eq('id', storeId)
+    .single()
+
+  if (!store?.slug) return
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'
+  const domain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'kitdigital.ar'
+  const isDev = process.env.NODE_ENV === 'development'
+  const catalogUrl = isDev ? `${appUrl.replace(/\/$/, '')}/${store.slug}` : `https://${store.slug}.${domain}`
+  const adminUrl = `${appUrl.replace(/\/$/, '')}/admin`
+
+  const emailHtml = WelcomeEmail({
+    ownerEmail,
+    storeName: store.name ?? 'tu tienda',
+    adminUrl,
+    catalogUrl,
+  })
+
+  await sendEmail(ownerEmail, `Bienvenido/a — ${store.name ?? 'KitDigital'}`, emailHtml)
+}
+
 async function updateStore(
   storeId: string,
   update: BillingTransition,
 ): Promise<void> {
   await db.from('stores').update(update).eq('id', storeId)
-}
-
-async function logWebhook(entry: {
-  mp_event_id: string
-  topic: string
-  store_id: string | null
-  raw_payload: unknown
-  status: string
-  error: string | null
-  processing_time_ms: number
-  result: string
-}): Promise<void> {
-  await db.from('billing_webhook_log').insert({
-    ...entry,
-    processed_at: new Date().toISOString(),
-  })
 }
 
 // ============================================================
@@ -97,20 +136,15 @@ async function logWebhook(entry: {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const startTime = Date.now()
 
-  // Rate limit: 30 requests per 10s per IP
-  const ip = request.headers.get('x-forwarded-for') ?? 'anonymous'
-  const { success } = await apiLimiter.limit(ip)
-  if (!success) {
-    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
-  }
-
   const rawBody = await request.text()
 
-  // 1. Verificar firma
+  // 1. Verificar firma HMAC con el template correcto de MP:
+  //    id:<data.id>;request-id:<x-request-id>;ts:<timestamp>;
   const xSignature = request.headers.get('x-signature')
   const xRequestId = request.headers.get('x-request-id')
+  const dataId = request.nextUrl.searchParams.get('data.id')
 
-  if (!verifyWebhookSignature(xSignature, xRequestId)) {
+  if (!verifyWebhookSignature(xSignature, xRequestId, dataId)) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
@@ -163,67 +197,84 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       // Rama ANUAL: pago único sin preapproval_id → plan anual
       if (!subscriptionId && payment.external_reference) {
-        storeId = payment.external_reference
-        if (payment.status === 'approved') {
-          const now = new Date()
-          const paidUntil = new Date(now)
-          paidUntil.setDate(paidUntil.getDate() + 365)
-
-          const { data: storeData } = await db
-            .from('stores')
-            .select('modules')
-            .eq('id', storeId)
-            .single()
-
-          const currentModules = (storeData?.modules as Record<string, boolean>) ?? {}
-          for (const m of ANNUAL_INCLUDED_PRO_MODULES) {
-            currentModules[m] = true
-          }
-
-          await db.from('stores').update({
-            billing_status: 'active',
-            billing_period: 'annual',
-            annual_paid_until: paidUntil.toISOString().slice(0, 10),
-            modules: currentModules,
-            last_billing_failure_at: null,
-          }).eq('id', storeId)
-
-          const { data: planData } = await db
-            .from('plans')
-            .select('id')
-            .eq('is_active', true)
-            .single()
-
-          if (planData) {
-            await db.from('billing_payments').upsert({
-              store_id: storeId,
-              plan_id: planData.id,
-              mp_payment_id: String(payment.id),
-              mp_subscription_id: null,
-              amount: Math.round(payment.transaction_amount * 100),
-              status: 'approved',
-              paid_at: payment.date_approved ?? new Date().toISOString(),
-            })
-          }
-
-          await emitEvent(storeId, 'annual_subscription_created', {
-            mp_payment_id: payment.id,
-            amount: payment.transaction_amount,
-            paid_until: paidUntil.toISOString().slice(0, 10),
-            modules_activated: [...ANNUAL_INCLUDED_PRO_MODULES],
-          })
-          result = 'annual_subscription_created'
-        } else if (
-          payment.status === 'rejected' ||
-          payment.status === 'cancelled'
-        ) {
-          await emitEvent(storeId, 'annual_payment_failed', {
-            mp_payment_id: payment.id,
-            status: payment.status,
-          })
-          result = 'annual_payment_failed'
+        // Validar UUID y que la tienda exista antes de usarlo como store_id
+        if (!UUID_REGEX.test(payment.external_reference)) {
+          result = 'annual_unknown_store'
         } else {
-          result = `annual_payment_ignored_status_${payment.status}`
+          const { data: storeRow } = await db
+            .from('stores')
+            .select('id')
+            .eq('id', payment.external_reference)
+            .single()
+
+          if (!storeRow) {
+            result = 'annual_unknown_store'
+          } else {
+            storeId = storeRow.id as string
+
+            if (payment.status === 'approved') {
+              const now = new Date()
+              const paidUntil = new Date(now)
+              paidUntil.setDate(paidUntil.getDate() + 365)
+
+              const { data: storeData } = await db
+                .from('stores')
+                .select('modules')
+                .eq('id', storeId)
+                .single()
+
+              const currentModules = (storeData?.modules as Record<string, boolean>) ?? {}
+              for (const m of ANNUAL_INCLUDED_PRO_MODULES) {
+                currentModules[m] = true
+              }
+
+              await db.from('stores').update({
+                billing_status: 'active',
+                billing_period: 'annual',
+                annual_paid_until: paidUntil.toISOString().slice(0, 10),
+                modules: currentModules,
+                last_billing_failure_at: null,
+              }).eq('id', storeId)
+
+              const { data: planData } = await db
+                .from('plans')
+                .select('id')
+                .eq('is_active', true)
+                .single()
+
+              if (planData) {
+                await db.from('billing_payments').upsert({
+                  store_id: storeId,
+                  plan_id: planData.id,
+                  mp_payment_id: String(payment.id),
+                  mp_subscription_id: null,
+                  amount: Math.round(payment.transaction_amount * 100),
+                  status: 'approved',
+                  paid_at: payment.date_approved ?? new Date().toISOString(),
+                })
+              }
+
+              await emitEvent(storeId, 'annual_subscription_created', {
+                mp_payment_id: payment.id,
+                amount: payment.transaction_amount,
+                paid_until: paidUntil.toISOString().slice(0, 10),
+                modules_activated: [...ANNUAL_INCLUDED_PRO_MODULES],
+              })
+              await sendWelcomeEmailIfFirstPayment(storeId)
+              result = 'annual_subscription_created'
+            } else if (
+              payment.status === 'rejected' ||
+              payment.status === 'cancelled'
+            ) {
+              await emitEvent(storeId, 'annual_payment_failed', {
+                mp_payment_id: payment.id,
+                status: payment.status,
+              })
+              result = 'annual_payment_failed'
+            } else {
+              result = `annual_payment_ignored_status_${payment.status}`
+            }
+          }
         }
       } else if (subscriptionId) {
         storeId = await resolveStoreId(subscriptionId)
@@ -262,6 +313,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               mp_payment_id: payment.id,
               amount: payment.transaction_amount,
             })
+            await sendWelcomeEmailIfFirstPayment(storeId)
             result = 'payment_approved'
           } else if (
             payment.status === 'rejected' ||
@@ -315,6 +367,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             subscription_id: subscription.id,
             activated_modules: pendingModules,
           })
+          // Por las dudas, si el primer cobro se registró antes que el preapproval authorized.
+          await sendWelcomeEmailIfFirstPayment(storeId)
           result = 'subscription_activated'
         } else if (subscription.status === 'cancelled') {
           await updateStore(storeId, {

@@ -9,26 +9,28 @@ Ante conflicto entre documentos, la prioridad es:
 1. `system/` (especificación canónica)
 2. `PLAN.md` (orden de ejecución)
 3. `ESTADO.md` (estado actual)
-4. Todo lo demás
+4. `FLUJO.md` (historias de usuario y decisiones de producto UX; no contradice `system/`)
+5. Todo lo demás
 
 ## Estado del Proyecto (2026-04-24)
 
-F0–F14 completadas. SQL migration 13.0 ejecutada. Env vars de producción configuradas. OG image creada. Superadmin creado. Deploy activo en Vercel.
+F0–F14 completadas. F15 en progreso (35% — Bloque 0.7 y P2.1–2.4 listos). SQL migration 13.0 ejecutada. Env vars de producción configuradas. Deploy activo en Vercel.
 
-**Fase en curso: F15 — Design Excellence.** Ver `ESTADO.md` §F15 para el plan completo.
+**Fase en curso: F15 — Design Excellence.** Completar Bloques 0–9 antes de iniciar F16.
 
-**Contexto F15:**
-- El product está deployado y funcional en producción.
-- Se detectó error "Server Components render" en admin → causa: cookies de sesión de Supabase se escriben en response descartado en middleware. Fix documentado en `ESTADO.md §F15 B0.1`.
-- Se detectó mobile navigation rota → `AdminShell.renderTopbar` reemplaza el `DefaultTopbar` entero (incluye el hamburger). Fix en `ESTADO.md §F15 B0.5`.
-- Prioridad F15: bugs críticos PRIMERO (Bloque 0), luego redesign admin + vitrine por bloques.
-- Las páginas de referencia de diseño están en `/design/admin` y `/design/vitrine` — SON la fuente de verdad visual para el redesign.
-- `EntityToolbar` ya implementado en `src/components/design/admin/entity-toolbar.tsx` — mover a `src/components/shared/` y conectar a páginas reales.
+**Próximas fases planificadas (F16–F22):**
 
-**SQL manual requerido antes de deploy F15:**
-```sql
-ALTER TABLE products ADD COLUMN compare_price INTEGER;
-```
+| Fase | Nombre | Prioridad |
+|------|--------|-----------|
+| F16 | Admin Ventas (POS) | 🔴 Crítica |
+| F17 | Onboarding Magic 2.0 + Billing en Onboarding | 🔴 Crítica |
+| F18 | Bugs Críticos de Auditoría | 🔴 Crítica |
+| F19 | Catálogo Público: Checkout Mejorado + Performance | 🟠 Alta |
+| F20 | SEO + OpenGraph por Tienda | 🟠 Alta |
+| F21 | Custom Domain Base + Middleware | 🟠 Alta |
+| F22 | Email Mejorado + Notificaciones | 🟡 Media |
+
+---
 
 ## Protocolo de Inicio de Sesión
 
@@ -49,6 +51,8 @@ En el paso **0.4** (`PLAN.md`), ejecutar `schema.sql` completo en el SQL Editor 
    - Registrar blockers encontrados
    - Indicar qué sigue exactamente
 
+---
+
 ## Reglas Innegociables
 
 - **Runtime**: Node 22 + pnpm. Nunca npm ni yarn.
@@ -64,26 +68,85 @@ En el paso **0.4** (`PLAN.md`), ejecutar `schema.sql` completo en el SQL Editor 
 - Un módulo solo escribe en sus propias tablas.
 - Los eventos son inmutables.
 - Mobile-first siempre.
-- **Billing dual**: `stores.billing_period = 'monthly' | 'annual'`. El plan anual incluye todos los módulos pro EXCEPTO `assistant`. `assistant` es siempre add-on mensual independientemente del billing_period. Ver `system/billing.md` §"Modelo de Billing (Dual)".
-- **Grupos de módulos**: toda UI que liste módulos debe usar los grupos definidos en `system/modules.md` §"Grupos de Módulos".
+- **Billing dual**: `stores.billing_period = 'monthly' | 'annual'`. El plan anual incluye todos los módulos pro EXCEPTO `assistant`. `assistant` es siempre add-on mensual independientemente del billing_period. Ver `system/billing.md`.
+- **Grupos de módulos**: toda UI que liste módulos debe usar los grupos definidos en `system/modules.md §"Grupos de Módulos"`.
 - **Cap de tiendas**: `plans.max_stores_total` controla el límite global. `create_store` debe validarlo. `NULL` = sin límite.
 
-## Estrategia de Testing
+---
 
-**Framework:** Vitest.
+## Decisiones de Producto (Aprobadas 2026-04-24)
 
-| Qué testear | Tipo | Cuándo | Prioridad |
-|-------------|------|--------|-----------|
-| Executor: pipeline completo (validaciones de estado, módulos, límites, transiciones) | Unitario | F0.6 | Alta |
-| RLS: aislamiento multitenant (un store_user no puede leer datos de otra tienda) | Integración con Supabase local | F0.4 | Alta |
-| Webhooks MP: firma HMAC, idempotencia, transiciones de billing_status | Integración | F5 | Alta |
-| Server actions: validación de input, retorno correcto | Unitario | Incremental por fase | Media |
-| Zod schemas: edge cases de validación | Unitario | Incremental por fase | Media |
+Estas decisiones modifican comportamientos anteriores. Tienen precedencia sobre documentación previa.
 
-**Reglas:**
-- Los tests del executor son obligatorios antes de avanzar de F0.
-- Los tests de RLS se corren contra un proyecto Supabase de test (o contenedor local con `supabase start`).
-- No se testea UI de forma obligatoria en el MVP, pero los componentes deben compilar sin errores de tipo.
+### DP-01 — Sin trial automático; sin “modo demo” en el camino del dueño
+
+El onboarding termina con **pago obligatorio** (Mercado Pago) antes de acceder al panel. El trial (`plans.trial_days`) queda **en stand-by** para uso manual del superadmin (regalo, promoción). **No hay trial por defecto para nuevos usuarios.**
+
+- **Flujo canónico:** pasos 1–3 (tienda, diseño, módulos) → paso 4 (pago) → webhook MP confirma → `billing_status = 'active'` → el dueño entra al **admin con catálogo operativo**. No existe para el usuario una fase “ya estoy en el admin pero en demo”.
+- **Valor `demo` en BD:** puede seguir existiendo en el esquema por compatibilidad o casos excepcionales (superadmin, datos legacy); **no es el modelo del onboarding 2026**. La UX no debe exponer “modo demo”.
+- **Sin pago completado:** no hay acceso a `/admin` (middleware redirige al onboarding, típicamente paso de pago o pantalla de retoma). No se muestra un admin completo con todo bloqueado.
+- **Executor:** solo acepta escrituras de dominio cuando `billing_status` permite operar la tienda (`active`, y según reglas `past_due` lectura, etc.); ver `FLUJO.md` y código vigente.
+
+### DP-02 — Onboarding "Mágico" (Apple-style)
+
+El onboarding debe rediseñarse completamente con los siguientes criterios:
+
+1. **Flujo**: Info tienda → Diseño (logo + color) → Módulos → Pago → Éxito
+2. **Pago en onboarding**: paso 4 usa MP Checkout Preference (mismo mecanismo que billing manual). Al confirmar pago, webhook activa la tienda y el usuario continúa.
+3. **Pantalla final**: "Enviamos un mail a `{email}`. Confirmá tu cuenta y entrá al panel." Con link para reenviar.
+4. **Email confirmation**: habilitar en Supabase Auth antes de lanzar.
+5. **Animaciones**: transiciones suaves entre pasos. Micro-animaciones en cada CTA. Sensación de progreso constante.
+6. **Sin fricción**: cada paso tiene un solo objetivo. Sin forms largos. Autoguardado.
+
+### DP-03 — Sección "Ventas" en Admin (POS/Caja) — alineado a `/design/admin`
+
+Hay una sección `/admin/ventas` (POS) como en el preview de diseño: caja → confirmar venta → los datos quedan en **Pedidos** (`orders` + `order_items` + estado coherente). **No hay página de menú “Pagos”** como módulo aparte: lo que existe es **configuración de métodos de cobro al cliente** (en principio **Mercado Pago** y **transferencia**; el POS también puede registrar efectivo, etc.) y el registro del cobro va ligado al pedido/venta.
+
+- Buscar productos por nombre o escanear (futuro).
+- Agregar items con cantidad.
+- Seleccionar cliente (existente o rápido nombre+teléfono).
+- Elegir método de cobro según lo configurado (efectivo / transferencia / link MP / cuenta de ahorro si aplica).
+- Registrar descuento opcional.
+- Confirmar venta → crea `order` + `order_items` + registro de cobro asociado + descuenta `stock` si aplica + movimientos en **Finanzas** / cuenta de ahorro si módulos activos.
+- Opcionalmente enviar comprobante por WhatsApp al cliente.
+
+**El carrito público (catálogo) solo abre WhatsApp. No registra pedidos en DB** (salvo futuro checkout MP automático cuando esté implementado).
+
+La excepción futura: checkout del catálogo con MP cuando el dueño tenga habilitado “pago con Mercado Pago” en la configuración de métodos → pedido `source='mp_checkout'`.
+
+### DP-04 — Custom Domain es feature BASE (no pro)
+
+El módulo `custom_domain` pasa de `pro` a `base`. Todos los planes lo incluyen sin costo adicional. El middleware debe:
+
+1. Si el Host termina en `.kitdigital.ar` → resolver por slug (comportamiento actual).
+2. Si el Host NO termina en `.kitdigital.ar` → buscar en `stores.custom_domain` donde `custom_domain_verified = true`. Cachear en Redis 5 minutos por Host.
+
+Impacto en billing: `custom_domain` se elimina de la lista de módulos pro que se cobran.
+
+### DP-05 — AI Tokens: Límite Mensual
+
+El módulo `assistant` tiene límite mensual (no por sesión, no diario).
+
+- `plans.ai_tokens_monthly` (nueva columna) — default 50000 tokens/mes.
+- `stores.ai_tokens_used` ya existe (reset mensual vía cron).
+- `stores.ai_tokens_reset_at` (nueva columna) — timestamp del último reset.
+- El handler `execute_assistant_action` valida `ai_tokens_used < ai_tokens_monthly` ANTES de llamar a OpenAI.
+- Si el límite se alcanza → error `LIMIT_EXCEEDED` con mensaje claro al usuario.
+- Cron mensual (día 1 de cada mes): resetea `ai_tokens_used = 0` y actualiza `ai_tokens_reset_at`.
+- Futura mejora (documentada, no implementar ahora): límites diario y semanal.
+
+### DP-06 — WhatsApp Checkout Mejorado (Catálogo Público)
+
+El cart drawer muestra un formulario antes de abrir WhatsApp:
+
+- **Nombre** (obligatorio).
+- **Tipo de entrega**: "Retiro en local" o "Envío a domicilio" (si módulo shipping activo).
+- **Dirección** (aparece solo si eligió envío, opcional).
+- **Método de pago preferido** (si hay métodos configurados en ajustes — p. ej. MP, transferencia): lista + "Efectivo al entregar".
+- **Nota** (opcional).
+- Botón "Enviar pedido" → genera mensaje WA enriquecido con todos los datos → abre `wa.me/...`.
+
+Este formulario es 100% client-side (Zustand). No persiste nada en DB desde el catálogo público.
 
 ---
 
@@ -97,6 +160,71 @@ En el paso **0.4** (`PLAN.md`), ejecutar `schema.sql` completo en el SQL Editor 
 6. Crear componentes UI
 7. Agregar invalidaciones en `system/realtime.md`
 8. Actualizar `ESTADO.md`
+
+---
+
+## Estrategia de Testing
+
+**Framework:** Vitest.
+
+| Qué testear | Tipo | Cuándo | Prioridad |
+|-------------|------|--------|-----------|
+| Executor: pipeline completo | Unitario | F0.6 | Alta |
+| RLS: aislamiento multitenant | Integración | F0.4 | Alta |
+| Webhooks MP: firma HMAC, idempotencia | Integración | F5 | Alta |
+| Server actions: validación de input | Unitario | Incremental | Media |
+| Zod schemas: edge cases | Unitario | Incremental | Media |
+
+---
+
+## SQL Migrations Acumuladas (pendientes de ejecutar)
+
+Ejecutar **en orden** en Supabase SQL Editor. Algunas ya están en el schema.sql master; estas son las que deben aplicarse a la DB de producción existente.
+
+```sql
+-- ====== YA EJECUTADAS (F13) ======
+-- ALTER TABLE stores ADD COLUMN billing_period TEXT...
+-- ALTER TABLE stores ADD COLUMN annual_paid_until DATE;
+-- ALTER TABLE plans ADD COLUMN annual_discount_months INTEGER...
+-- ALTER TABLE plans ADD COLUMN max_stores_total INTEGER;
+-- ALTER TABLE billing_payments ALTER COLUMN mp_subscription_id DROP NOT NULL;
+
+-- ====== PENDIENTES F15 ======
+ALTER TABLE products ADD COLUMN compare_price INTEGER;
+ALTER TABLE products ADD COLUMN stock INTEGER;
+
+-- ====== PENDIENTES F16 (Ventas/POS) ======
+ALTER TABLE orders ADD COLUMN source TEXT NOT NULL DEFAULT 'admin'
+  CHECK (source IN ('admin', 'whatsapp', 'mp_checkout'));
+
+-- ====== PENDIENTES F18 (AI Tokens) ======
+ALTER TABLE plans ADD COLUMN ai_tokens_monthly INTEGER NOT NULL DEFAULT 50000;
+ALTER TABLE stores ADD COLUMN ai_tokens_reset_at TIMESTAMPTZ DEFAULT NOW();
+
+-- ====== PENDIENTES F23 (DB Fixes) ======
+-- FKs faltantes
+ALTER TABLE variants ADD CONSTRAINT variants_store_fk
+  FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+ALTER TABLE variant_attributes ADD CONSTRAINT variant_attributes_store_fk
+  FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+ALTER TABLE variant_values ADD CONSTRAINT variant_values_store_fk
+  FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+ALTER TABLE stock_items ADD CONSTRAINT stock_items_store_fk
+  FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+ALTER TABLE wholesale_prices ADD CONSTRAINT wholesale_prices_store_fk
+  FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+
+-- Constraints de calidad
+ALTER TABLE products ADD CONSTRAINT products_stock_nonneg
+  CHECK (stock IS NULL OR stock >= 0);
+
+-- Índices de performance
+CREATE INDEX IF NOT EXISTS idx_products_store_out_of_stock ON products(store_id) WHERE stock = 0;
+CREATE INDEX IF NOT EXISTS idx_events_store_type_created ON events(store_id, type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_store_source ON orders(store_id, source);
+```
+
+---
 
 ## Plantillas de Código
 

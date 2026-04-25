@@ -51,6 +51,11 @@ const BASE_GROUPS: readonly ModuleGroup[] = [
       { id: 'payments', label: 'Registro de cobros' },
     ],
   },
+  {
+    title: 'Dominio',
+    tier: 'base',
+    modules: [{ id: 'custom_domain', label: 'Dominio propio' }],
+  },
 ]
 
 const PRO_GROUPS: readonly ModuleGroup[] = [
@@ -78,11 +83,6 @@ const PRO_GROUPS: readonly ModuleGroup[] = [
       { id: 'expenses', label: 'Gastos' },
       { id: 'savings_account', label: 'Caja de ahorro' },
     ],
-  },
-  {
-    title: 'Dominio',
-    tier: 'pro',
-    modules: [{ id: 'custom_domain', label: 'Dominio propio' }],
   },
   {
     title: 'IA',

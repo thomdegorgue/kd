@@ -64,6 +64,11 @@ export const queryKeys = {
   // Savings
   savings: (storeId: string) => ['savings', storeId] as const,
 
+  // Sales (POS) — F16
+  salesSummary: (storeId: string, date: string) => ['sales-summary', storeId, date] as const,
+  salesHistory: (storeId: string, filters?: Record<string, unknown>) =>
+    filters ? ['sales-history', storeId, filters] as const : ['sales-history', storeId] as const,
+
   // Assistant
   assistantSession: (storeId: string) => ['assistant', storeId] as const,
 
@@ -98,6 +103,8 @@ export const staleTimes = {
   billing: 60 * 1000,
   storeUsers: 2 * 60 * 1000,
   invitations: 60 * 1000,
+  salesSummary: 30 * 1000,
+  salesHistory: 30 * 1000,
 }
 
 /** gcTime por entidad (ms) — system/realtime.md */
@@ -124,4 +131,6 @@ export const gcTimes = {
   billing: 5 * 60 * 1000,
   storeUsers: 10 * 60 * 1000,
   invitations: 5 * 60 * 1000,
+  salesSummary: 5 * 60 * 1000,
+  salesHistory: 5 * 60 * 1000,
 }

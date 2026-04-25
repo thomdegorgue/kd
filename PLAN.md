@@ -603,7 +603,7 @@ Referenciar `src/components/design/admin-preview.tsx` §sección sidebar/topbar 
 
 - Mover `src/components/design/admin/entity-toolbar.tsx` → `src/components/shared/entity-toolbar.tsx`.
 - Hacer `categories` prop dinámica (no hardcodeada).
-- Integrar en: products, orders, customers, payments, stock, shipping, finance, expenses, tasks, banners.
+- Integrar en: products, orders, customers, **ventas** (`/admin/ventas`, F16), stock, shipping, finance, expenses, tasks, banners. (**Sin** lista dedicada `/admin/payments` en menú — ver `FLUJO.md` I-08.)
 - Mover `EntityListPagination` → `src/components/shared/entity-list-pagination.tsx`.
 
 **Criterio B2:** Todas las listas tienen barra de búsqueda + botón filtros + menú exportar.
@@ -650,3 +650,546 @@ Referenciar `src/components/design/admin-preview.tsx` §sección sidebar/topbar 
 Ver `ESTADO.md §F15 BLOQUE 9` para detalle.
 
 **Criterio global F15:** Build limpio. Error Server Components resuelto. Admin premium en mobile y desktop. Vitrine premium con compare price y trust badges. Todos los bloques anteriores completos.
+
+---
+
+## F16 — Admin Ventas: Sistema de Caja / POS
+
+**Objetivo:** Sección `/admin/ventas` — sistema POS para que el dueño registre ventas en persona (caja). Reemplaza el flujo de "crear pedido manual". El catálogo público sigue enviando solo a WhatsApp.
+
+**Decisión de producto:** DP-03 (START.md). Ver también `ESTADO.md §F16` para el contexto completo.
+
+### 16.0 SQL Migration (Paso Manual)
+
+Ejecutar en Supabase **antes** de hacer deploy:
+
+```sql
+ALTER TABLE orders ADD COLUMN source TEXT NOT NULL DEFAULT 'admin'
+  CHECK (source IN ('admin', 'whatsapp', 'mp_checkout'));
+CREATE INDEX idx_orders_store_source ON orders(store_id, source);
+```
+
+**Criterio:** columna `source` existe en tabla `orders`. Index creado.
+
+### 16.1 Handler `create_sale`
+
+Archivo: `src/lib/executor/handlers/orders.ts` (agregar action al handler existente de orders).
+
+```typescript
+// Input type
+interface CreateSaleInput {
+  items: Array<{
+    product_id: string
+    variant_id?: string
+    quantity: number
+    price_at_sale: number // en centavos
+    name_snapshot: string
+  }>
+  customer_id?: string      // cliente existente
+  customer_name?: string    // nombre rápido si no hay customer_id
+  customer_phone?: string
+  payment_method: 'cash' | 'transfer' | 'mp_link' | 'savings' | 'card' | 'other'
+  payment_amount: number    // en centavos (puede diferir del total si hay cambio)
+  savings_account_id?: string // si payment_method='savings'
+  discount_amount?: number  // en centavos, descuento aplicado
+  shipping_method_id?: string
+  notes?: string
+}
+```
+
+Lógica del handler:
+1. Validar que items no estén vacíos.
+2. Calcular total: `sum(price_at_sale * quantity) - discount_amount`.
+3. Si módulo `stock` activo: verificar `products.stock >= quantity` para cada item. Si falla → `LIMIT_EXCEEDED` con producto específico.
+4. Resolver customer: si `customer_id` → verificar que pertenece a la tienda. Si `customer_name` → crear customer nuevo.
+5. Insertar en `orders` con `source='admin'`, `status='confirmed'`.
+6. Insertar en `order_items` (snapshot de nombre + precio al momento).
+7. Insertar en `payments` con el método y monto.
+8. Si `payment_method='savings'` → insertar en `savings_movements` con `type='withdrawal'`, `amount=payment_amount`.
+9. Si módulo `stock` activo → `UPDATE products SET stock = stock - quantity` para cada item.
+10. Emitir evento `sale_created`.
+11. Invalidar: `orders:{store_id}`, `products:{store_id}`, `dashboard:{store_id}`, `savings:{store_id}`.
+
+**Criterio:** action `create_sale` registrada en el registry. Pasa todos los pasos del executor. `pnpm exec tsc --noEmit` sin errores.
+
+### 16.2 Validación Zod
+
+Archivo: `src/lib/validations/sale.ts`
+
+- `createSaleSchema` con todos los campos de CreateSaleInput.
+- Items: array non-empty, `price_at_sale >= 0`, `quantity >= 1`.
+- `payment_amount >= 0`.
+- `discount_amount` opcional, default 0.
+
+**Criterio:** Zod schema compila, valida correctamente, rechaza inputs inválidos.
+
+### 16.3 Server Actions
+
+Archivo: `src/lib/actions/sales.ts`
+
+```typescript
+'use server'
+export async function createSale(input: unknown)        // → executor create_sale
+export async function getDailySalesSummary(date?: string) // → query totales del día
+export async function getSalesHistory(filters: {...})    // → lista paginada de ventas
+```
+
+`getDailySalesSummary` devuelve:
+```typescript
+{
+  total_sales: number         // suma de totales
+  total_orders: number        // count
+  by_method: Record<PaymentMethod, number>  // total por método de pago
+  top_products: Array<{ name, quantity, total }>  // top 5 del día
+}
+```
+
+**Criterio:** actions exportadas, tipadas. Llamadas desde el cliente funcionan.
+
+### 16.4 Hooks TanStack Query
+
+Archivo: `src/lib/hooks/use-sales.ts`
+
+- `useCreateSale()` — mutation, invalida queries al completar.
+- `useDailySalesSummary(date)` — query con staleTime 30s.
+- `useSalesHistory(filters)` — query con paginación.
+
+### 16.5 Página `/admin/ventas` — UI POS
+
+Archivo: `src/app/(admin)/admin/ventas/page.tsx` + componentes en `src/components/admin/ventas/`
+
+**Layout desktop** (2 columnas, 60/40):
+
+**Columna izquierda — Caja:**
+```
+┌─────────────────────────────────────────┐
+│ [Buscar producto...                    ] │
+│                                          │
+│ [ProductCard] [ProductCard] [ProductCard]│
+│ [ProductCard] [ProductCard] [ProductCard]│
+│                                          │
+│ ─── Items en la venta ───               │
+│ Remera Azul  × 2  $10.000  [−][+][✕]   │
+│ Pantalón     × 1  $15.000  [−][+][✕]   │
+│                                          │
+│ Descuento: [_____] %/$ [toggle]          │
+│                             Total: $25.000│
+└─────────────────────────────────────────┘
+```
+
+**Columna derecha — Pago:**
+```
+┌────────────────────────────────┐
+│ Cliente (opcional)             │
+│ [Buscar o nombre rápido...   ] │
+│                                │
+│ Método de pago                 │
+│ ○ Efectivo                     │
+│ ○ Transferencia                │
+│ ○ Mercado Pago (Link)          │
+│ ○ Cuenta de Ahorro             │
+│                                │
+│ Nota (opcional)                │
+│ [________________________]     │
+│                                │
+│ [    CONFIRMAR VENTA    ]      │
+│        Total: $25.000          │
+└────────────────────────────────┘
+```
+
+**Mobile**: Tabs "Caja" | "Pago" | "Historial".
+
+**Componentes a crear:**
+- `SaleProductSearch` — input + debounce + grid de resultados (max 12 productos visibles).
+- `SaleCart` — lista de items con controles de cantidad.
+- `SalePaymentPanel` — selección de cliente, método y confirmación.
+- `SaleTicket` — modal de éxito con resumen, número de orden, y botones de acción.
+- `SaleDailyHistory` — lista del historial del día + resumen por método.
+
+**SaleTicket** (modal post-confirmación):
+```
+┌──────────────────────────────┐
+│  ✅ Venta registrada         │
+│  Pedido #4521                │
+│                              │
+│  2 × Remera Azul    $10.000  │
+│  1 × Pantalón       $15.000  │
+│  ─────────────────────────── │
+│  Total              $25.000  │
+│  Método: Efectivo            │
+│                              │
+│  [Nueva venta]               │
+│  [Enviar por WhatsApp]       │
+│  [Descargar PDF]             │
+└──────────────────────────────┘
+```
+
+**Criterio:** flujo completo funciona en desktop y mobile. Venta se registra en DB. Stock se descuenta. Ticket muestra datos correctos.
+
+### 16.6 Navegación Admin
+
+- Agregar ítem "Ventas" en el sidebar con ícono `ShoppingBag` entre "Dashboard" y "Pedidos".
+- Badge con contador de ventas del día (query ligera: count orders source='admin' created_at=today).
+
+### 16.7 Dashboard Integration
+
+- Las métricas de Dashboard incluyen ventas de `source='admin'` además de otros sources.
+- Card "Ventas hoy" muestra suma de todos los sources del día actual.
+
+### 16.8 Build + Verificación
+
+```bash
+pnpm build
+pnpm exec tsc --noEmit
+```
+
+**Criterio global F16:** Sección Ventas completa y funcional. POS operativo en mobile y desktop. Ventas se registran con stock deducido. Historial del día con resumen por método de pago.
+
+---
+
+## F17 — Onboarding Magic 2.0 + Billing en Onboarding
+
+**Objetivo:** Rediseño completo del onboarding con pago obligatorio antes de acceder al admin. Experiencia Apple-style: animaciones suaves, cero fricción, texto claro y motivador.
+
+**Decisión de producto:** DP-01 y DP-02 (START.md). Ver `ESTADO.md §F17` para contexto completo.
+
+### 17.0 Instalación de dependencias
+
+Si no existe `framer-motion`:
+```bash
+pnpm add framer-motion
+```
+
+O alternativa sin dependencia extra: usar `CSS @keyframes` + clases de Tailwind (`animate-slide-in`, etc.) definidas en `globals.css`.
+
+**Criterio:** animaciones de transición disponibles.
+
+### 17.1 `OnboardingShell` y barra de progreso
+
+Archivo: `src/app/onboarding/layout.tsx` (reemplazar completamente)
+
+```typescript
+// Barra de progreso horizontal animada (no stepper con números)
+// 5 pasos: store → design → modules → payment → done
+// currentStep detectado por pathname
+// Animación: width transition 400ms ease-out
+// En mobile: barra full-width en top. En desktop: centrada 600px max-w.
+```
+
+Estructura visual:
+```
+┌────────────────────────────────────────────┐
+│ [logo]                    Paso 3 de 5      │
+│ ████████████████░░░░░░░░  60%              │
+└────────────────────────────────────────────┘
+     ↓  (contenido del paso con slide-in)
+```
+
+**Criterio:** barra de progreso animada visible en todos los pasos.
+
+### 17.2 Animaciones de transición entre pasos
+
+En cada página del onboarding (`/onboarding/store`, `/design`, etc.), envolver el contenido en un componente `OnboardingStep` que aplica:
+
+```typescript
+// Con framer-motion:
+<motion.div
+  initial={{ opacity: 0, x: 40 }}
+  animate={{ opacity: 1, x: 0 }}
+  exit={{ opacity: 0, x: -40 }}
+  transition={{ duration: 0.3, ease: 'easeOut' }}
+>
+  {children}
+</motion.div>
+```
+
+**Criterio:** transiciones fluidas. Sin flash de pantalla blanca entre pasos.
+
+### 17.3 Copy y diseño de cada paso
+
+**Paso 1 `/onboarding/store`** (ya existe, mejorar):
+- Headline: "¿Cómo se llama tu negocio?"
+- Subtitle: "Este nombre aparecerá en tu catálogo online."
+- Campo nombre + auto-generación de slug + preview de URL en tiempo real.
+- Campo WhatsApp con flag de Argentina + formato automático.
+- CTA: "Continuar →"
+
+**Paso 2 `/onboarding/design`** (ya existe, mejorar):
+- Headline: "Dale identidad a tu tienda"
+- Subtitle: "Podés cambiarlo cuando quieras desde la configuración."
+- Logo: zona de drag & drop grande con ícono de upload + texto "Arrastrá tu logo aquí o hacé click".
+- Color: 8 swatches + input hex. Preview del header del catálogo en tiempo real (componente `MiniCatalogPreview`).
+- CTA: "Continuar →"
+
+**Paso 3 `/onboarding/modules`** (ya existe, mejorar):
+- Headline: "¿Qué necesitás para tu negocio?"
+- Subtitle: "Activá lo que uses hoy. Podés agregar más después."
+- Grid de módulos con iconos grandes, descripción corta, toggle. Módulos core marcados como "Siempre incluido".
+- CTA: "Continuar →"
+
+**Paso 4 `/onboarding/payment`** (nuevo):
+- Headline: "Elegí tu plan"
+- Subtitle: "Sin permanencia. Cancelás cuando quieras."
+- Toggle "Mensual / Anual" con badge "Ahorrás 2 meses" en el anual.
+- Card de plan: precio calculado + lista de lo que incluye.
+- Botón "Ir a Mercado Pago →" (prominente, full-width en mobile).
+- Texto pequeño debajo: "Serás redirigido a Mercado Pago de forma segura."
+- Back URLs: `success → /onboarding/done?status=success`, `failure → /onboarding/payment?status=error`.
+
+**Paso 5 `/onboarding/done`** (reemplazar completamente):
+- Si `status=success` en query params **desde MP** (return URL):
+  1. **Primero** pantalla fija **“Verificando tu pago…”** (skeleton + microcopy pro).
+  2. **Polling** server-side o RSC refresh cada ~2 s (máx. ~30 intentos) hasta `billing_status === 'active'` (webhook aplicado).
+  3. Luego: animación de confetti o check animado + "¡Tu tienda está lista!" + "Enviamos un email a **{email}**…" + reenviar email + CTA al panel.
+  4. Si timeout sin `active`: copy honesto + reintentar consulta + soporte (ver `FLUJO.md` §1.7b).
+- Si al cargar la página **ya** está `billing_status=active` (reload o webhook rápido): ir directo al bloque de éxito (sin paso 1 redundante largo).
+- Si `status=error` o no hay pago:
+  - Headline: "Algo salió mal con el pago"
+  - Botón "Reintentar" → vuelve al paso 4.
+- Si onboarding incompleto (sin pago confirmado):
+  - Headline: "Completá el pago para activar tu tienda"
+  - Botón "Ir a pagar" → paso 4. (**No** usar el término "modo demo" en UI; `demo` en BD queda stand-by / legacy — `FLUJO.md` I-05.)
+
+### 17.4 Server action `createOnboardingCheckout`
+
+Archivo: `src/lib/actions/onboarding.ts` (agregar):
+
+```typescript
+'use server'
+export async function createOnboardingCheckout(billing_period: 'monthly' | 'annual') {
+  // 1. getStoreContextOnboarding() — resolver store_id del usuario autenticado
+  // 2. calculateMonthlyPrice() o calculateAnnualPrice() según billing_period
+  // 3. createCheckoutPreference({ store_id, amount, back_url: '/onboarding/done' })
+  // 4. Retornar { init_point, sandbox_init_point }
+}
+```
+
+### 17.5 Middleware: manejar email no confirmado
+
+En `src/middleware.ts`, para rutas `/admin/*`:
+- Si `auth.getUser()` retorna usuario con `email_confirmed_at = null` → redirigir a `/onboarding/done`.
+- Agregar `/onboarding/done` y `/auth/signout` a la lista de rutas que no requieren email confirmado.
+
+**Criterio:** usuario sin email confirmado no puede acceder al admin.
+
+### 17.6 PASOS-MANUALES.md §20
+
+Agregar sección "§20 — Habilitar Email Confirmation en Supabase":
+- Ir a Supabase Dashboard → Authentication → Settings.
+- Activar "Enable email confirmations".
+- Configurar el redirect URL a `https://kitdigital.ar/auth/callback`.
+- Verificar que el dominio del remitente esté configurado con Resend.
+
+**Criterio:** sección documentada. Paso manual pendiente de ejecución antes de launch.
+
+### 17.7 Build + Verificación
+
+```bash
+pnpm build
+pnpm exec tsc --noEmit
+```
+
+**Criterio global F17:** Onboarding con 5 pasos y animaciones. Pago integrado en el paso 4. Pantalla de éxito con instrucción de confirmación de email. Flujo completo funciona end-to-end en staging con cuenta real de MP.
+
+---
+
+## F18 — Bugs Críticos de Auditoría
+
+**Objetivo:** Corregir todos los bugs 🔴 críticos y los 🟠 altos más impactantes de `auditory.md`. Estos son prerequisito de cualquier venta real.
+
+Ver `ESTADO.md §F18` para la lista completa de pasos. A continuación los más técnicos:
+
+### 18.1 Fix firma HMAC webhook Mercado Pago
+
+**Archivo:** `src/lib/billing/verify-signature.ts`
+
+Firma actual (incorrecta):
+```typescript
+const template = `id:${xRequestId};ts:${ts};`
+```
+
+Firma correcta según spec oficial de MP:
+```typescript
+// El route handler extrae data.id de los query params:
+const dataId = request.nextUrl.searchParams.get('data.id') ?? ''
+const xRequestId = request.headers.get('x-request-id') ?? ''
+const ts = // extraído del header x-signature
+
+// Template correcto:
+const template = `id:${dataId};request-id:${xRequestId};ts:${ts};`
+
+// La función verifyWebhookSignature ahora acepta 4 parámetros:
+function verifyWebhookSignature(body: string, signature: string | null, dataId: string, requestId: string): boolean
+```
+
+**Criterio:** webhook procesa correctamente pagos reales de MP en producción.
+
+### 18.2 Fix max_products respeta plan
+
+**Archivo:** `src/lib/executor/handlers/stores.ts`
+
+```typescript
+// ANTES:
+limits: { max_products: 30, max_orders: 100, ai_tokens: 0 }
+
+// DESPUÉS:
+const plan = await db.from('plans').select('*').single()
+limits: {
+  max_products: plan.data?.trial_max_products ?? 100,
+  max_orders: 500,
+  ai_tokens: 0,
+}
+```
+
+**Criterio:** nuevo usuario en trial puede agregar hasta `plan.trial_max_products` productos.
+
+### 18.3 AI Tokens: límite mensual
+
+**SQL (ejecutar primero):**
+```sql
+ALTER TABLE plans ADD COLUMN ai_tokens_monthly INTEGER NOT NULL DEFAULT 50000;
+ALTER TABLE stores ADD COLUMN ai_tokens_reset_at TIMESTAMPTZ DEFAULT NOW();
+```
+
+**Handler** `execute_assistant_action`:
+```typescript
+// Al inicio del handler:
+const { ai_tokens_used, ai_tokens_reset_at, plan_id } = store
+const plan = await db.from('plans').select('ai_tokens_monthly').eq('id', plan_id).single()
+const monthlyLimit = plan.data?.ai_tokens_monthly ?? 50000
+
+// Verificar si corresponde resetear (mes calendario):
+const now = new Date()
+const resetDate = new Date(ai_tokens_reset_at)
+if (resetDate.getMonth() !== now.getMonth() || resetDate.getFullYear() !== now.getFullYear()) {
+  await db.from('stores').update({ ai_tokens_used: 0, ai_tokens_reset_at: now.toISOString() }).eq('id', store_id)
+  // Continuar con tokens usados = 0
+}
+
+// Verificar límite:
+if (ai_tokens_used >= monthlyLimit) {
+  const resetDay = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+  return error(`Límite mensual de ${monthlyLimit.toLocaleString()} tokens alcanzado. Se reinicia el ${resetDay.toLocaleDateString('es-AR')}.`)
+}
+```
+
+**Criterio:** asistente bloquea cuando `ai_tokens_used >= ai_tokens_monthly`. Muestra fecha de reset.
+
+### 18.4–18.9
+
+Ver `ESTADO.md §F18` para los detalles de cada paso restante (18.4 UUID validation, 18.5 URL catálogo, 18.6 rate limiter, 18.7 realtime channels, 18.8 invitations conflict, 18.9 manual).
+
+### 18.10 Build + Verificación
+
+```bash
+pnpm build
+pnpm exec tsc --noEmit
+```
+
+**Criterio global F18:** Todos los bugs 🔴 críticos de auditory.md corregidos. Webhook MP procesa correctamente. AI tokens tiene límite. Ningún riesgo de fuga de datos o pérdida de ingresos.
+
+---
+
+## F19 — Catálogo Público: Checkout Mejorado + Performance
+
+**Objetivo:** Mejorar la experiencia del comprador en el catálogo público. Cart drawer con formulario de datos. Paginación. ISR por cambio real.
+
+Ver `ESTADO.md §F19` para el detalle de cada paso.
+
+### 19.1 Cart Drawer: formulario de checkout
+
+**Archivo:** `src/components/public/cart-drawer.tsx` (modificar) y nuevo componente `CheckoutForm`.
+
+El drawer tiene dos "vistas" (state machine con `step: 'cart' | 'checkout'`):
+
+**Vista `cart`** (actual): lista de items + botón "Ir a pedir →" (en lugar de "Enviar por WhatsApp").
+
+**Vista `checkout`** (nueva):
+```tsx
+<CheckoutForm
+  onSubmit={({ name, deliveryType, address, paymentNote, notes }) => {
+    const message = buildWhatsAppMessage({ items, name, deliveryType, address, paymentNote, notes, total })
+    window.open(`https://wa.me/${storeWhatsApp}?text=${encodeURIComponent(message)}`)
+    // Limpiar carrito
+    clearCart()
+    setStep('cart')
+  }}
+/>
+```
+
+El botón "Volver" vuelve a la vista `cart`.
+
+**Criterio:** flujo cart → checkout → WhatsApp funciona sin recarga de página.
+
+### 19.2–19.6
+
+Ver `ESTADO.md §F19` para detalles de cada paso (filtro de categorías, búsqueda normalizada, paginación, self-fetch, ISR).
+
+### 19.7 Build + Verificación
+
+**Criterio global F19:** Checkout con datos del cliente funciona en mobile. Catálogo paginado. ISR basado en cambios reales.
+
+---
+
+## F20 — SEO + OpenGraph por Tienda
+
+**Objetivo:** Previews de WhatsApp y redes sociales con logo e info de la tienda. JSON-LD para Google Shopping.
+
+Ver `ESTADO.md §F20` para detalles.
+
+**Criterio global F20:** Al compartir `{slug}.kitdigital.ar` en WhatsApp aparece preview con logo y nombre de la tienda. Productos tienen schema.org.
+
+---
+
+## F21 — Custom Domain: Feature Base + Middleware
+
+**Objetivo:** Mover `custom_domain` a feature base. Middleware resuelve dominios custom via Redis + DB.
+
+Ver `ESTADO.md §F21` para el detalle de cada paso incluyendo el snippet de código del middleware.
+
+**Criterio global F21:** Un dominio custom apuntado correctamente resuelve la tienda. No más cobro por custom_domain como módulo pro.
+
+---
+
+## F22 — Email + Notificaciones Mejoradas
+
+**Objetivo:** Emails de bienvenida, notificación de venta, templates separados para billing. Rate limit en password reset.
+
+Ver `ESTADO.md §F22` para el detalle de cada paso.
+
+**Criterio global F22:** Usuario nuevo recibe email de bienvenida. Dueño recibe email por cada venta registrada en el POS. Templates de billing diferenciados.
+
+---
+
+## Checklist de Lanzamiento
+
+### 🔴 Obligatorio antes de primera venta
+
+- [ ] F15 completo (Design Excellence)
+- [ ] F16 completo (Ventas/POS)
+- [ ] F17 completo (Onboarding Magic)
+- [ ] F18.1 (firma webhook MP)
+- [ ] F18.2 (max_products respeta plan)
+- [ ] F18.3 (AI tokens límite mensual)
+- [ ] F18.4 (validación UUID webhook anual)
+- [ ] SQL migrations ejecutadas en producción (todas las de START.md)
+- [ ] `CRON_SECRET` configurado en Vercel
+- [ ] `MP_WEBHOOK_SECRET` configurado en Vercel
+- [ ] Superadmin creado en Supabase
+- [ ] Email confirmation habilitado en Supabase Auth
+- [ ] OG image creada y en `public/og-image.jpg`
+- [ ] Test E2E completo en staging
+
+### 🟠 Recomendado antes de 10 ventas
+
+- [ ] F18 completo (todos los bugs de auditoría)
+- [ ] F19 (checkout mejorado + performance)
+- [ ] F20 (SEO + OG por tienda)
+- [ ] F21 (custom domain base)
+
+### 🟡 Post-10 ventas
+
+- [ ] F22 (email mejorado)
+- [ ] Generar tipos Supabase con CLI (eliminar `as any`)
+- [ ] Bundle analyze + code-split por módulo
+- [ ] Virtualización de listas largas

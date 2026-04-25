@@ -44,7 +44,11 @@ export function OrderSheet({ id, open, onOpenChange }: OrderSheetProps) {
   const { formatPrice } = useCurrency()
 
   const status = order?.status as OrderStatus | undefined
-  const items = (order?.items ?? []) as Record<string, unknown>[]
+  const items = (order?.items ?? []) as Array<{
+    product_name: string
+    quantity: number
+    unit_price: number
+  }>
   const customer = order?.customer as { id: string; name: string; phone: string | null; address?: string } | null | undefined
   const total = order?.total as number | undefined
   const createdAt = order?.created_at as string | undefined
@@ -152,24 +156,15 @@ export function OrderSheet({ id, open, onOpenChange }: OrderSheetProps) {
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Productos</p>
               {items.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-3">
-                  {item.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.image_url as string}
-                      alt={item.name as string}
-                      className="h-10 w-10 rounded-md object-cover shrink-0 bg-muted"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-md bg-muted shrink-0" />
-                  )}
+                  <div className="h-10 w-10 rounded-md bg-muted shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{item.name as string}</p>
+                    <p className="text-sm font-medium truncate">{item.product_name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {item.quantity as number} × {formatPrice(item.unit_price as number)}
+                      {item.quantity} × {formatPrice(item.unit_price)}
                     </p>
                   </div>
                   <span className="text-sm tabular-nums font-medium shrink-0">
-                    {formatPrice(item.subtotal as number)}
+                    {formatPrice(item.unit_price * item.quantity)}
                   </span>
                 </div>
               ))}

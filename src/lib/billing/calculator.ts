@@ -11,7 +11,6 @@ export const PRO_MODULES: readonly ModuleName[] = [
   'expenses',
   'savings_account',
   'multiuser',
-  'custom_domain',
   'tasks',
   'assistant',
 ] as const
@@ -28,6 +27,7 @@ export const BASE_MODULES: readonly ModuleName[] = [
   'social',
   'product_page',
   'shipping',
+  'custom_domain',
 ] as const
 
 export function isProModule(module: string): module is ModuleName {

@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
 import type { ActionResult } from '@/lib/types'
 import { z } from 'zod'
+import { createCheckoutPreference } from '@/lib/billing/mercadopago'
+import { calculateAnnualPrice, computeMonthlyTotal } from '@/lib/billing/calculator'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
@@ -115,7 +117,7 @@ export async function onboardingStepModules(
   const { error } = await db.from('stores').update({ modules: updatedModules }).eq('id', storeId)
   if (error) return { success: false, error: { code: 'SYSTEM_ERROR', message: error.message } }
 
-  redirect('/onboarding/product')
+  redirect('/onboarding/payment')
 }
 
 // ── step4: primer producto ────────────────────────────────────
@@ -149,7 +151,7 @@ export async function onboardingStep3(
   const { error } = await db.from('products').insert({
     store_id: storeId,
     name: parsed.data.name,
-    price: parsed.data.price,
+    price: Math.round(parsed.data.price * 100),
     description: parsed.data.description ?? null,
     image_url: parsed.data.image_url || null,
     is_active: true,
@@ -158,6 +160,83 @@ export async function onboardingStep3(
   if (error) return { success: false, error: { code: 'SYSTEM_ERROR', message: error.message } }
 
   redirect('/onboarding/done')
+}
+
+// ── payment: crear checkout preference ───────────────────────
+
+export async function createOnboardingCheckout(
+  billing_period: 'monthly' | 'annual',
+): Promise<ActionResult<{ init_point: string }>> {
+  const storeId = await getOnboardingStoreId()
+  if (!storeId) redirect('/auth/login')
+
+  // Obtener datos del plan activo
+  const { data: plan, error: planError } = await db
+    .from('plans')
+    .select('price_per_100_products, pro_module_price, annual_discount_months')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .single()
+
+  if (planError || !plan) {
+    return { success: false, error: { code: 'SYSTEM_ERROR', message: 'No se pudo obtener el plan.' } }
+  }
+
+  const { data: store } = await db.from('stores').select('modules').eq('id', storeId).single()
+  const modules = (store as { modules?: Record<string, boolean> } | null)?.modules ?? {}
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'
+
+  const amountCentavos =
+    billing_period === 'annual'
+      ? calculateAnnualPrice(plan as { price_per_100_products: number; pro_module_price: number; annual_discount_months: number }, 100)
+      : computeMonthlyTotal(plan as { price_per_100_products: number; pro_module_price: number }, 100, modules)
+
+  try {
+    const { init_point } = await createCheckoutPreference({
+      store_id: storeId,
+      title: billing_period === 'annual' ? 'KitDigital Plan Anual' : 'KitDigital Plan Mensual',
+      amount: amountCentavos / 100,
+      back_url: {
+        success: `${appUrl}/onboarding/done?status=success`,
+        failure: `${appUrl}/onboarding/done?status=failure`,
+        pending: `${appUrl}/onboarding/done?status=pending`,
+      },
+    })
+
+    return { success: true, data: { init_point } }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Error al crear el pago'
+    return { success: false, error: { code: 'SYSTEM_ERROR', message: msg } }
+  }
+}
+
+// ── status: estado del onboarding para polling ────────────────
+
+export async function getOnboardingStatus(): Promise<{
+  billing_status: string | null
+  email_confirmed: boolean
+}> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return { billing_status: null, email_confirmed: false }
+
+  const email_confirmed = !!user.email_confirmed_at
+
+  const storeId = await getOnboardingStoreId()
+  if (!storeId) return { billing_status: null, email_confirmed }
+
+  const { data: store } = await db
+    .from('stores')
+    .select('billing_status')
+    .eq('id', storeId)
+    .single()
+
+  return {
+    billing_status: (store as { billing_status?: string } | null)?.billing_status ?? null,
+    email_confirmed,
+  }
 }
 
 // ── step4: completar onboarding ──────────────────────────────

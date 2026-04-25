@@ -57,6 +57,8 @@ CREATE TABLE plans (
   trial_max_products INTEGER NOT NULL DEFAULT 100,
   annual_discount_months INTEGER NOT NULL DEFAULT 2,
   max_stores_total INTEGER,
+  -- Límite mensual de tokens IA para el módulo assistant (default 50k/mes)
+  ai_tokens_monthly INTEGER NOT NULL DEFAULT 50000,
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -81,7 +83,8 @@ CREATE TABLE stores (
   custom_domain TEXT UNIQUE,
   custom_domain_verified BOOLEAN NOT NULL DEFAULT false,
   custom_domain_verified_at TIMESTAMPTZ,
-  custom_domain_verification_token TEXT,
+  -- Token TXT que el dueño debe publicar en DNS (_kitdigital-verify.<dominio>)
+  custom_domain_txt_token TEXT,
   logo_url TEXT,
   cover_url TEXT,
   whatsapp TEXT,
@@ -96,6 +99,8 @@ CREATE TABLE stores (
   mp_subscription_id TEXT UNIQUE,
   mp_customer_id TEXT,
   ai_tokens_used INTEGER NOT NULL DEFAULT 0,
+  -- Timestamp del último reset mensual de ai_tokens_used
+  ai_tokens_reset_at TIMESTAMPTZ DEFAULT NOW(),
   cancelled_at TIMESTAMPTZ,
   last_billing_failure_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -427,6 +432,8 @@ CREATE TABLE orders (
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   customer_id UUID REFERENCES customers(id),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'preparing', 'delivered', 'cancelled')),
+  -- source: origen del pedido. 'admin' = POS del dueño, 'whatsapp' = catálogo público (futuro), 'mp_checkout' = pago automático MP
+  source TEXT NOT NULL DEFAULT 'admin' CHECK (source IN ('admin', 'whatsapp', 'mp_checkout')),
   total INTEGER NOT NULL CHECK (total >= 0),
   notes TEXT,
   metadata JSONB NOT NULL DEFAULT '{}',
@@ -438,6 +445,7 @@ CREATE INDEX idx_orders_store ON orders(store_id);
 CREATE INDEX idx_orders_store_status ON orders(store_id, status);
 CREATE INDEX idx_orders_store_created ON orders(store_id, created_at);
 CREATE INDEX idx_orders_store_customer ON orders(store_id, customer_id);
+CREATE INDEX idx_orders_store_source ON orders(store_id, source);
 
 CREATE TRIGGER trg_orders_updated_at BEFORE UPDATE ON orders
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -1019,24 +1027,70 @@ CREATE POLICY events_insert ON events FOR INSERT
 
 -- Plan único. price_per_100_products y pro_module_price configurables por superadmin.
 -- Valores en centavos ARS: 2000000 = $20,000 ARS | 500000 = $5,000 ARS
-INSERT INTO plans (name, price_per_100_products, pro_module_price, base_modules, trial_days, trial_max_products) VALUES
+-- custom_domain incluido en base_modules (feature base, no pro — DP-04)
+INSERT INTO plans (name, price_per_100_products, pro_module_price, base_modules, trial_days, trial_max_products, ai_tokens_monthly) VALUES
 (
   'base',
   2000000,
   500000,
-  '["catalog","products","categories","cart","orders","stock","payments","banners","social","product_page","shipping"]',
+  '["catalog","products","categories","cart","orders","stock","payments","banners","social","product_page","shipping","custom_domain"]',
   14,
-  100
+  100,
+  50000
 );
 
 -- NOTA: Los precios están en centavos ARS/mes.
 -- price_per_100_products: precio base por cada 100 productos del tier elegido por la tienda.
 -- pro_module_price: precio por cada módulo pro activo (variants, wholesale, finance, expenses,
---   savings_account, multiuser, custom_domain, tasks, assistant).
+--   savings_account, multiuser, tasks, assistant).
+--   custom_domain ya NO es pro — es base desde DP-04.
 -- Total mensual = ceil(stores.limits.max_products / 100) * price_per_100_products
 --              + count(módulos_pro_activos) * pro_module_price
 -- El superadmin puede actualizar estos valores desde el panel (tabla plans).
 -- stores.limits.max_products define el tier de productos de cada tienda.
 -- stores.limits.max_orders y stores.limits.ai_tokens se configuran por tienda desde superadmin.
+
+-- ============================================================
+-- CONSTRAINTS DE CALIDAD Y FKs FALTANTES
+-- (se pueden aplicar a DBs existentes con ALTER TABLE)
+-- ============================================================
+
+-- FKs de store_id que faltaban en tablas de módulos de producto
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'variants_store_fk') THEN
+    ALTER TABLE variants
+      ADD CONSTRAINT variants_store_fk FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'variant_attributes_store_fk') THEN
+    ALTER TABLE variant_attributes
+      ADD CONSTRAINT variant_attributes_store_fk FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'variant_values_store_fk') THEN
+    ALTER TABLE variant_values
+      ADD CONSTRAINT variant_values_store_fk FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'stock_items_store_fk') THEN
+    ALTER TABLE stock_items
+      ADD CONSTRAINT stock_items_store_fk FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wholesale_prices_store_fk') THEN
+    ALTER TABLE wholesale_prices
+      ADD CONSTRAINT wholesale_prices_store_fk FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+-- Constraint de stock no negativo en products (auditory.md §4.2)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'products_stock_nonneg') THEN
+    ALTER TABLE products
+      ADD CONSTRAINT products_stock_nonneg CHECK (stock IS NULL OR stock >= 0);
+  END IF;
+END $$;
+
+-- Índices de performance adicionales (auditory.md §4.2, §4.3)
+CREATE INDEX IF NOT EXISTS idx_products_store_out_of_stock ON products(store_id) WHERE stock = 0;
+CREATE INDEX IF NOT EXISTS idx_events_store_type_created ON events(store_id, type, created_at DESC);
 
 COMMIT;

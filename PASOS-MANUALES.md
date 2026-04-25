@@ -2,6 +2,12 @@
 
 Estas son las tareas que solo un humano puede realizar. El agente IA no puede ejecutarlas.
 
+### Documentación de flujo (leer antes de configurar)
+
+- **`FLUJO.md`** — Historia de usuario de punta a punta: onboarding con **pago antes del admin**, pantalla **“Verificando tu pago…”** tras MP, **Ventas (POS)** → **Pedidos**, **Finanzas**; **no** hay menú de producto “Pagos” (solo configuración de **métodos de cobro al cliente**: principalmente **Mercado Pago** + **transferencia**). Referencia visual: **`/design/admin`**.
+- **`START.md`** — Decisiones de producto (DP-01 … DP-06) y jerarquía de documentos.
+- **Retorno desde Mercado Pago:** el webhook puede llegar después del redirect del navegador; el comportamiento acordado está en `FLUJO.md` §1.7b e implementación en **F17** (`ESTADO.md` / `PLAN.md`).
+
 ---
 
 ## 1. Supabase
@@ -487,6 +493,7 @@ Checklist obligatorio antes del lanzamiento público:
 
 ## 19. F15 — Design Excellence (2026-04-24)
 
+
 ### 19.1 SQL Migrations (OBLIGATORIO — BLOCKER)
 
 Ejecutar en Supabase **SQL Editor** antes de deployar F15. Son las únicas migraciones requeridas para esta fase.
@@ -553,3 +560,197 @@ Después de ejecutar las migraciones en Supabase:
 4. Implementar P5.1 (Módulos grouped)
 5. Testing integral en staging
 6. Deploy F15 a producción
+
+---
+
+## 20. F17 — Habilitar Email Confirmation en Supabase Auth (OBLIGATORIO antes del lanzamiento)
+
+**Cuándo ejecutar:** Antes de abrir el registro público. Requerido por el flujo de onboarding Magic 2.0 (F17).
+
+### 20.1 Habilitar en Supabase
+
+1. Ir a [supabase.com](https://supabase.com) → tu proyecto → **Authentication** → **Settings**
+2. Bajar a la sección **Email**
+3. Activar el toggle **"Enable email confirmations"**
+4. Guardar cambios
+
+### 20.2 Configurar el redirect URL
+
+En la misma sección, asegurarse de que la URL de redirect (Site URL) sea:
+```
+https://kitdigital.ar
+```
+
+Y en **Redirect URLs** (Additional Redirect URLs), agregar:
+```
+https://kitdigital.ar/auth/callback
+https://kitdigital.ar/onboarding/done
+```
+
+### 20.3 Verificar que Resend está configurado como dominio verificado
+
+Los emails de confirmación se envían desde `noreply@kitdigital.ar` si Resend tiene el dominio verificado. Ver §6 (Resend) de este documento.
+
+Si Resend NO está configurado, Supabase usa su propio SMTP que puede caer en spam. Configurar Resend con dominio antes de abrir al público.
+
+### 20.4 Verificar el comportamiento
+
+En staging:
+1. Registrar un usuario nuevo
+2. Verificar que llega el email de confirmación
+3. Hacer click en el link del email
+4. Verificar que llega a `/onboarding/done` o al admin (si el onboarding ya estaba completo)
+5. Verificar que un usuario NO confirmado NO puede acceder al `/admin`
+
+> ⚠️ **Solo activar en producción, no en proyectos de staging/dev** para no bloquear el desarrollo.
+
+---
+
+## 21. F16–F18 — SQL Migrations Nuevas Fases
+
+Ejecutar en Supabase **SQL Editor** en el orden indicado, antes del deploy de cada fase.
+
+### 21.1 F16 — Origen de pedidos (columna `source` en `orders`)
+
+```sql
+-- F16: Agregar columna source a orders para distinguir origen del pedido
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'admin'
+  CHECK (source IN ('admin', 'whatsapp', 'mp_checkout'));
+
+CREATE INDEX IF NOT EXISTS idx_orders_store_source ON orders(store_id, source);
+```
+
+**Verificar:** Table Editor → tabla `orders` → columna `source` existe con default `'admin'`.
+
+### 21.2 F18 — AI Tokens límite mensual
+
+```sql
+-- F18: Límite mensual de tokens IA por plan
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS ai_tokens_monthly INTEGER NOT NULL DEFAULT 50000;
+
+-- F18: Timestamp de último reset mensual por tienda
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS ai_tokens_reset_at TIMESTAMPTZ DEFAULT NOW();
+```
+
+**Verificar:** Table Editor → tabla `plans` → columna `ai_tokens_monthly` con valor `50000`. Tabla `stores` → columna `ai_tokens_reset_at`.
+
+### 21.3 F21 — Custom domain pasa a feature base
+
+Ejecutar para actualizar el dato del plan (no cambia la tabla, actualiza el JSON):
+
+```sql
+-- F21: Mover custom_domain de pro a base en el plan
+-- Verificar primero cómo está el base_modules actual:
+SELECT id, name, base_modules FROM plans;
+
+-- Si base_modules no incluye 'custom_domain', actualizarlo:
+UPDATE plans
+SET base_modules = base_modules || '["custom_domain"]'::jsonb
+WHERE base_modules::text NOT LIKE '%custom_domain%';
+
+-- Verificar el resultado:
+SELECT name, base_modules FROM plans;
+```
+
+**Verificar:** el campo `base_modules` del plan incluye `"custom_domain"`.
+
+#### Guía para el dueño — cómo apuntar tu dominio
+
+Una vez que el dueño configura su dominio en **Admin → Settings → Dominio**, tiene que hacer 2 cosas en el proveedor donde compró el dominio (GoDaddy, Namecheap, etc.):
+
+1) **CNAME (apuntar el dominio a KitDigital)**  
+- **Tipo**: `CNAME`  
+- **Host/Nombre**: `www` (recomendado)  
+- **Destino/Value**: `cname.kitdigital.ar`  
+
+> Si el proveedor no permite CNAME en el apex (`midominio.com`), usar `www.midominio.com` como dominio principal del catálogo y redirigir el apex → www (la mayoría de registrars lo soportan con “Forwarding” o “URL Redirect”).
+
+2) **TXT (verificación de propiedad)**  
+- **Tipo**: `TXT`  
+- **Host/Nombre**: `_kitdigital-verify` (o `_kitdigital-verify.tudominio.com` según el panel)  
+- **Valor**: el token que muestra el panel (formato `kitdigital-verify=...`)  
+
+Luego de guardar DNS:
+- Esperar propagación (puede tardar minutos u horas; algunos casos hasta 24–48h).
+- Volver al panel y apretar **“Verificar dominio”**.
+
+**Checklist rápido de troubleshooting**:
+- Ver que el TXT esté exactamente en `_kitdigital-verify.tudominio.com` (sin duplicar el dominio en el “Host”).
+- Si el panel DNS agrega comillas al TXT, está ok.
+- Si hay Cloudflare, desactivar proxy (nube naranja) para el `www` mientras se verifica.
+- Si sigue fallando, probar en `dns.google` buscando el TXT de `_kitdigital-verify.tudominio.com`.
+
+### 21.4 F23 — FKs y constraints de calidad (DB)
+
+```sql
+-- FKs faltantes en tablas de módulos de producto
+-- NOTA: ejecutar de a uno para identificar si alguna ya existe o hay datos inválidos
+
+ALTER TABLE variants ADD CONSTRAINT IF NOT EXISTS variants_store_fk
+  FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+
+ALTER TABLE variant_attributes ADD CONSTRAINT IF NOT EXISTS variant_attributes_store_fk
+  FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+
+ALTER TABLE variant_values ADD CONSTRAINT IF NOT EXISTS variant_values_store_fk
+  FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+
+ALTER TABLE stock_items ADD CONSTRAINT IF NOT EXISTS stock_items_store_fk
+  FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+
+ALTER TABLE wholesale_prices ADD CONSTRAINT IF NOT EXISTS wholesale_prices_store_fk
+  FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+
+-- Constraint de stock no negativo
+ALTER TABLE products ADD CONSTRAINT IF NOT EXISTS products_stock_nonneg
+  CHECK (stock IS NULL OR stock >= 0);
+
+-- Índices de performance
+CREATE INDEX IF NOT EXISTS idx_products_store_out_of_stock ON products(store_id) WHERE stock = 0;
+CREATE INDEX IF NOT EXISTS idx_events_store_type_created ON events(store_id, type, created_at DESC);
+```
+
+**Verificar:** ejecutar `SELECT constraint_name FROM information_schema.table_constraints WHERE table_name = 'variants'` para confirmar que las constraints existen.
+
+---
+
+## 22. Checklist de Lanzamiento Público (actualizado 2026-04-24)
+
+Este checklist reemplaza al de §17. Usar cuando el producto esté listo para la primera venta real.
+
+### Infraestructura
+
+| # | Tarea | Referencia |
+|---|-------|-----------|
+| 1 | SQL F13 ejecutado (billing_period, annual_paid_until, etc.) | §16.1 |
+| 2 | SQL F15 ejecutado (compare_price, stock en products) | §19.1 |
+| 3 | SQL F16 ejecutado (orders.source) | §21.1 |
+| 4 | SQL F18 ejecutado (ai_tokens_monthly, ai_tokens_reset_at) | §21.2 |
+| 5 | SQL F21 ejecutado (custom_domain en base_modules) | §21.3 |
+| 6 | SQL F23 ejecutado (FKs y constraints) | §21.4 |
+
+### Servicios externos
+
+| # | Tarea | Referencia |
+|---|-------|-----------|
+| 7 | Superadmin creado en Supabase Auth | §13 |
+| 8 | `CRON_SECRET` en Vercel (Production + Preview) | §14 |
+| 9 | `MP_WEBHOOK_SECRET` en Vercel con valor real | §15 |
+| 10 | `NEXT_PUBLIC_WHATSAPP_NUMBER` en Vercel | §16.3 |
+| 11 | Webhook MP: URL correcta + eventos correctos | §2 |
+| 12 | Dominio `kitdigital.ar` + wildcard `*.kitdigital.ar` en DNS y Vercel | §7 |
+| 13 | Email confirmation habilitado en Supabase Auth | §20 |
+| 14 | Resend: dominio verificado (para emails desde `@kitdigital.ar`) | §6 |
+| 15 | `public/og-image.jpg` 1200×630 en el repo | §16.2 |
+
+### Funcional
+
+| # | Tarea | Cómo verificar |
+|---|-------|---------------|
+| 16 | Test E2E: registro → onboarding → pago → admin accesible | Manual en staging |
+| 17 | Test Ventas/POS: crear venta → aparece en `/admin/orders` → stock descontado | Manual |
+| 18 | Test catálogo público: comprador → carrito → formulario checkout → WhatsApp | Manual en mobile |
+| 19 | Test billing: webhook MP procesa pago anual y mensual | Con sandbox MP |
+| 20 | Test email confirmation: usuario nuevo recibe email, puede confirmar | Manual |
+| 21 | Test cron: ejecutar `/api/cron/check-billing` con CRON_SECRET | `curl` con header |
+| 22 | `pnpm build` + `pnpm exec tsc --noEmit` sin errores | Automático en CI |

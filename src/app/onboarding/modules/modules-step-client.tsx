@@ -60,9 +60,9 @@ export function ModulesStepClient({
 
       <Card>
         <CardHeader>
-          <CardTitle>Elegí tus módulos</CardTitle>
+          <CardTitle>¿Qué necesitás?</CardTitle>
           <CardDescription>
-            Activá las funcionalidades que querés usar. Podés cambiarlas en cualquier momento desde Configuración.
+            Activá solo lo que uses. Podés cambiar esto después cuando quieras.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -139,7 +139,7 @@ export function ModulesStepClient({
             </div>
 
             <div className="flex gap-3">
-              <Button render={<Link href="/onboarding/product" />} variant="ghost" className="flex-1">
+              <Button render={<Link href="/onboarding/payment" />} variant="ghost" className="flex-1">
                 Omitir
               </Button>
               <Button type="submit" className="flex-1" disabled={pending}>

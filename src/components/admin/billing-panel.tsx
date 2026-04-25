@@ -55,7 +55,6 @@ const PRO_MODULE_LABELS: Record<string, string> = {
   expenses: 'Gastos detallados',
   savings_account: 'Cuentas de ahorro',
   multiuser: 'Múltiples usuarios',
-  custom_domain: 'Dominio propio',
   tasks: 'Tareas del equipo',
   assistant: 'Asistente IA',
 }

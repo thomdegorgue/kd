@@ -38,9 +38,9 @@ export default function OnboardingPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>¡Bienvenido/a a KitDigital!</CardTitle>
+          <CardTitle>¿Cómo se llama tu negocio?</CardTitle>
           <CardDescription>
-            Configuremos tu tienda. Todo esto lo podés cambiar después.
+            Esto va a ser la dirección de tu catálogo. Podés cambiarlo después.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -65,7 +65,9 @@ export default function OnboardingPage() {
               {slug && (
                 <p className="text-xs text-muted-foreground">
                   Tu catálogo estará en:{' '}
-                  <span className="font-mono text-foreground">{appDomain}/{slug}</span>
+                  <span className="font-mono text-foreground">
+                    {process.env.NODE_ENV === 'development' ? `${appDomain}/${slug}` : `${slug}.${appDomain}`}
+                  </span>
                 </p>
               )}
             </div>

@@ -93,7 +93,33 @@ registerHandler({
     const { data, error, count } = await query
     if (error) throw new Error(error.message)
 
-    return { items: data ?? [], total: count ?? 0 }
+    const items = (data ?? []) as Array<{ id: string }>
+    const productIds = items.map((p) => p.id)
+
+    if (productIds.length === 0) {
+      return { items: [], total: count ?? 0 }
+    }
+
+    // Cargar categorías asignadas a los productos del page actual
+    const { data: cats } = await db
+      .from('product_categories')
+      .select('product_id, category_id')
+      .eq('store_id', context.store_id)
+      .in('product_id', productIds)
+
+    const categoryMap = new Map<string, string[]>()
+    for (const row of (cats ?? []) as Array<{ product_id: string; category_id: string }>) {
+      const current = categoryMap.get(row.product_id) ?? []
+      current.push(row.category_id)
+      categoryMap.set(row.product_id, current)
+    }
+
+    const enriched = (items as Array<Record<string, unknown> & { id: string }>).map((p) => ({
+      ...p,
+      category_ids: categoryMap.get(p.id) ?? [],
+    }))
+
+    return { items: enriched, total: count ?? 0 }
   },
 })
 

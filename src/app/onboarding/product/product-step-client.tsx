@@ -53,13 +53,13 @@ export function ProductStepClient({ storeId }: { storeId: string }) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="price">Precio (ARS)</Label>
+              <Label htmlFor="price">Precio en pesos (ARS)</Label>
               <Input
                 id="price"
                 name="price"
                 type="number"
                 min="0"
-                step="0.01"
+                step="1"
                 placeholder="0"
                 required
               />

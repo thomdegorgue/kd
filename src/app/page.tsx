@@ -2,18 +2,30 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { LandingNav } from '@/components/landing/nav'
 import { PricingCalculator } from '@/components/landing/pricing-calculator'
+import { supabaseServiceRole } from '@/lib/supabase/service-role'
 
 const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? ''
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabaseServiceRole as any
+
 async function getSlotsAvailable(): Promise<number | null> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   try {
-    const res = await fetch(`${appUrl}/api/stores/capacity`, {
-      next: { revalidate: 60 },
-    })
-    if (!res.ok) return null
-    const data = (await res.json()) as { available: number | null }
-    return data.available
+    const { data: plan } = await db
+      .from('plans')
+      .select('max_stores_total')
+      .eq('is_active', true)
+      .single()
+
+    const cap = plan?.max_stores_total
+    if (cap === null || cap === undefined) return null
+
+    const { count } = await db
+      .from('stores')
+      .select('*', { count: 'exact', head: true })
+      .neq('status', 'archived')
+
+    return Math.max(0, cap - (count ?? 0))
   } catch {
     return null
   }

@@ -34,9 +34,9 @@ export function LogoStepClient({ storeId }: { storeId: string }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Diseño de tu tienda</CardTitle>
+          <CardTitle>Personalizá tu tienda</CardTitle>
           <CardDescription>
-            Subí tu logo y elegí el color principal. Podés cambiarlos después desde Configuración.
+            Subí tu logo y elegí el color de marca. Podés cambiarlos cuando quieras.
           </CardDescription>
         </CardHeader>
         <CardContent>

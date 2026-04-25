@@ -29,6 +29,7 @@ import {
   Menu,
   ExternalLink,
   LogOut,
+  ShoppingBag,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useBilling } from '@/lib/hooks/use-billing'
@@ -91,6 +92,7 @@ function buildNav(modules: Partial<Record<ModuleName, boolean>>): PanelNavGroup[
       label: 'PRINCIPALES',
       items: [
         { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/admin' },
+        { key: 'ventas', label: 'Ventas', icon: ShoppingBag, href: '/admin/ventas' },
         { key: 'orders', label: 'Pedidos', icon: ShoppingCart, href: '/admin/orders' },
         { key: 'customers', label: 'Clientes', icon: Users, href: '/admin/customers' },
       ],
@@ -350,12 +352,12 @@ export function AdminShell({
     [nav, activeKey],
   )
 
-  // Supabase Realtime — orders, payments, stock
+  // Supabase Realtime — 1 canal unificado para orders, payments y stock
   useEffect(() => {
     const supabase = createClient()
 
-    const ordersChannel = supabase
-      .channel(`orders-${storeId}`)
+    const channel = supabase
+      .channel(`store-${storeId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders', filter: `store_id=eq.${storeId}` },
@@ -367,10 +369,6 @@ export function AdminShell({
           }
         }
       )
-      .subscribe()
-
-    const paymentsChannel = supabase
-      .channel(`payments-${storeId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'payments', filter: `store_id=eq.${storeId}` },
@@ -380,10 +378,6 @@ export function AdminShell({
           queryClient.invalidateQueries({ queryKey: queryKeys.dashboardStats(storeId) })
         }
       )
-      .subscribe()
-
-    const stockChannel = supabase
-      .channel(`stock-${storeId}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'stock_items', filter: `store_id=eq.${storeId}` },
@@ -394,9 +388,7 @@ export function AdminShell({
       .subscribe()
 
     return () => {
-      void supabase.removeChannel(ordersChannel)
-      void supabase.removeChannel(paymentsChannel)
-      void supabase.removeChannel(stockChannel)
+      void supabase.removeChannel(channel)
     }
   }, [storeId, queryClient])
 

@@ -6,6 +6,8 @@ import { supabaseServiceRole } from '@/lib/supabase/service-role'
 import { createStore } from '@/lib/executor/handlers/stores'
 import { loginSchema, signupSchema } from '@/lib/validations/auth'
 import type { ActionResult } from '@/lib/types'
+import { Ratelimit } from '@upstash/ratelimit'
+import { redis } from '@/lib/redis'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
@@ -19,6 +21,19 @@ export async function sendPasswordReset(
   const email = String(formData.get('email') ?? '').trim()
   if (!email) {
     return { success: false, error: { code: 'INVALID_INPUT', message: 'Ingresá tu email' } }
+  }
+
+  const limiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(3, '1 h'),
+    prefix: 'kd:pwreset',
+  })
+  const { success } = await limiter.limit(email.toLowerCase())
+  if (!success) {
+    return {
+      success: false,
+      error: { code: 'LIMIT_EXCEEDED', message: 'Demasiados intentos. Esperá 1 hora.' },
+    }
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'

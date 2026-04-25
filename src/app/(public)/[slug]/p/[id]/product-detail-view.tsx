@@ -21,6 +21,27 @@ export function ProductDetailView({ product, slug }: ProductDetailViewProps) {
   const addItem = useCartStore((s) => s.addItem)
   const setStoreId = useCartStore((s) => s.setStoreId)
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'
+  const domain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'kitdigital.ar'
+  const isDev = process.env.NODE_ENV === 'development'
+  const storeUrl = isDev ? `${appUrl.replace(/\/$/, '')}/${slug}` : `https://${slug}.${domain}`
+  const productUrl = `${storeUrl}/p/${product.id}`
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: product.description ?? undefined,
+    image: product.image_url ? [product.image_url] : undefined,
+    offers: {
+      '@type': 'Offer',
+      price: (product.price / 100).toFixed(2),
+      priceCurrency: 'ARS',
+      url: productUrl,
+      availability: 'https://schema.org/InStock',
+    },
+  } as const
+
   useEffect(() => {
     setStoreId(store.id)
   }, [store.id, setStoreId])
@@ -36,6 +57,11 @@ export function ProductDetailView({ product, slug }: ProductDetailViewProps) {
 
   return (
     <div className="container mx-auto px-4 py-6">
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Back */}
       <Button
         variant="ghost"

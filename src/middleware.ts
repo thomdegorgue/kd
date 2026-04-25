@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createServiceRoleClient } from '@supabase/supabase-js'
 import type { StoreContext, ModuleName, StoreStatus, StoreUserRole } from '@/lib/types'
+import { redis } from '@/lib/redis'
 
 // ============================================================
 // HELPERS
@@ -12,7 +13,7 @@ import type { StoreContext, ModuleName, StoreStatus, StoreUserRole } from '@/lib
  * - Prod: subdominio {slug}.kitdigital.ar o custom_domain
  * - Dev: primer segmento del path /{slug}/*
  */
-function resolveSlug(request: NextRequest): string | null {
+async function resolveSlug(request: NextRequest): Promise<string | null> {
   const isDev = process.env.NODE_ENV === 'development'
 
   if (isDev) {
@@ -48,7 +49,30 @@ function resolveSlug(request: NextRequest): string | null {
     return host.replace(`.${appDomain}`, '')
   }
 
-  return null
+  // Fallback: custom_domain verificado
+  const cacheKey = `custom_domain:${host}`
+  const cachedSlug = await redis.get<string>(cacheKey)
+  if (cachedSlug) return cachedSlug
+
+  const serviceClient = createServiceRoleClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (serviceClient as any)
+    .from('stores')
+    .select('slug')
+    .eq('custom_domain', host)
+    .eq('custom_domain_verified', true)
+    .single()
+
+  const slug = (data as { slug?: string } | null)?.slug ?? null
+  if (slug) {
+    await redis.set(cacheKey, slug, { ex: 300 })
+  }
+
+  return slug
 }
 
 /**
@@ -154,6 +178,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/auth/login?next=/admin', request.url))
     }
 
+    // Si email confirmation está activo y el usuario aún no confirmó → retomar onboarding
+    if (user.email_confirmed_at === null) {
+      return NextResponse.redirect(new URL('/onboarding/done', request.url))
+    }
+
     // Usar service role para la query de store — evita problemas de RLS en el join.
     // La identidad ya fue verificada por auth.getUser() arriba.
     const serviceClient = createServiceRoleClient(
@@ -215,7 +244,7 @@ export async function middleware(request: NextRequest) {
 
   // En dev, las rutas /{slug}/* se procesan sin auth
   // En prod, el subdominio ya está resuelto por el Host header
-  const slug = resolveSlug(request)
+  const slug = await resolveSlug(request)
   if (slug) {
     // Solo inyectamos el slug para que el Server Component lo use
     const requestHeaders = new Headers(request.headers)

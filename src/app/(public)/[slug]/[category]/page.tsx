@@ -1,11 +1,10 @@
 import { notFound } from 'next/navigation'
 import { getStoreBySlug } from '@/lib/db/queries/stores'
 import { listProductsPublic } from '@/lib/db/queries/products'
-import { listCategoriesPublic } from '@/lib/db/queries/categories'
-import { getCategoryPublic } from '@/lib/db/queries/categories'
+import { listCategoriesPublic, getCategoryPublic } from '@/lib/db/queries/categories'
 import { CategoryCatalogView } from './category-catalog-view'
 
-export const revalidate = 60
+export const revalidate = 3600
 
 export async function generateMetadata({
   params,
@@ -33,7 +32,7 @@ export default async function CategoryPage({
   const category = await getCategoryPublic(store.id, categoryId)
   if (!category) notFound()
 
-  const [products, categories] = await Promise.all([
+  const [{ products }, categories] = await Promise.all([
     listProductsPublic(store.id, { categoryId }),
     listCategoriesPublic(store.id),
   ])

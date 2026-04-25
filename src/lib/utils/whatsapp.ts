@@ -21,6 +21,9 @@ interface BuildMessageInput {
   storeConfig: StoreConfig
   shippingMethod?: ShippingMethod
   customerName?: string
+  deliveryType?: 'pickup' | 'shipping'
+  address?: string
+  paymentMethod?: string
   customerNotes?: string
   trackingUrl?: string
 }
@@ -47,6 +50,9 @@ export function buildWhatsAppMessage({
   storeConfig,
   shippingMethod,
   customerName,
+  deliveryType,
+  address,
+  paymentMethod,
   customerNotes,
   trackingUrl,
 }: BuildMessageInput): BuildMessageOutput {
@@ -82,10 +88,19 @@ export function buildWhatsAppMessage({
   if (customerName) {
     lines.push(`👤 Nombre: ${customerName}`)
   }
+  if (deliveryType === 'pickup') {
+    lines.push('📍 Entrega: Retiro en local')
+  } else if (deliveryType === 'shipping') {
+    lines.push('🚚 Entrega: Envío a domicilio')
+    if (address) lines.push(`📍 Dirección: ${address}`)
+  }
+  if (paymentMethod) {
+    lines.push(`💳 Pago: ${paymentMethod}`)
+  }
   if (customerNotes) {
     lines.push(`📝 Nota: ${customerNotes}`)
   }
-  if (customerName || customerNotes) {
+  if (customerName || deliveryType || paymentMethod || customerNotes) {
     lines.push('')
   }
 

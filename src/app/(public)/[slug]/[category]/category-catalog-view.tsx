@@ -32,11 +32,17 @@ export function CategoryCatalogView({
   const [cartOpen, setCartOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
+  function normalize(s: string) {
+    return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  }
+
   const filteredProducts = initialProducts.filter((p) => {
-    if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false
-    }
-    return true
+    if (!searchQuery) return true
+    const q = normalize(searchQuery)
+    return (
+      normalize(p.name).includes(q) ||
+      (p.description ? normalize(p.description).includes(q) : false)
+    )
   })
 
   const handleCategorySelect = useCallback(
@@ -77,12 +83,7 @@ export function CategoryCatalogView({
       />
 
       <CartButton onClick={() => setCartOpen(true)} />
-      <CartDrawer
-        open={cartOpen}
-        onOpenChange={setCartOpen}
-        storeName={store.name}
-        storeWhatsapp={store.whatsapp ?? ''}
-      />
+      <CartDrawer open={cartOpen} onOpenChange={setCartOpen} />
     </div>
   )
 }

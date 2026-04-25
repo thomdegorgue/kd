@@ -1,6 +1,7 @@
 import { registerHandler } from '../registry'
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
 import { setCustomDomainSchema } from '@/lib/validations/custom-domain'
+import { redis } from '@/lib/redis'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
@@ -128,6 +129,8 @@ registerHandler({
         .eq('id', context.store_id)
 
       if (error) throw new Error(error.message)
+
+      await redis.del(`custom_domain:${custom_domain}`)
 
       return { verified: true, message: 'Dominio verificado correctamente' }
     } catch (err) {

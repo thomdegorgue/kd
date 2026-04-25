@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
 import { ANNUAL_INCLUDED_PRO_MODULES } from '@/lib/billing/calculator'
 import { sendEmail } from '@/lib/email/resend'
-import { TrialExpiringEmail } from '@/lib/email/templates/trial-expiring'
+import { TrialExpiredEmail } from '@/lib/email/templates/trial-expired'
+import { AnnualExpiredEmail } from '@/lib/email/templates/annual-expired'
+import { AnnualExpiringEmail } from '@/lib/email/templates/annual-expiring'
 import { StoreArchivedEmail } from '@/lib/email/templates/store-archived'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,6 +52,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     archived: 0,
     annual_expired: 0,
     annual_warning_sent: 0,
+    monthly_ai_reset: 0,
     errors: [] as string[],
   }
 
@@ -84,10 +87,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kitdigital.ar'
           const billingUrl = `${appUrl}/admin/billing`
 
-          const emailHtml = TrialExpiringEmail({
+          const emailHtml = TrialExpiredEmail({
             ownerEmail,
             storeName: store.name,
-            daysLeft: 0,
             billingUrl,
           })
 
@@ -225,10 +227,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         if (ownerEmail) {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kitdigital.ar'
           const billingUrl = `${appUrl}/admin/billing`
-          const emailHtml = TrialExpiringEmail({
+          const emailHtml = AnnualExpiredEmail({
             ownerEmail,
             storeName: store.name,
-            daysLeft: 0,
             billingUrl,
           })
           await sendEmail(
@@ -293,7 +294,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kitdigital.ar'
         const billingUrl = `${appUrl}/admin/billing`
-        const emailHtml = TrialExpiringEmail({
+        const emailHtml = AnnualExpiringEmail({
           ownerEmail,
           storeName: store.name,
           daysLeft,
@@ -321,6 +322,37 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   } catch (err) {
     results.errors.push(
       `query annual_warning: ${err instanceof Error ? err.message : 'unknown'}`,
+    )
+  }
+
+  // ── 5. Reset mensual de AI tokens ────────────────────────────
+  try {
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+
+    const { data: storesWithOldTokens, error } = await db
+      .from('stores')
+      .select('id')
+      .gt('ai_tokens_used', 0)
+      .lt('ai_tokens_reset_at', startOfMonth)
+
+    if (error) throw error
+
+    for (const store of (storesWithOldTokens ?? []) as Array<{ id: string }>) {
+      try {
+        await db
+          .from('stores')
+          .update({ ai_tokens_used: 0, ai_tokens_reset_at: now.toISOString() })
+          .eq('id', store.id)
+        results.monthly_ai_reset++
+      } catch (err) {
+        results.errors.push(
+          `ai_token_reset store ${store.id}: ${err instanceof Error ? err.message : 'unknown'}`,
+        )
+      }
+    }
+  } catch (err) {
+    results.errors.push(
+      `query monthly_ai_reset: ${err instanceof Error ? err.message : 'unknown'}`,
     )
   }
 

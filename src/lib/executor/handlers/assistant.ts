@@ -137,14 +137,30 @@ registerHandler({
 
     if (!session) throw new Error('Sesión no encontrada o expirada')
 
-    // Obtener nombre de la tienda para el system prompt
+    // Obtener datos de la tienda (nombre + tokens usados + plan)
     const { data: store } = await db
       .from('stores')
-      .select('name')
+      .select('name, ai_tokens_used, ai_tokens_reset_at, plan_id')
       .eq('id', context.store_id)
       .single()
 
     const storeName = (store?.name as string | null) ?? 'tu tienda'
+
+    // Verificar límite mensual de tokens
+    const { data: planData } = await db
+      .from('plans')
+      .select('ai_tokens_monthly')
+      .eq('id', store?.plan_id)
+      .single()
+
+    const monthlyLimit = (planData?.ai_tokens_monthly as number | null) ?? 50000
+    const currentUsed = (store?.ai_tokens_used as number | null) ?? 0
+
+    if (monthlyLimit > 0 && currentUsed >= monthlyLimit) {
+      throw new Error(
+        `Límite mensual de ${monthlyLimit.toLocaleString('es-AR')} tokens alcanzado. El contador se reinicia el próximo mes.`
+      )
+    }
 
     // Guardar mensaje del usuario
     const { error: insertUserErr } = await db

@@ -20,7 +20,10 @@ registerHandler({
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
-    const [productsRes, ordersMonthRes, customersRes, revenueRes] = await Promise.all([
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString()
+
+    const [productsRes, ordersMonthRes, customersRes, revenueRes, salesTodayRes] = await Promise.all([
       db
         .from('products')
         .select('*', { count: 'exact', head: true })
@@ -41,9 +44,22 @@ registerHandler({
         .eq('store_id', storeId)
         .gte('created_at', monthStart)
         .neq('status', 'cancelled'),
+      db
+        .from('orders')
+        .select('total')
+        .eq('store_id', storeId)
+        .eq('source', 'admin')
+        .neq('status', 'cancelled')
+        .gte('created_at', todayStart)
+        .lte('created_at', todayEnd),
     ])
 
     const revenue = (revenueRes.data as { total: number }[] | null)?.reduce(
+      (sum: number, o: { total: number }) => sum + (o.total ?? 0),
+      0
+    ) ?? 0
+
+    const sales_today = (salesTodayRes.data as { total: number }[] | null)?.reduce(
       (sum: number, o: { total: number }) => sum + (o.total ?? 0),
       0
     ) ?? 0
@@ -53,6 +69,7 @@ registerHandler({
       orders_month: ordersMonthRes.count ?? 0,
       customers_count: customersRes.count ?? 0,
       revenue_month: revenue,
+      sales_today,
     }
   },
 })

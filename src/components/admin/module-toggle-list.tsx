@@ -35,7 +35,7 @@ const ALL_MODULES: ModuleInfo[] = [
   { id: 'expenses', label: 'Gastos', description: 'Egresos detallados', tier: 'pro' },
   { id: 'savings_account', label: 'Ahorros', description: 'Cuentas de ahorro virtuales', tier: 'pro' },
   { id: 'multiuser', label: 'Equipo', description: 'Múltiples usuarios', tier: 'pro' },
-  { id: 'custom_domain', label: 'Dominio propio', description: 'Tu dominio personalizado', tier: 'pro' },
+  { id: 'custom_domain', label: 'Dominio propio', description: 'Tu dominio personalizado', tier: 'base' },
   { id: 'tasks', label: 'Tareas', description: 'Lista de tareas del negocio', tier: 'pro' },
   { id: 'assistant', label: 'Asistente IA', description: 'Asistente inteligente', tier: 'pro' },
 ]

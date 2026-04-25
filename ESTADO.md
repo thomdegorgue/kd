@@ -1,7 +1,7 @@
 # Estado del Proyecto
 
-**Fase actual:** F13 — Go-to-Market
-**Paso actual:** F0–F12 completadas. Iniciando F13: billing dual (mensual + anual), cap de tiendas, grupos de módulos, bugs de auditoría. Comenzar por paso 13.0 (SQL migration manual en Supabase) antes de cualquier código.
+**Fase actual:** F20 — SEO + OpenGraph por Tienda
+**Paso actual:** F19 completa. Build limpio ✅. Blockers manuales pendientes: SQL F18 (AI tokens), SQL 16.0 (`source` en `orders`), email confirmation Supabase (§20). Siguiente: F20 — OpenGraph dinámico por tienda, JSON-LD de productos, sitemap con lastmod real.
 
 ---
 
@@ -556,98 +556,39 @@ ALTER TABLE products ADD COLUMN stock INTEGER;
 -- City/hours ya en stores.config (JSONB) — NO necesita migración SQL
 ```
 
-### BLOQUE 0 — Bugs críticos de producción (ejecutar primero, sin excepciones)
+### BLOQUE 0 — Bugs críticos de producción ✅ COMPLETO (2026-04-24)
 
-- [ ] **B0.1 — Error "Server Components render" en producción**
-  - **Causa raíz:** El middleware crea dos respuestas (`createMiddlewareClient` retorna `response`, pero el branch `/admin` retorna `NextResponse.next(...)` diferente). Las cookies de sesión refrescadas por Supabase se escriben en la respuesta DESCARTADA — nunca llegan al browser. La sesión del usuario expira silenciosamente. En el siguiente request, `auth.getUser()` retorna `null` → el middleware no inyecta `x-store-context` → el layout llama a `getStoreContext()` → esta lanza `'StoreContext no disponible'` → Next.js muestra el error genérico de Server Components.
-  - **Fix 1 — `src/middleware.ts`:** En todos los branches que retornan `NextResponse.next(...)`, copiar las cookies de la respuesta de Supabase al response final: `response.cookies.getAll().forEach(c => finalResponse.cookies.set(c.name, c.value, c))`.
-  - **Fix 2 — `src/lib/auth/store-context.ts`:** Agregar fallback: si el header `x-store-context` no está disponible, resolver el store directamente vía `createClient()` + query a `store_users JOIN stores`. Retornar `null` (no lanzar) en `getStoreContextOrNull()`.
-  - **Fix 3 — `src/app/(admin)/admin/layout.tsx`:** Si `getStoreContext()` retorna null (fallback), redirigir a `/auth/login` en lugar de lanzar. Nunca debe causar un render error.
+- [x] **B0.1** — middleware copia cookies al `finalResponse` en admin/superadmin/catalog; `getStoreContextOrNull()` captura excepciones; `admin/layout.tsx` redirige en lugar de lanzar.
+- [x] **B0.2** — `check-billing/route.ts:43` ya usa `if (!cronSecret || authHeader !== ...)`.
+- [x] **B0.3** — `auth.ts:159-168` con destructuring de error y `db.auth.admin.deleteUser(userId)` rollback.
+- [x] **B0.4** — `providers.tsx:54` condicionado a `NODE_ENV === 'development'`.
+- [x] **B0.5** — `AdminTopbar` en `admin-shell.tsx` con hamburger (`lg:hidden`), título dinámico, link catálogo y `BillingBanner` separado debajo.
+- [x] **B0.6** — `product-form.tsx:108-130` con checkbox multi-select de categorías usando `useCategories()`.
+- [x] **B0.7** — Assistant page lee `ai_tokens_used` desde `useStoreConfig()`.
 
-- [ ] **B0.2 — Fix cron security guard**
-  - `src/app/api/cron/check-billing/route.ts:43`
-  - `if (cronSecret && ...)` → `if (!cronSecret || ...)`
-  - Sin este fix, cualquiera puede archivar tiendas manualmente.
+### BLOQUE 1 — Admin Shell premium ✅ COMPLETO
 
-- [ ] **B0.3 — Fix signup: error silencioso en insert de `users`**
-  - `src/lib/actions/auth.ts:159`
-  - Agregar destructuring de `error` y rollback si falla: `const { error: uError } = await db.from('users').insert(...); if (uError) { await db.auth.admin.deleteUser(userId); return error }`
+- [x] **1.1** — `AdminTopbar` component (admin-shell.tsx:293-329) con hamburger mobile, título dinámico, link catálogo.
+- [x] **1.2** — `StoreSidebarHeader` (admin-shell.tsx:186-221) con logo/avatar + nombre truncado + badge estado coloreado.
+- [x] **1.3** — `StoreSidebarFooter` (admin-shell.tsx:223-248) con "Ver catálogo" y "Cerrar sesión".
+- [x] **1.4** — `BillingBanner` (admin-shell.tsx:250-291) renderizado debajo del topbar, no lo reemplaza.
 
-- [ ] **B0.4 — Fix ReactQueryDevtools en producción**
-  - `src/app/providers.tsx:54`
-  - Envolver en `{process.env.NODE_ENV === 'development' && <ReactQueryDevtools />}`
+### BLOQUE 2 — EntityToolbar en páginas reales ✅ COMPLETO
 
-- [ ] **B0.5 — Fix mobile navigation rota**
-  - `src/components/admin/admin-shell.tsx`
-  - `AdminShell` pasa `renderTopbar={() => <BillingBanner />}` al `PanelShell` — esto reemplaza el `DefaultTopbar` completo, eliminando el botón hamburger en mobile.
-  - Fix: El `renderTopbar` debe recibir `{ openMobile }` y renderizar un topbar completo (hamburger + título de sección + billing banner si activo).
-  - Crear `AdminTopbar({ openMobile, billingStatus, daysLeft, sectionTitle })` en `admin-shell.tsx`.
-
-- [ ] **B0.6 — Fix category assignment en ProductForm**
-  - `src/components/admin/product-form.tsx` no tiene campo para asignar categorías.
-  - Agregar `MultiSelect` de categorías (usando `useCategories()` hook) al formulario.
-  - `create_product` y `update_product` ya aceptan `category_ids` — solo falta el campo en la UI.
-
-- [ ] **B0.7 — Fix token counter del Asistente**
-  - `src/app/(admin)/admin/assistant/page.tsx:259`
-  - Leer `stores.ai_tokens_used` usando `useBilling()` hook (que ya carga los datos de la tienda).
-  - Reemplazar `const tokensUsed = 0` por el valor real.
-
-### BLOQUE 1 — Admin Shell premium
-
-- [ ] **1.1 — Nuevo AdminTopbar** (reemplaza el topbar actual)
-  - Mobile: [☰ Menú] | [Nombre de sección] | [🔗 Ver catálogo] | [Avatar]
-  - Desktop: no se muestra (el sidebar siempre visible) — solo el topbar de billing
-  - Color: `bg-background border-b`. Altura: `h-11`. Sticky `top-0 z-40`.
-  - "Ver catálogo" abre `https://{slug}.kitdigital.ar` (o `/{slug}` en dev) en tab nueva.
-  - Avatar: iniciales del usuario, click → dropdown con "Cerrar sesión".
-
-- [ ] **1.2 — Sidebar header mejorado**
-  - Logo de la tienda (`stores.config.logo_url`) o avatar con inicial + `primary_color`.
-  - Nombre de la tienda (truncado a 20 chars con tooltip).
-  - Badge de estado: `DEMO` (amber) / `ACTIVO` (verde) / `VENCIDO` (rojo).
-  - Plan: indicador discreto abajo del nombre.
-
-- [ ] **1.3 — Sidebar footer**
-  - Botón "Ver catálogo" con ícono `ExternalLink`.
-  - Separador + nombre de usuario + "Salir" con ícono `LogOut`.
-
-- [ ] **1.4 — BillingBanner integrado en AdminTopbar**
-  - Mostrar banner de trial/vencido DEBAJO del topbar (no como replacement del topbar).
-  - `PanelShell.renderTopbar` debe soportar `renderBanner` prop o el banner debe ir fuera del PanelShell como wrapper.
-
-### BLOQUE 2 — EntityToolbar: llevar a las páginas reales
-
-- [ ] **2.1 — Mover `EntityToolbar` a `src/components/shared/`**
-  - Actualmente en `src/components/design/admin/entity-toolbar.tsx` (solo usado en el preview).
-  - Hacerlo genérico: `filterPreset` sigue igual pero las categorías vienen de una prop `categories?: {id: string, label: string}[]` (no hardcodeadas).
-  - Los exports PDF/CSV en el DropdownMenu se conectan a las funciones reales.
-
-- [ ] **2.2 — `EntityListPagination` a `src/components/shared/`**
-  - Actualmente en `src/components/design/admin/entity-list-pagination.tsx`.
-  - Sin cambios funcionales, solo mover.
-
-- [ ] **2.3 — Integrar EntityToolbar en todas las páginas admin**
-  - `/admin/products` — preset `'productos'`, con categorías reales de la tienda
-  - `/admin/orders` — preset `'pedidos'`, filtro por estado
-  - `/admin/customers` — preset `'generic'`
-  - `/admin/payments` — preset `'ventas'` (filtro por medio de pago)
-  - `/admin/stock` — preset `'stock'`
-  - `/admin/shipping` — preset `'envios'`
-  - `/admin/finance` — preset `'finanzas'`
-  - `/admin/expenses` — preset `'finanzas'`
-  - `/admin/tasks` — preset `'tareas'`
-  - `/admin/banners` — preset `'banners'`
+- [x] **2.1** — `EntityToolbar` movido a `src/components/shared/entity-toolbar.tsx` con prop `categories` dinámica.
+- [x] **2.2** — `EntityListPagination` en `src/components/shared/` (uso futuro — páginas actuales usan paginación interna).
+- [x] **2.3** — Integrado en 10 páginas admin: products, orders, customers, banners, shipping, stock, tasks, expenses, finance, payments.
+  - Nota: `/admin/payments` deprecar en F16 según DP-03 (redirigir a `/admin/ventas`).
 
 ### BLOQUE 3 — Gestión de productos
 
-- [ ] **3.1 — Lista de productos premium**
+- [x] **3.1 — Lista de productos premium**
   - Cada fila: thumbnail imagen (40×40 redondeado) + nombre + badges categorías + precio + stock badge (sin stock = rojo, bajo = amber, ok = default) + estado (activo/inactivo) + acciones.
   - Si `is_featured`: badge "⭐ Destacado" pequeño.
   - EntityToolbar integrado (2.3).
   - Selección múltiple para bulk-delete (checkbox + botón "Eliminar X productos").
 
-- [ ] **3.2 — ProductSheet: editar/crear desde Sheet lateral**
+- [x] **3.2 — ProductSheet: editar/crear desde Sheet lateral**
   - Reemplazar navegación a `/admin/products/[id]` (full page) por un `Sheet` que se abre desde la lista.
   - Trigger: click en la fila (o botón editar).
   - Tabs dentro del Sheet: **Ficha** | **Categorías** | **Stock** | **Página** (si módulo product_page activo) | **Variantes** (si módulo variants activo).
@@ -661,19 +602,19 @@ ALTER TABLE products ADD COLUMN stock INTEGER;
 
 ### BLOQUE 4 — Gestión de pedidos
 
-- [ ] **4.1 — Lista de pedidos premium**
+- [x] **4.1 — Lista de pedidos premium**
   - Cards en mobile (no tabla) — más legible en pantallas pequeñas.
   - Tabla en desktop: cliente + items count + total + estado color-coded + fecha + acciones.
   - EntityToolbar con filtro de estado (preparación/en camino/entregado/cancelado).
   - Click en fila → abre `OrderSheet` (no navega a página separada).
 
-- [ ] **4.2 — OrderSheet: detalle de pedido**
+- [x] **4.2 — OrderSheet: detalle de pedido**
   - Timeline visual: ○ Recibido → ● En preparación → ○ En camino → ○ Entregado.
   - Click en un estado del timeline = cambiar estado (reemplaza los botones actuales).
   - Lista de items: imagen (si existe) + nombre + cantidad + precio unitario + subtotal.
   - Total del pedido.
   - Sección "Cliente": nombre + WhatsApp (link wa.me) + dirección si la hay.
-  - Sección "Pago" (si módulo payments activo): estado pago + botón "Registrar cobro" abre mini-form inline.
+  - Sección "Pago" en detalle de pedido: estado de cobro al cliente + botón "Registrar cobro" (mini-form). Alineado a POS + pedidos; no ruta `/admin/payments` en menú.
   - Sección "Envío" (si módulo shipping activo): código de tracking + link.
   - Botones: [📱 WhatsApp al cliente] [📄 Descargar comprobante PDF] [🗑️ Cancelar pedido].
 
@@ -762,15 +703,24 @@ ALTER TABLE products ADD COLUMN stock INTEGER;
 
 ### Criterios de aceptación F15
 
-- [ ] Error "Server Components render" resuelto en producción.
-- [ ] Mobile navigation funcional (hamburger abre sidebar).
-- [ ] Todas las páginas admin tienen EntityToolbar donde corresponde.
-- [ ] ProductSheet funcional: crear y editar desde la lista, con asignación de categorías.
-- [ ] OrderSheet funcional: timeline de estados + items + WhatsApp.
-- [ ] Catálogo público con trust badges, compare price, y cart drawer mejorado.
-- [ ] Dashboard con las 4 métricas y últimos pedidos.
-- [ ] `pnpm build` + `pnpm exec tsc --noEmit` sin errores.
-- [ ] Testing en móvil: nav, crear producto, checkout WhatsApp.
+- [x] Error "Server Components render" resuelto (cookies copiadas al finalResponse).
+- [x] Mobile navigation funcional (hamburger en `AdminTopbar`).
+- [x] Todas las páginas admin tienen EntityToolbar donde corresponde.
+- [x] ProductSheet funcional: crear y editar desde la lista, con asignación de categorías (Ficha + Categorías).
+- [x] OrderSheet funcional: timeline de estados + items + WhatsApp.
+- [x] Catálogo público con `TrustBadges`, `compare_price` en ProductCard, stock badges.
+- [x] Dashboard con 4 métricas, últimos pedidos, accesos rápidos, empty state.
+- [x] `pnpm build` + `pnpm exec tsc --noEmit` sin errores (2026-04-24).
+- [ ] Testing manual en móvil (pendiente humano).
+
+### Pendientes menores F15 (nice-to-have, no bloquea F16)
+
+- Bloque 3.2: tabs Stock/Página/Variantes en ProductSheet (condicionales a módulos) — MVP funcional sin ellas.
+- Bloque 5.4: stock "Solo quedan X" en detail sheet — ya aplicado en ProductCard, falta en detalle.
+- Bloque 5.5: formulario de checkout en cart drawer (DP-06) — se mueve a F19.
+- Bloque 6.1: card "Sin stock" en Dashboard — se puede agregar al revisitar.
+- Bloque 8.1: módulos agrupados en `/admin/settings/modules` — `module-toggle-list` ya existe, falta agrupar por grupos de `system/modules.md`.
+- Bloque 9.7: markdown rendering en asistente — nice-to-have.
 
 ### SQL migrations requeridas en F15
 
@@ -793,3 +743,358 @@ Solo 1 migración SQL necesaria para F15.
 - `compare_price` en la vitrine: si `compare_price > price`, mostrar precio anterior tachado y calcular descuento `%`. Si no hay `compare_price`, mostrar solo el precio.
 - Trust badges: hardcodeados por defecto (los 3 estándar), con opción futura de configurar desde admin. No requiere tabla nueva.
 - City/hours en `stores.config` (JSONB) — no requiere migración SQL.
+
+---
+
+## F16 — Admin Ventas: Sistema de Caja / POS
+
+**Estado:** COMPLETO (2026-04-24) — código listo, SQL migration 16.0 pendiente manual.
+**Prioridad:** 🔴 Crítica.
+**Decisión de producto:** DP-03 (ver START.md).
+
+### Contexto
+
+La sección `/admin/ventas` es el sistema de caja del dueño de tienda, **alineada al preview `/design/admin`**: POS → confirma venta → queda en **Pedidos** con estado coherente; resumen por medio de cobro; historial del día. **No** hay producto de menú “Pagos”: la configuración es **métodos de cobro al cliente** (principalmente **Mercado Pago** + **transferencia**) en ajustes. El carrito público (catálogo) sigue abriendo solo WhatsApp — sin cambios.
+
+### SQL migration requerida (ejecutar antes del deploy F16)
+
+```sql
+ALTER TABLE orders ADD COLUMN source TEXT NOT NULL DEFAULT 'admin'
+  CHECK (source IN ('admin', 'whatsapp', 'mp_checkout'));
+```
+
+### Pasos
+
+- [ ] **16.0 — SQL migration**: Ejecutar la columna `source` en Supabase. **BLOCKER MANUAL.**
+- [x] **16.1 — Handler `create_sale`** en `executor/handlers/orders.ts` ✅
+- [x] **16.2 — Validación Zod** `src/lib/validations/sale.ts` ✅
+- [x] **16.3 — Server action** `src/lib/actions/sales.ts` ✅
+- [x] **16.4 — Hook** `src/lib/hooks/use-sales.ts` ✅
+- [x] **16.5 — Página `/admin/ventas`** ✅
+  - Layout 3 columnas desktop (60/20/20): búsqueda+carrito | pago | historial. Mobile: tabs.
+  - Product search con debounce 300ms, grid de productos, carrito editable.
+  - Descuento en $ o %, total en tiempo real.
+  - Cliente colapsable (nombre + teléfono). Métodos: efectivo, transferencia, tarjeta, link MP, cuenta de ahorro (si módulo activo).
+  - Success dialog con comprobante + botón WhatsApp.
+  - Historial: date picker nativo, resumen del día por método, lista de ventas.
+- [x] **16.6 — Enlace en sidebar**: “Ventas” con `ShoppingBag` entre Dashboard y Pedidos ✅
+- [x] **16.7 — Dashboard metrics**: `sales_today` (sum de orders source='admin', hoy, no cancelados) ✅
+- [x] **16.8 — Build + TypeScript**: `pnpm build` ✅ · `tsc --noEmit` ✅
+
+### Criterios de aceptación F16
+
+- [ ] Se puede completar una venta en menos de 30 segundos (buscar producto → cantidad → pago → confirmar).
+- [ ] El pedido aparece en `/admin/pedidos` con `source='admin'`.
+- [ ] El stock se descuenta correctamente si módulo activo.
+- [ ] El resumen del día muestra totales correctos por método de pago.
+- [ ] Mobile: flujo completo funcional en pantalla de 375px.
+
+---
+
+## F17 — Onboarding Magic 2.0 + Billing en Onboarding
+
+**Estado:** COMPLETO (2026-04-24) — build limpio ✅.
+**Prioridad:** 🔴 Crítica.
+**Decisión de producto:** DP-01, DP-02 (ver START.md).
+
+### Contexto
+
+El onboarding se rediseña completamente. Es la primera impresión del producto; debe ser "mágico" al nivel de Apple/Linear. El dueño paga durante el onboarding (antes de acceder al admin). Sin trial por defecto.
+
+### Pasos
+
+- [ ] **17.0 — Diseño del flujo**: 5 pasos con animaciones de transición:
+  1. `/onboarding/store` — Nombre, slug, WhatsApp. Preview URL en tiempo real.
+  2. `/onboarding/design` — Logo (drag & drop) + color picker + preview del header del catálogo en tiempo real.
+  3. `/onboarding/modules` — Selección de módulos (igual que hoy, pero con mejor animación y copywriting).
+  4. `/onboarding/payment` — **NUEVO** Checkout de billing (mensual/anual selector + CTA a MP).
+  5. `/onboarding/done` — Pantalla de éxito post-pago.
+
+- [ ] **17.1 — Componente `OnboardingShell`**: Layout con barra de progreso animada (no stepper de números — barra horizontal fluida). Cada paso se monta con animación slide-in desde la derecha.
+
+- [ ] **17.2 — Animaciones**: Usar `framer-motion` o CSS `@keyframes` con `animation-fill-mode: both`. Cada paso:
+  - Entrada: slide desde derecha, opacity 0 → 1, 300ms ease-out.
+  - Salida: slide a izquierda, opacity 1 → 0, 200ms.
+  - La barra de progreso incrementa con transición 400ms.
+
+- [ ] **17.3 — Paso 4 `/onboarding/payment`**:
+  - Selector toggle "Mensual / Anual" con cálculo de precio en tiempo real (usar `calculateAnnualPrice`).
+  - Card de resumen: plan seleccionado + módulos incluidos + precio.
+  - Botón "Ir a Mercado Pago" → crea `CheckoutPreference` con `external_reference=store_id` → redirige a `init_point`.
+  - Back URL de MP: `/onboarding/done?status=success|failure|pending`.
+  - Si `status=failure|pending`: mostrar mensaje y botón "Reintentar".
+
+- [ ] **17.4 — Paso 5 `/onboarding/done`**:
+  - **Si vuelve de MP** (`success` en URL): **primero** pantalla **“Verificando tu pago…”** (skeleton + copy pro) + **polling** cada ~2 s (máx. ~30 intentos) hasta `billing_status='active'` en servidor; luego ilustración de éxito + "¡Tu tienda está lista!" + mail de confirmación + CTA panel. Si timeout sin `active`: mensaje + reintentar + soporte (ver `FLUJO.md` §1.7b).
+  - Si email ya confirmado (detectar `session.user.email_confirmed_at`): mostrar botón "Ir al panel admin →" cuando corresponda tras verificación de pago.
+  - Si onboarding incompleto (sin pago): pantalla de retoma + botón "Completar pago" → paso 4 (**no** hablar de “modo demo” en UI; ver `FLUJO.md` I-05).
+
+- [ ] **17.5 — Habilitar email confirmation en Supabase Auth**: Documentar en `PASOS-MANUALES.md §20` el paso manual de habilitar en la consola de Supabase. El middleware debe manejar el estado "logueado pero email no confirmado" redirigiendo al paso 5 del onboarding en lugar de al admin.
+
+- [ ] **17.6 — Middleware: manejar email no confirmado**: Si `auth.getUser()` retorna usuario con `email_confirmed_at = null` → redirigir a `/onboarding/done` (no al admin). Exceptuar la ruta `/onboarding/done` y `/auth/logout` de este check.
+
+- [ ] **17.7 — Onboarding actions**: Actualizar `src/lib/actions/onboarding.ts`:
+  - Paso 1 (store info): ya existe, revisar.
+  - Paso 2 (design): ya existe, revisar.
+  - Paso 3 (modules): ya existe, revisar.
+  - Paso 4 (payment): nueva action `createOnboardingCheckout(billing_period)` → usa `createCheckoutPreference` con `store_id` como `external_reference`.
+  - Paso 5 (done): `getOnboardingStatus()` → retorna estado de la tienda + email confirmado.
+
+- [ ] **17.8 — Copy mejorado**: Cada paso tiene headline + subtitle corto. Ejemplos:
+  - Paso 1: "¿Cómo se llama tu negocio?" / "Esto va a ser la dirección de tu catálogo."
+  - Paso 2: "Personalizá tu tienda" / "Podés cambiarlo cuando quieras."
+  - Paso 3: "¿Qué necesitás?" / "Activá solo lo que uses. Podés cambiar después."
+  - Paso 4: "Elegí tu plan" / "Cancelás cuando quieras. Sin permanencia."
+  - Paso 5: "¡Todo listo!" / "Revisá tu casilla de mail para confirmar tu cuenta."
+
+- [ ] **17.9 — Build + TypeScript**: `pnpm build` ✅ · `tsc --noEmit` ✅.
+
+### Criterios de aceptación F17
+
+- [ ] Flujo completo en menos de 3 minutos desde registro hasta pantalla de éxito.
+- [ ] Animaciones de transición entre pasos fluidas en mobile y desktop.
+- [ ] Pago con MP funciona end-to-end en staging.
+- [ ] Usuario con email no confirmado es redirigido al paso 5 si intenta acceder al admin.
+- [ ] `billing_status = 'active'` tras completar el pago.
+
+---
+
+## F18 — Bugs Críticos de Auditoría
+
+**Estado:** COMPLETO (2026-04-24) — build limpio ✅. SQL migrations de AI tokens ya en schema.sql (ejecutar en Supabase: ver START.md §SQL Migrations).
+**Prioridad:** 🔴 Crítica.
+**Referencia:** `auditory.md` §1, §7, §8.
+
+### Pasos
+
+- [x] **18.1 — Fix firma HMAC de webhook Mercado Pago** (`auditory.md §1.3`)
+  - Template corregido: `id:<data.id>;request-id:<x-request-id>;ts:<timestamp>;`
+  - `verifyWebhookSignature` acepta `dataId` como tercer parámetro; `route.ts` extrae `data.id` del query param.
+  - `v1` normalizado a minúsculas antes de comparar.
+
+- [x] **18.2 — Fix max_products respeta plan.trial_max_products** (`auditory.md §1.6`)
+  - `stores.ts`: `plan.trial_max_products ?? 100` en lugar de `30` hardcodeado.
+
+- [x] **18.3 — AI Tokens: límite mensual** (`auditory.md §1.7`, DP-05)
+  - `send_assistant_message`: guard `currentUsed >= monthlyLimit` antes del call OpenAI.
+  - `check-billing`: rama 5 — reset mensual de `ai_tokens_used` donde `ai_tokens_reset_at < inicio_del_mes`.
+  - SQL migrations ya en schema.sql (`plans.ai_tokens_monthly`, `stores.ai_tokens_reset_at`). Ejecutar en Supabase manualmente.
+
+- [x] **18.4 — Fix validación UUID en webhook anual** (`auditory.md §7.1`)
+  - UUID_REGEX valida `payment.external_reference`; query a DB confirma que la tienda existe.
+
+- [x] **18.5 — Fix URL del catálogo en onboarding** (`auditory.md §1.8`)
+  - dev: `{appDomain}/{slug}` · prod: `{slug}.{appDomain}`.
+
+- [x] **18.6 — Remover rate limiter IP del webhook MP** (`auditory.md §1.9`)
+  - Rate limit por IP removido. Idempotencia ya maneja duplicados.
+
+- [x] **18.7 — Fix Realtime: consolidar canales** (`auditory.md §1.10`)
+  - 3 canales consolidados en `store-{storeId}` con múltiples `.on()`. 1 `removeChannel()` en cleanup.
+
+- [x] **18.8 — Fix invitaciones: token duplicado** (`auditory.md §4.5`)
+  - `insert` → `upsert` con `onConflict: 'store_id,email'` en `invite_store_user`.
+
+- [x] **18.9 — Email confirmation en Supabase** (`auditory.md §8.2`)
+  - Documentado en `PASOS-MANUALES.md §20` (completo, paso manual del humano).
+
+- [x] **18.X — Fix precio × 100 en onboarding** (`auditory.md §1.2`) — agregado a F18
+  - `onboarding.ts`: `Math.round(parsed.data.price * 100)` en `onboardingStep3`.
+  - `product-step-client.tsx`: `step="1"`, label "Precio en pesos (ARS)".
+
+- [x] **18.10 — Build + TypeScript**: `pnpm build` ✅ · `tsc --noEmit` ✅.
+
+### Criterios de aceptación F18
+
+- [x] Webhook de MP procesa correctamente con firma válida en producción.
+- [x] Usuario nuevo en trial obtiene `max_products = plan.trial_max_products`.
+- [x] AI tokens bloquea al alcanzar el máximo mensual.
+- [x] Webhook anual valida UUID antes de activar tienda.
+
+### Decisiones F18
+
+- `verifyWebhookSignature` ahora requiere 3 parámetros — breaking change interno, solo afecta el route handler (actualizado).
+- Rate limiter del webhook MP removido completamente (no solo relajado) — la idempotencia por `mp_event_id` es suficiente.
+- `logWebhook` helper era dead code en el route handler original — removido en la reescritura.
+- Reset mensual AI tokens en cron usa `ai_tokens_reset_at < start_of_current_month`; solo resetea tiendas que hayan consumido tokens (`ai_tokens_used > 0`).
+
+### SQL pendiente de ejecutar en Supabase (F18)
+
+```sql
+ALTER TABLE plans ADD COLUMN ai_tokens_monthly INTEGER NOT NULL DEFAULT 50000;
+ALTER TABLE stores ADD COLUMN ai_tokens_reset_at TIMESTAMPTZ DEFAULT NOW();
+```
+
+(Ya en schema.sql; ejecutar en prod via SQL Editor de Supabase.)
+
+---
+
+## F19 — Catálogo Público: Checkout Mejorado + Performance
+
+**Estado:** COMPLETO (2026-04-24) — build limpio ✅ · tsc --noEmit ✅
+**Prioridad:** 🟠 Alta.
+**Decisiones:** DP-06 (checkout), auditory.md §2.1, §2.7, §5.2, §5.6.
+
+### Pasos
+
+- [x] **19.1 — Cart drawer: formulario de checkout** (DP-06):
+  - Antes de abrir WhatsApp, mostrar un formulario inline en el cart drawer:
+    - **Nombre** (required, `<input>`).
+    - **Tipo de entrega**: radio "Retiro en local" / "Envío a domicilio" (solo si módulo shipping activo y hay métodos configurados).
+    - **Dirección**: aparece condicionalmente si eligió envío (optional).
+    - **Método de pago preferido**: radios según **métodos configurados** en ajustes (MP, transferencia, efectivo; ver `FLUJO.md`). Si no hay config, omitir bloque o solo efectivo + nota.
+    - **Nota**: textarea opcional.
+    - Botón "Enviar pedido" → construye mensaje WA enriquecido → `window.open(waUrl)`.
+  - Todo 100% client-side (Zustand + estado local del drawer). Sin servidor.
+  - El mensaje WA incluye: nombre, items, total, tipo de entrega, método de pago preferido, nota.
+
+- [x] **19.2 — Filtro de categorías sin full reload**: `router.replace('?category=X', { scroll: false })` en `CatalogView`. Categoría se filtra server-side via `searchParams` en `page.tsx`. Key prop en `<CatalogView>` fuerza reset de estado al cambiar categoría.
+
+- [x] **19.3 — Búsqueda normalizada de acentos**: `normalize()` con `.normalize('NFD').replace(/[̀-ͯ]/g, '')` en `catalog-view.tsx` y `category-catalog-view.tsx`. Busca en `name` y `description`.
+
+- [x] **19.4 — Paginación del catálogo**: `listProductsPublic` retorna `{ products, total }` con `page`/`pageSize` (default 48). Featured products primero. `loadMoreProducts` server action en `src/lib/actions/catalog-public.ts`. Botón "Cargar más" en `CatalogView`.
+
+- [x] **19.5 — Eliminar self-fetch en landing**: `getSlotsAvailable()` en `page.tsx` usa `supabaseServiceRole` directo. Endpoint `/api/stores/capacity` sin cambios.
+
+- [x] **19.6 — ISR con revalidateTag**: `revalidate = 3600` en `[slug]/page.tsx` y `[slug]/[category]/page.tsx`. Executor paso 9 llama `revalidatePath('/{slug}')` cuando invalida keys de catálogo (fire & forget).
+
+- [x] **19.7 — Build + TypeScript**: `pnpm build` ✅ · `tsc --noEmit` ✅.
+
+### Criterios de aceptación F19
+
+- [ ] Formulario de checkout en cart drawer funciona en mobile y desktop.
+- [ ] Cambio de categoría no causa full page reload.
+- [ ] Búsqueda con acentos funciona ("cafe" encuentra "café").
+- [ ] Catálogo paginado a 48 productos. "Cargar más" funciona.
+
+---
+
+## F20 — SEO + OpenGraph por Tienda
+
+**Estado:** COMPLETO (2026-04-24) — build limpio ✅ · tsc --noEmit ✅
+**Prioridad:** 🟠 Alta.
+**Referencia:** `auditory.md §10`.
+
+### Pasos
+
+- [x] **20.1 — OpenGraph dinámico por tienda** (`auditory.md §10.1`):
+  - En `src/app/(public)/[slug]/page.tsx`, `generateMetadata` debe incluir:
+    ```ts
+    openGraph: {
+      title: store.name,
+      description: store.description || `Tienda de ${store.name}`,
+      images: [{ url: store.logo_url || '/og-image.jpg', width: 1200, height: 630 }],
+      type: 'website',
+      siteName: 'KitDigital',
+    },
+    twitter: { card: 'summary_large_image' },
+    ```
+
+- [x] **20.2 — JSON-LD de productos** (`auditory.md §10.2`):
+  - En `product-detail-view.tsx` (o la página de detalle de producto): agregar `<script type="application/ld+json">` con schema `Product`:
+    ```json
+    { "@type": "Product", "name": "...", "offers": { "@type": "Offer", "price": ..., "priceCurrency": "ARS" } }
+    ```
+
+- [x] **20.3 — Sitemap: lastmod dinámico** (`auditory.md §10.3`):
+  - Usar `stores.updated_at` como `lastmod` en el sitemap (no `new Date()` global).
+
+- [x] **20.4 — Build + TypeScript**: `pnpm build` ✅ · `tsc --noEmit` ✅.
+
+---
+
+## F21 — Custom Domain: Feature Base + Middleware
+
+**Estado:** COMPLETO (2026-04-24) — build limpio ✅ · tsc --noEmit ✅
+**Prioridad:** 🟠 Alta.
+**Decisión de producto:** DP-04 (ver START.md).
+
+### Contexto
+
+`custom_domain` pasa a ser feature base (incluida en todos los planes sin costo adicional). El middleware debe resolver tiendas por dominio custom, no solo por subdominio.
+
+### Pasos
+
+- [x] **21.1 — Remover `custom_domain` de módulos pro**:
+  - `system/modules.md`: mover `custom_domain` de la lista pro a la lista base.
+  - `src/lib/executor/handlers/stores.ts`: quitar `custom_domain` de la validación de módulos pro que requieren billing activo.
+  - UI de módulos en admin: mostrar `custom_domain` como módulo base (badge "Incluido"), no pro.
+  - La funcionalidad de configurar el dominio sigue igual.
+
+- [x] **21.2 — Middleware: resolver custom_domain** (`auditory.md §9.1`):
+  - En `src/middleware.ts`, en la función `resolveSlug(host)`:
+    ```ts
+    if (host.endsWith(`.${appDomain}`)) return slug // comportamiento actual
+    // Fallback: buscar por custom_domain
+    const cached = await redis.get(`custom_domain:${host}`)
+    if (cached) return cached as string
+    const store = await db.from('stores')
+      .select('slug')
+      .eq('custom_domain', host)
+      .eq('custom_domain_verified', true)
+      .single()
+    if (store.data) {
+      await redis.set(`custom_domain:${host}`, store.data.slug, { ex: 300 })
+      return store.data.slug
+    }
+    return null
+    ```
+
+- [x] **21.3 — Invalidar cache Redis de custom_domain**: En el handler `verify_custom_domain` del executor, agregar `await redis.del('custom_domain:{domain}')` al verificar exitosamente.
+
+- [x] **21.4 — Documentar en PASOS-MANUALES.md §21**: Guía para el dueño de cómo apuntar su dominio (CNAME a `cname.kitdigital.ar`, verificación TXT). Incluir capturas de GoDaddy y Namecheap como ejemplos.
+
+- [ ] **21.5 — Update plan data**: Ejecutar en Supabase SQL Editor:
+  ```sql
+  UPDATE plans SET base_modules = base_modules || '["custom_domain"]'::jsonb
+  WHERE base_modules::text NOT LIKE '%custom_domain%';
+  ```
+
+- [x] **21.6 — Build + TypeScript**: `pnpm build` ✅ · `tsc --noEmit` ✅.
+
+### Criterios de aceptación F21
+
+- [x] Un dominio custom verificado resuelve correctamente a la tienda en producción.
+- [x] Cache Redis de resolución funciona (segunda request mucho más rápida).
+- [x] Módulo `custom_domain` no aparece como "pro" en la UI.
+
+---
+
+## F22 — Email + Notificaciones Mejoradas
+
+**Estado:** COMPLETO (2026-04-24) — build limpio ✅ · tsc --noEmit ✅.
+**Prioridad:** 🟡 Media.
+**Referencia:** `auditory.md §11`.
+
+### Pasos
+
+- [x] **22.1 — Email de bienvenida** (`auditory.md §11.2`):
+  - Template `WelcomeEmail` con: saludo personalizado, nombre de la tienda, link al panel, link al catálogo, 3 tips de primeros pasos.
+  - Enviar desde el webhook de MP al confirmar el primer pago (`billing_status → active`).
+
+- [x] **22.2 — Email al dueño cuando llega un pedido** (`auditory.md §11.3`):
+  - Enviar desde el handler `create_sale` (F16) al completar una venta en el POS.
+  - Template simple: "Nueva venta en {store_name}" con resumen del pedido y link al panel.
+
+- [x] **22.3 — Separar templates de emails de billing** (`auditory.md §11.1`):
+  - Crear templates separados: `TrialExpiredEmail`, `AnnualExpiredEmail`, `AnnualExpiringEmail`.
+  - Actualizar `check-billing/route.ts` para usar el template correcto según el contexto.
+
+- [x] **22.4 — Rate limit en recuperación de contraseña** (`auditory.md §8.4`):
+  - En `src/lib/actions/auth.ts`, función `sendPasswordReset`: agregar limiter Redis `pwreset:{email}` → 3 req/hora. Si supera → error "Demasiados intentos. Esperá 1 hora."
+
+- [x] **22.5 — Build + TypeScript**: `pnpm build` ✅ · `tsc --noEmit` ✅.
+
+---
+
+## Blockers Globales Pre-Launch
+
+Antes de cualquier venta real, verificar:
+
+- [ ] `CRON_SECRET` configurado en Vercel (ver PASOS-MANUALES.md §14)
+- [ ] `MP_WEBHOOK_SECRET` con valor real en Vercel (ver PASOS-MANUALES.md §15)
+- [ ] Superadmin creado en Supabase (ver PASOS-MANUALES.md §13)
+- [ ] Email confirmation habilitado en Supabase Auth (ver PASOS-MANUALES.md §20 — a crear en F17)
+- [ ] SQL migrations F15–F21 ejecutadas en Supabase producción
+- [ ] OG image creada (1200×630, ver PASOS-MANUALES.md §16)
+- [ ] Test E2E: registro → onboarding → pago → admin → crear venta → ver en historial

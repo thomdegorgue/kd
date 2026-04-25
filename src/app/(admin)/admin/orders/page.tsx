@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -19,8 +20,12 @@ import { useOrders } from '@/lib/hooks/use-orders'
 import { useCurrency } from '@/lib/hooks/use-currency'
 import type { OrderStatus } from '@/lib/types'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function OrdersPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [page, setPage] = useState(1)
@@ -42,6 +47,16 @@ export default function OrdersPage() {
     setSelectedOrderId(id)
     setSheetOpen(true)
   }
+
+  const urlEdit = searchParams.get('edit')
+  const urlKey = useMemo(() => `${urlEdit ?? ''}`, [urlEdit])
+
+  useEffect(() => {
+    if (!urlEdit) return
+    if (sheetOpen) return
+    setSelectedOrderId(urlEdit)
+    setSheetOpen(true)
+  }, [urlKey, urlEdit, sheetOpen])
 
   return (
     <div className="p-4 sm:p-6 space-y-4">
@@ -96,7 +111,44 @@ export default function OrdersPage() {
         </div>
       ) : (
         <>
-          <div className="border rounded-lg overflow-x-auto">
+          {/* Mobile: cards */}
+          <div className="grid gap-3 sm:hidden">
+            {orders.map((order) => {
+              const o = order as unknown as {
+                id: string
+                status: OrderStatus
+                total: number
+                created_at: string
+                customer: { id: string; name: string; phone: string | null } | null
+              }
+              return (
+                <Card key={o.id} className="cursor-pointer" onClick={() => openOrder(o.id)}>
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-mono text-muted-foreground">
+                          #{o.id.slice(0, 8)}
+                        </p>
+                        <p className="text-sm font-medium truncate">
+                          {o.customer?.name ?? 'Sin cliente'}
+                        </p>
+                      </div>
+                      <OrderStatusBadge status={o.status} />
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {new Date(o.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
+                      </span>
+                      <span className="font-semibold tabular-nums">{formatPrice(o.total)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+
+          {/* Desktop/tablet: table */}
+          <div className="hidden sm:block border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -164,7 +216,15 @@ export default function OrdersPage() {
       <OrderSheet
         id={selectedOrderId}
         open={sheetOpen}
-        onOpenChange={setSheetOpen}
+        onOpenChange={(open) => {
+          setSheetOpen(open)
+          if (!open) {
+            const sp = new URLSearchParams(searchParams.toString())
+            sp.delete('edit')
+            const qs = sp.toString()
+            router.replace(qs ? `/admin/orders?${qs}` : '/admin/orders')
+          }
+        }}
       />
     </div>
   )
