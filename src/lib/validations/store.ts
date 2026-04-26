@@ -19,6 +19,8 @@ export const updateStoreConfigSchema = z.object({
   font: z.string().optional(),
   show_prices: z.boolean().optional(),
   currency: z.string().optional(),
+  city: z.string().nullable().optional(),
+  hours: z.string().nullable().optional(),
   social: z
     .object({
       instagram: z.string().optional(),

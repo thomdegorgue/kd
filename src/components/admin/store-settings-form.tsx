@@ -74,6 +74,21 @@ export function StoreSettingsForm() {
       : undefined,
   })
 
+  // Must be declared before any early return to satisfy Rules of Hooks
+  const whatsappPreview = useMemo(() => {
+    const storeWhatsapp = form.getValues('whatsapp') ?? store?.whatsapp ?? ''
+    return buildWhatsAppMessage({
+      storeConfig: { name: store?.name ?? 'Tu tienda', whatsapp: storeWhatsapp },
+      items: [
+        { name: 'Producto de ejemplo', quantity: 2, unit_price: 12500 },
+        { name: 'Otro producto', quantity: 1, unit_price: 8900, variant_label: 'Color: Negro · Talle: M' },
+      ],
+      customerName: 'María',
+      deliveryType: 'pickup',
+      customerNotes: 'Si puede ser, sin cambios. Gracias.',
+    }).messageText
+  }, [form, store?.name, store?.whatsapp])
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -91,20 +106,6 @@ export function StoreSettingsForm() {
   const onSaveColor = () => {
     updateConfigMutation.mutate({ primary_color: selectedColor })
   }
-
-  const whatsappPreview = useMemo(() => {
-    const storeWhatsapp = form.getValues('whatsapp') ?? store?.whatsapp ?? ''
-    return buildWhatsAppMessage({
-      storeConfig: { name: store?.name ?? 'Tu tienda', whatsapp: storeWhatsapp },
-      items: [
-        { name: 'Producto de ejemplo', quantity: 2, unit_price: 12500 },
-        { name: 'Otro producto', quantity: 1, unit_price: 8900, variant_label: 'Color: Negro · Talle: M' },
-      ],
-      customerName: 'María',
-      deliveryType: 'pickup',
-      customerNotes: 'Si puede ser, sin cambios. Gracias.',
-    }).messageText
-  }, [form, store?.name, store?.whatsapp])
 
   return (
     <div className="space-y-8 max-w-lg">
