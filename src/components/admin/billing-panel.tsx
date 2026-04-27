@@ -137,7 +137,7 @@ function PriceSummary({
 // ============================================================
 
 export function BillingPanel() {
-  const { data, isLoading } = useBilling()
+  const { data, isLoading, isError } = useBilling()
   const createSubscriptionMutation = useCreateSubscription()
   const cancelSubscriptionMutation = useCancelSubscription()
   const changeTierMutation = useChangeTier()
@@ -151,6 +151,14 @@ export function BillingPanel() {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+        No se pudo cargar la información de suscripción. Recargá la página o contactá soporte.
       </div>
     )
   }

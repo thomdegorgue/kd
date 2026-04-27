@@ -39,6 +39,13 @@ export function verifyWebhookSignature(
 
   if (!ts || !v1) return false
 
+  // Rechazar notificaciones con timestamp fuera de la ventana de ±5 minutos (anti-replay)
+  const tsSeconds = parseInt(ts, 10)
+  if (isNaN(tsSeconds) || Math.abs(Math.floor(Date.now() / 1000) - tsSeconds) > 300) {
+    console.warn('MP webhook: timestamp fuera de ventana ±5 min', { ts })
+    return false
+  }
+
   // Construir el string de firma con el formato correcto de MP:
   // id:<data.id>;request-id:<x-request-id>;ts:<timestamp>;
   const template = `id:${dataId};request-id:${xRequestId};ts:${ts};`

@@ -243,12 +243,24 @@ export async function getOnboardingStatus(): Promise<{
 
 export async function completeOnboarding(): Promise<void> {
   const storeId = await getOnboardingStoreId()
-  if (storeId) {
-    // Leer config actual, mergear onboarding.completed = true
-    const { data: store } = await db.from('stores').select('config').eq('id', storeId).single()
-    const currentConfig = (store as { config?: Record<string, unknown> } | null)?.config ?? {}
-    const newConfig = { ...currentConfig, onboarding: { completed: true } }
-    await db.from('stores').update({ config: newConfig }).eq('id', storeId)
+  if (!storeId) redirect('/auth/login')
+
+  // Solo permitir completar si el pago fue confirmado
+  const { data: store } = await db
+    .from('stores')
+    .select('billing_status, config')
+    .eq('id', storeId)
+    .single()
+
+  const billingStatus = (store as { billing_status?: string; config?: Record<string, unknown> } | null)?.billing_status
+  if (billingStatus !== 'active') {
+    redirect('/onboarding/payment')
   }
+
+  // Marcar onboarding completo en config
+  const currentConfig = (store as { config?: Record<string, unknown> } | null)?.config ?? {}
+  const newConfig = { ...currentConfig, onboarding: { completed: true } }
+  await db.from('stores').update({ config: newConfig }).eq('id', storeId)
+
   redirect('/admin')
 }

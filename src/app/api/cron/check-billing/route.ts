@@ -71,7 +71,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       try {
         await db
           .from('stores')
-          .update({ billing_status: 'past_due' })
+          .update({ billing_status: 'past_due', status: 'past_due' })
           .eq('id', store.id)
 
         await db.from('events').insert({
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       try {
         await db
           .from('stores')
-          .update({ billing_status: 'archived' })
+          .update({ billing_status: 'archived', status: 'archived' })
           .eq('id', store.id)
 
         await db.from('events').insert({
@@ -207,6 +207,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           .from('stores')
           .update({
             billing_status: 'past_due',
+            status: 'past_due',
             last_billing_failure_at: now.toISOString(),
             modules: proDisabled,
           })

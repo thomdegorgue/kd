@@ -15,7 +15,9 @@ import { cookies } from 'next/headers'
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/admin'
+  const rawNext = searchParams.get('next') ?? '/admin'
+  // Solo paths relativos sin protocolo (evita redirección abierta a dominios externos)
+  const next = /^\/[^/]/.test(rawNext) ? rawNext : '/admin'
   const type = searchParams.get('type')
 
   if (code) {

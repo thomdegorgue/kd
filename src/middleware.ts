@@ -211,6 +211,12 @@ export async function middleware(request: NextRequest) {
 
     const store = storeUser.store
 
+    // Bloquear acceso al admin para tiendas sin pago activo
+    const billingStatus = store.billing_status ?? store.status
+    if (billingStatus === 'demo' || billingStatus === 'pending_payment') {
+      return NextResponse.redirect(new URL('/onboarding/payment', request.url))
+    }
+
     // Construir StoreContext e inyectarlo en headers
     const storeContext: StoreContext = {
       store_id: store.id,

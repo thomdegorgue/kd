@@ -31,7 +31,11 @@ export async function sendEmail(
   html: string,
 ): Promise<{ success: boolean; error?: string }> {
   if (!resend) {
-    console.warn('Resend API key not configured. Email would have been sent to:', to)
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[email] RESEND_API_KEY no configurado en producción. Email no enviado a:', to)
+      return { success: false, error: 'Servicio de email no configurado' }
+    }
+    console.warn('[email] RESEND_API_KEY no configurado — email omitido en dev. Destinatario:', to)
     return { success: true }
   }
 

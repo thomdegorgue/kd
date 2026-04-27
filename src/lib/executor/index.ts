@@ -125,15 +125,20 @@ export async function executor<T = unknown>(
   // ──────────────────────────────────────────────
 
   if (handler.limits && storeContext && store_id) {
-    const limitField = handler.limits.field
-    const maxAllowed = storeContext.limits[limitField]
-    const current = await handler.limits.countQuery(store_id)
+    try {
+      const limitField = handler.limits.field
+      const maxAllowed = storeContext.limits[limitField]
+      const current = await handler.limits.countQuery(store_id)
 
-    if (current >= maxAllowed) {
-      return makeError(
-        'LIMIT_EXCEEDED',
-        `Límite de ${limitField} alcanzado (${current}/${maxAllowed})`
-      )
+      if (current >= maxAllowed) {
+        return makeError(
+          'LIMIT_EXCEEDED',
+          `Límite de ${limitField} alcanzado (${current}/${maxAllowed})`
+        )
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error verificando límites del plan'
+      return makeError('SYSTEM_ERROR', message)
     }
   }
 

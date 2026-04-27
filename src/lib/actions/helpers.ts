@@ -12,13 +12,17 @@ export async function executeAction<T = unknown>(
   name: string,
   input: object = {}
 ): Promise<ActionResult<T>> {
-  const ctx = await getStoreContext()
-
-  return executor<T>({
-    name,
-    store_id: ctx.store_id,
-    actor: { type: 'user', id: ctx.user_id },
-    input,
-    context: ctx,
-  })
+  try {
+    const ctx = await getStoreContext()
+    return executor<T>({
+      name,
+      store_id: ctx.store_id,
+      actor: { type: 'user', id: ctx.user_id },
+      input,
+      context: ctx,
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error interno del servidor'
+    return { success: false, error: { code: 'SYSTEM_ERROR', message } } as ActionResult<T>
+  }
 }
