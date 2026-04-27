@@ -33,13 +33,7 @@ interface BuildMessageOutput {
   whatsappUrl: string
 }
 
-function formatMoney(cents: number): string {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(cents / 100)
-}
+import { formatPriceShort } from '@/lib/utils/currency'
 
 function cleanPhone(phone: string): string {
   return phone.replace(/\D/g, '')
@@ -72,7 +66,7 @@ export function buildWhatsAppMessage({
     const itemTotal = item.quantity * item.unit_price
     subtotal += itemTotal
     const variant = item.variant_label ? ` (${item.variant_label})` : ''
-    lines.push(`• ${item.quantity}x ${item.name}${variant} — ${formatMoney(itemTotal)}`)
+    lines.push(`• ${item.quantity}x ${item.name}${variant} — ${formatPriceShort(itemTotal)}`)
   }
   lines.push('')
 
@@ -80,12 +74,12 @@ export function buildWhatsAppMessage({
   let total = subtotal
   if (shippingMethod) {
     total += shippingMethod.price
-    lines.push(`🚚 Envío: ${shippingMethod.name} — ${formatMoney(shippingMethod.price)}`)
+    lines.push(`🚚 Envío: ${shippingMethod.name} — ${formatPriceShort(shippingMethod.price)}`)
     lines.push('')
   }
 
   // Total
-  lines.push(`💰 *Total: ${formatMoney(total)}*`)
+  lines.push(`💰 *Total: ${formatPriceShort(total)}*`)
   lines.push('')
 
   // Cliente

@@ -230,10 +230,10 @@ Agregar bloque `headers()` con:
 > **Objetivo:** Experiencia de onboarding profesional que convierta visitantes en clientes pagos.  
 > **Tiempo estimado:** 6–10 hs
 
-- [ ] **2.1** Rediseñar flujo: nombre → logo → pago (sin módulos en onboarding)
-- [ ] **2.2** UX del paso de pago mejorada (precio claro, beneficios, logos MP)
-- [ ] **2.3** Validar slug único antes de avanzar (llamada async a `/api/stores/capacity`)
-- [ ] **2.4** Email de bienvenida post-pago (trigger en webhook MP)
+- [x] **2.1** Rediseñar flujo: nombre → logo → pago (sin módulos en onboarding)
+- [x] **2.2** UX del paso de pago mejorada (precio claro, beneficios, logos MP)
+- [x] **2.3** Validar slug único antes de avanzar (server-side en `onboardingStep1`)
+- [x] **2.4** Email de bienvenida post-pago (trigger en webhook MP)
 
 ---
 
@@ -407,11 +407,11 @@ queryKey: [...queryKeys.assistantSession(store_id), sessionId]
 > **Objetivo:** El usuario puede ver su plan, cambiarlo y gestionarlo desde el admin.  
 > **Tiempo estimado:** 4–6 hs
 
-- [ ] **4.1** Estado visible del plan actual (monto, fecha próxima facturación, módulos activos, tier)
-- [ ] **4.2** Manejar estado "sin suscripción MP" (pagó por checkout, no preapproval)
-- [ ] **4.3** Botón "Cambiar plan" funcional (depende de fix 3.3)
-- [ ] **4.4** Botón "Cancelar suscripción" con AlertDialog y fecha de fin de acceso
-- [ ] **4.5** Toggle de módulos pro con costo en tiempo real
+- [x] **4.1** Estado visible del plan actual (monto, fecha próxima facturación, módulos activos, tier)
+- [x] **4.2** Manejar estado "sin suscripción MP" (pagó por checkout, no preapproval)
+- [x] **4.3** Botón "Cambiar plan" funcional (depende de fix 3.3)
+- [x] **4.4** Botón "Cancelar suscripción" con AlertDialog y fecha de fin de acceso
+- [x] **4.5** Toggle de módulos pro con costo en tiempo real
 
 ---
 
@@ -521,68 +521,102 @@ const OrderSheet = dynamic(() => import('@/components/admin/order-sheet'), { ssr
 ## FASE 8 — MIGRACIÓN SQL FINAL
 
 > **Objetivo:** El schema de producción refleja todas las correcciones necesarias.  
-> **Tiempo estimado:** 2–3 hs
+> **EJECUTAR:** Copiar el bloque SQL de abajo y pegarlo en el SQL Editor de Supabase Dashboard.  
+> El script es **idempotente** — se puede volver a correr sin romper nada.
 
-- [ ] **8.1** Índices faltantes (finance_entries, store_invitations, tasks)
-- [ ] **8.2** UNIQUE parciales (stock_items sin variante, wholesale_prices sin variante, payments mp_payment_id)
-- [ ] **8.3** FKs faltantes (order_items, assistant_messages, savings_movements → stores)
-- [ ] **8.4** CHECK constraints (compare_price > price)
+- [x] **8.1** Índices faltantes (finance_entries, store_invitations, tasks)
+- [x] **8.2** UNIQUE parciales (stock_items sin variante, wholesale_prices sin variante, payments mp_payment_id)
+- [x] **8.3** FKs faltantes (order_items, assistant_messages, savings_movements → stores)
+- [x] **8.4** CHECK constraints (compare_price > price)
 
 ---
 
-### 8.1 Índices
+### Script completo — pegar todo en Supabase SQL Editor
 
 ```sql
-CREATE INDEX IF NOT EXISTS idx_finance_entries_order_id ON finance_entries(order_id);
+-- ============================================================
+-- 8.1 ÍNDICES DE PERFORMANCE
+-- ============================================================
+
+-- Relaciones financieras cruzadas
+CREATE INDEX IF NOT EXISTS idx_finance_entries_order_id   ON finance_entries(order_id);
 CREATE INDEX IF NOT EXISTS idx_finance_entries_payment_id ON finance_entries(payment_id);
-CREATE INDEX IF NOT EXISTS idx_expenses_finance_entry_id ON expenses(finance_entry_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_finance_entry_id  ON expenses(finance_entry_id);
 CREATE INDEX IF NOT EXISTS idx_savings_movements_finance_entry_id ON savings_movements(finance_entry_id);
-CREATE INDEX IF NOT EXISTS idx_tasks_order_id ON tasks(order_id);
-CREATE INDEX IF NOT EXISTS idx_store_invitations_expires_at ON store_invitations(expires_at);
-```
 
----
+-- Tareas y notificaciones
+CREATE INDEX IF NOT EXISTS idx_tasks_order_id                   ON tasks(order_id);
+CREATE INDEX IF NOT EXISTS idx_store_invitations_expires_at     ON store_invitations(expires_at);
 
-### 8.2 UNIQUE parciales
+-- Consultas frecuentes de catálogo y admin
+CREATE INDEX IF NOT EXISTS idx_products_store_active
+  ON products(store_id, is_active) WHERE deleted_at IS NULL;
 
-```sql
+CREATE INDEX IF NOT EXISTS idx_orders_store_status
+  ON orders(store_id, status);
+
+CREATE INDEX IF NOT EXISTS idx_store_users_user_id
+  ON store_users(user_id);
+
+-- ============================================================
+-- 8.2 UNIQUE PARCIALES
+-- ============================================================
+
+-- Un solo registro de stock por producto sin variante
 CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_items_product_no_variant
   ON stock_items(store_id, product_id) WHERE variant_id IS NULL;
 
+-- Un solo precio mayorista por producto/cantidad sin variante
 CREATE UNIQUE INDEX IF NOT EXISTS idx_wholesale_no_variant
   ON wholesale_prices(store_id, product_id, min_quantity) WHERE variant_id IS NULL;
 
+-- mp_payment_id único cuando está presente
 CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_mp_payment_id
   ON payments(mp_payment_id) WHERE mp_payment_id IS NOT NULL;
-```
 
----
+-- ============================================================
+-- 8.3 FOREIGN KEYS FALTANTES
+-- Nota: PostgreSQL no soporta ADD CONSTRAINT IF NOT EXISTS.
+-- Usamos bloques DO para idempotencia.
+-- ============================================================
 
-### 8.3 FKs faltantes
+DO $$ BEGIN
+  ALTER TABLE order_items
+    ADD CONSTRAINT fk_order_items_store
+    FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-```sql
-ALTER TABLE order_items
-  ADD CONSTRAINT IF NOT EXISTS fk_order_items_store
-  FOREIGN KEY (store_id) REFERENCES stores(id);
+DO $$ BEGIN
+  ALTER TABLE assistant_messages
+    ADD CONSTRAINT fk_assistant_messages_store
+    FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-ALTER TABLE assistant_messages
-  ADD CONSTRAINT IF NOT EXISTS fk_assistant_messages_store
-  FOREIGN KEY (store_id) REFERENCES stores(id);
+DO $$ BEGIN
+  ALTER TABLE savings_movements
+    ADD CONSTRAINT fk_savings_movements_store
+    FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-ALTER TABLE savings_movements
-  ADD CONSTRAINT IF NOT EXISTS fk_savings_movements_store
-  FOREIGN KEY (store_id) REFERENCES stores(id);
-```
+-- ============================================================
+-- 8.4 CHECK CONSTRAINTS
+-- ============================================================
 
----
-
-### 8.4 CHECK constraints
-
-```sql
+-- compare_price siempre mayor que price si está definido
+ALTER TABLE products DROP CONSTRAINT IF EXISTS chk_compare_price;
 ALTER TABLE products
-  ADD CONSTRAINT IF NOT EXISTS chk_compare_price
+  ADD CONSTRAINT chk_compare_price
   CHECK (compare_price IS NULL OR compare_price > price);
 ```
+
+> **Nota sobre 8.3:** Si algún FK falla con violación de datos (registros huérfanos), ejecutar primero:
+> ```sql
+> -- Verificar huérfanos antes del FK
+> SELECT COUNT(*) FROM order_items oi WHERE NOT EXISTS (SELECT 1 FROM stores WHERE id = oi.store_id);
+> SELECT COUNT(*) FROM assistant_messages am WHERE NOT EXISTS (SELECT 1 FROM stores WHERE id = am.store_id);
+> SELECT COUNT(*) FROM savings_movements sm WHERE NOT EXISTS (SELECT 1 FROM stores WHERE id = sm.store_id);
+> ```
+> Si devuelven 0 → seguro ejecutar. Si devuelven > 0 → limpiar primero los huérfanos.
 
 ---
 

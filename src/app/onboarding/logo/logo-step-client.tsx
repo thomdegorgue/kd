@@ -102,7 +102,7 @@ export function LogoStepClient({ storeId }: { storeId: string }) {
             </div>
 
             <div className="flex gap-3">
-              <Button render={<Link href="/onboarding/modules" />} variant="ghost" className="flex-1">
+              <Button render={<Link href="/onboarding/payment" />} variant="ghost" className="flex-1">
                 Omitir
               </Button>
               <Button type="submit" className="flex-1" disabled={pending}>

@@ -171,6 +171,8 @@ export function BillingPanel() {
   const annualPaidUntil = billing.annual_paid_until
   const currentTier = (billing.limits as Record<string, number>).max_products ?? 100
   const currentModules = billing.modules as Partial<Record<ModuleName, boolean>>
+  const hasMpSubscription = !!billing.mp_subscription_id
+  const isCancelled = !!billing.cancelled_at
 
   const tier = selectedTier ?? currentTier
   const activeModules = pendingProModules !== null
@@ -248,6 +250,7 @@ export function BillingPanel() {
             <CardDescription>
               Prueba gratuita hasta el{' '}
               {new Date(billing.trial_ends_at).toLocaleDateString('es-AR', {
+                timeZone: 'America/Argentina/Buenos_Aires',
                 day: 'numeric',
                 month: 'long',
                 year: 'numeric',
@@ -258,6 +261,7 @@ export function BillingPanel() {
             <CardDescription>
               Próximo cobro:{' '}
               {new Date(billing.current_period_end).toLocaleDateString('es-AR', {
+                timeZone: 'America/Argentina/Buenos_Aires',
                 day: 'numeric',
                 month: 'long',
                 year: 'numeric',
@@ -268,6 +272,7 @@ export function BillingPanel() {
             <CardDescription>
               Plan anual activo hasta el{' '}
               {new Date(annualPaidUntil).toLocaleDateString('es-AR', {
+                timeZone: 'America/Argentina/Buenos_Aires',
                 day: 'numeric',
                 month: 'long',
                 year: 'numeric',
@@ -471,7 +476,7 @@ export function BillingPanel() {
           </Button>
         )}
 
-        {isActive && !isAnnual && (
+        {isActive && !isAnnual && hasMpSubscription && !isCancelled && (
           <AlertDialog>
             <AlertDialogTrigger
               render={
@@ -484,8 +489,15 @@ export function BillingPanel() {
               <AlertDialogHeader>
                 <AlertDialogTitle>¿Cancelar suscripción?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Tu acceso continuará hasta el fin del período actual pagado. Después la tienda
-                  pasará a modo vencido y solo podrás leer los datos.
+                  Tu acceso continuará hasta el{' '}
+                  {billing.current_period_end
+                    ? new Date(billing.current_period_end).toLocaleDateString('es-AR', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })
+                    : 'fin del período actual'}
+                  . Después la tienda pasará a modo vencido y solo podrás leer los datos.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -499,6 +511,24 @@ export function BillingPanel() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+        )}
+
+        {isActive && !isAnnual && !hasMpSubscription && (
+          <p className="text-xs text-muted-foreground self-center">
+            Para cancelar tu suscripción escribinos por WhatsApp o a soporte.
+          </p>
+        )}
+
+        {isActive && !isAnnual && isCancelled && billing.current_period_end && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 self-center">
+            Suscripción cancelada. Acceso hasta el{' '}
+            {new Date(billing.current_period_end).toLocaleDateString('es-AR', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}
+            .
+          </p>
         )}
       </div>
         </TabsContent>

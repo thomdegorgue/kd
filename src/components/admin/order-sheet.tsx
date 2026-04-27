@@ -36,6 +36,7 @@ import { useRouter } from 'next/navigation'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useUnsavedChanges } from '@/lib/hooks/use-unsaved-changes'
 
 const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'delivered']
 const STATUS_LABELS: Record<OrderStatus, string> = {
@@ -100,6 +101,7 @@ export function OrderSheet({ id, open, onOpenChange }: OrderSheetProps) {
   })
   const { fields, append, remove } = useFieldArray({ control: form.control, name: 'items' })
   const watchedItems = form.watch('items')
+  useUnsavedChanges(!id && form.formState.isDirty)
   const totalCreate = watchedItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
 
   function addProduct(product: { id: string; name: string; price: number }) {

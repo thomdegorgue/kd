@@ -83,6 +83,7 @@ export type CreateCheckoutPreferenceParams = {
   title: string
   amount: number // en pesos ARS (no centavos)
   payer_email?: string
+  billing_period?: 'monthly' | 'annual'
   back_url: {
     success: string
     failure: string
@@ -171,7 +172,9 @@ export async function createCheckoutPreference(
         unit_price: params.amount,
       },
     ],
-    external_reference: params.store_id,
+    external_reference: params.billing_period
+      ? `${params.store_id}|${params.billing_period}`
+      : params.store_id,
     back_urls: params.back_url,
     auto_return: 'approved',
   }

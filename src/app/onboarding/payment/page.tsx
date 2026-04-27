@@ -24,7 +24,7 @@ export default async function OnboardingPaymentPage() {
 
   return (
     <div className="space-y-6">
-      <OnboardingSteps current={3} />
+      <OnboardingSteps current={2} />
       <PaymentStepClient plan={plan} />
     </div>
   )

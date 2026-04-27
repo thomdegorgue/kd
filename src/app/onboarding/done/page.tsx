@@ -42,7 +42,7 @@ export default async function OnboardingDonePage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <OnboardingSteps current={4} />
+      <OnboardingSteps current={3} />
       <DoneClient
         catalogUrl={catalogUrl}
         billingStatus={billing_status}

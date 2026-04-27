@@ -11,6 +11,18 @@ const db = supabaseServiceRole as any
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+// Parsea external_reference: puede ser "uuid" (legacy) o "uuid|monthly"/"uuid|annual"
+function parseExternalReference(ref: string): { storeId: string; billingPeriod: 'monthly' | 'annual' } {
+  const pipeIdx = ref.indexOf('|')
+  if (pipeIdx !== -1) {
+    return {
+      storeId: ref.slice(0, pipeIdx),
+      billingPeriod: ref.slice(pipeIdx + 1) === 'monthly' ? 'monthly' : 'annual',
+    }
+  }
+  return { storeId: ref, billingPeriod: 'annual' }
+}
+
 // ============================================================
 // TIPOS
 // ============================================================
@@ -195,84 +207,117 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const payment = await getPayment(payload.data.id)
       const subscriptionId = payment.preapproval_id
 
-      // Rama ANUAL: pago único sin preapproval_id → plan anual
+      // Rama pago único (sin preapproval_id): puede ser plan mensual o anual vía Checkout Pro
       if (!subscriptionId && payment.external_reference) {
-        // Validar UUID y que la tienda exista antes de usarlo como store_id
-        if (!UUID_REGEX.test(payment.external_reference)) {
-          result = 'annual_unknown_store'
+        const { storeId: parsedStoreId, billingPeriod: parsedPeriod } = parseExternalReference(payment.external_reference)
+
+        if (!UUID_REGEX.test(parsedStoreId)) {
+          result = 'checkout_unknown_store'
         } else {
           const { data: storeRow } = await db
             .from('stores')
             .select('id')
-            .eq('id', payment.external_reference)
+            .eq('id', parsedStoreId)
             .single()
 
           if (!storeRow) {
-            result = 'annual_unknown_store'
+            result = 'checkout_unknown_store'
           } else {
             storeId = storeRow.id as string
 
             if (payment.status === 'approved') {
-              const now = new Date()
-              const paidUntil = new Date(now)
-              paidUntil.setDate(paidUntil.getDate() + 365)
-
-              const { data: storeData } = await db
-                .from('stores')
-                .select('modules')
-                .eq('id', storeId)
-                .single()
-
-              const currentModules = (storeData?.modules as Record<string, boolean>) ?? {}
-              for (const m of ANNUAL_INCLUDED_PRO_MODULES) {
-                currentModules[m] = true
-              }
-
-              await db.from('stores').update({
-                billing_status: 'active',
-                billing_period: 'annual',
-                annual_paid_until: paidUntil.toISOString().slice(0, 10),
-                modules: currentModules,
-                last_billing_failure_at: null,
-              }).eq('id', storeId)
-
               const { data: planData } = await db
                 .from('plans')
                 .select('id')
                 .eq('is_active', true)
                 .single()
 
-              if (planData) {
-                await db.from('billing_payments').upsert({
-                  store_id: storeId,
-                  plan_id: planData.id,
-                  mp_payment_id: String(payment.id),
-                  mp_subscription_id: null,
-                  amount: Math.round(payment.transaction_amount * 100),
-                  status: 'approved',
-                  paid_at: payment.date_approved ?? new Date().toISOString(),
+              if (parsedPeriod === 'annual') {
+                const now = new Date()
+                const paidUntil = new Date(now)
+                paidUntil.setDate(paidUntil.getDate() + 365)
+
+                const { data: storeData } = await db
+                  .from('stores')
+                  .select('modules')
+                  .eq('id', storeId)
+                  .single()
+
+                const currentModules = (storeData?.modules as Record<string, boolean>) ?? {}
+                for (const m of ANNUAL_INCLUDED_PRO_MODULES) {
+                  currentModules[m] = true
+                }
+
+                await db.from('stores').update({
+                  billing_status: 'active',
+                  billing_period: 'annual',
+                  annual_paid_until: paidUntil.toISOString().slice(0, 10),
+                  modules: currentModules,
+                  last_billing_failure_at: null,
+                }).eq('id', storeId)
+
+                if (planData) {
+                  await db.from('billing_payments').upsert({
+                    store_id: storeId,
+                    plan_id: planData.id,
+                    mp_payment_id: String(payment.id),
+                    mp_subscription_id: null,
+                    amount: Math.round(payment.transaction_amount * 100),
+                    status: 'approved',
+                    paid_at: payment.date_approved ?? new Date().toISOString(),
+                  })
+                }
+
+                await emitEvent(storeId, 'annual_subscription_created', {
+                  mp_payment_id: payment.id,
+                  amount: payment.transaction_amount,
+                  paid_until: paidUntil.toISOString().slice(0, 10),
+                  modules_activated: [...ANNUAL_INCLUDED_PRO_MODULES],
                 })
+                result = 'annual_subscription_created'
+              } else {
+                // Pago mensual único vía Checkout Pro
+                const now = new Date()
+                await db.from('stores').update({
+                  billing_status: 'active',
+                  billing_period: 'monthly',
+                  current_period_start: now.toISOString(),
+                  current_period_end: addDays(now, 30),
+                  last_billing_failure_at: null,
+                }).eq('id', storeId)
+
+                if (planData) {
+                  await db.from('billing_payments').upsert({
+                    store_id: storeId,
+                    plan_id: planData.id,
+                    mp_payment_id: String(payment.id),
+                    mp_subscription_id: null,
+                    amount: Math.round(payment.transaction_amount * 100),
+                    status: 'approved',
+                    paid_at: payment.date_approved ?? new Date().toISOString(),
+                  })
+                }
+
+                await emitEvent(storeId, 'monthly_payment_created', {
+                  mp_payment_id: payment.id,
+                  amount: payment.transaction_amount,
+                })
+                result = 'monthly_payment_created'
               }
 
-              await emitEvent(storeId, 'annual_subscription_created', {
-                mp_payment_id: payment.id,
-                amount: payment.transaction_amount,
-                paid_until: paidUntil.toISOString().slice(0, 10),
-                modules_activated: [...ANNUAL_INCLUDED_PRO_MODULES],
-              })
               await sendWelcomeEmailIfFirstPayment(storeId)
-              result = 'annual_subscription_created'
             } else if (
               payment.status === 'rejected' ||
               payment.status === 'cancelled'
             ) {
-              await emitEvent(storeId, 'annual_payment_failed', {
+              await emitEvent(storeId, 'checkout_payment_failed', {
                 mp_payment_id: payment.id,
                 status: payment.status,
+                billing_period: parsedPeriod,
               })
-              result = 'annual_payment_failed'
+              result = 'checkout_payment_failed'
             } else {
-              result = `annual_payment_ignored_status_${payment.status}`
+              result = `checkout_payment_ignored_status_${payment.status}`
             }
           }
         }

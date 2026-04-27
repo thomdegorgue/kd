@@ -31,6 +31,16 @@ async function getOnboardingStoreId(): Promise<string | null> {
 
 // ── step1: nombre + whatsapp ─────────────────────────────────
 
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+}
+
 const step1Schema = z.object({
   name: z.string().min(2, 'Nombre mínimo 2 caracteres').max(100),
   whatsapp: z
@@ -57,7 +67,24 @@ export async function onboardingStep1(
   const storeId = await getOnboardingStoreId()
   if (!storeId) redirect('/auth/login')
 
-  const update: Record<string, unknown> = { name: parsed.data.name }
+  const slug = slugify(parsed.data.name)
+
+  // Check slug uniqueness against other stores
+  const { data: existing } = await db
+    .from('stores')
+    .select('id')
+    .eq('slug', slug)
+    .neq('id', storeId)
+    .maybeSingle()
+
+  if (existing) {
+    return {
+      success: false,
+      error: { code: 'CONFLICT', message: 'Ese nombre ya está en uso. Probá con uno diferente.', field: 'name' },
+    }
+  }
+
+  const update: Record<string, unknown> = { name: parsed.data.name, slug }
   if (parsed.data.whatsapp) update.whatsapp = parsed.data.whatsapp
 
   const { error } = await db.from('stores').update(update).eq('id', storeId)
@@ -92,7 +119,7 @@ export async function onboardingStep2(
     if (error) return { success: false, error: { code: 'SYSTEM_ERROR', message: error.message } }
   }
 
-  redirect('/onboarding/modules')
+  redirect('/onboarding/payment')
 }
 
 // ── step3: módulos ───────────────────────────────────────────
@@ -197,6 +224,7 @@ export async function createOnboardingCheckout(
       store_id: storeId,
       title: billing_period === 'annual' ? 'KitDigital Plan Anual' : 'KitDigital Plan Mensual',
       amount: amountCentavos / 100,
+      billing_period,
       back_url: {
         success: `${appUrl}/onboarding/done?status=success`,
         failure: `${appUrl}/onboarding/done?status=failure`,
