@@ -18,7 +18,11 @@ export function useBilling() {
 
   return useQuery({
     queryKey: queryKeys.billing(store_id),
-    queryFn: getActivePlan,
+    queryFn: async () => {
+      const result = await getActivePlan()
+      if (!result.success) throw new Error(result.error.message)
+      return result.data
+    },
     staleTime: staleTimes.billing,
     gcTime: gcTimes.billing,
   })

@@ -4,6 +4,7 @@ import { executeAction } from './helpers'
 import { getStoreContext } from '@/lib/auth/store-context'
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
 import type { CreateSaleInput } from '@/lib/validations/sale'
+import type { ActionResult } from '@/lib/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
@@ -58,88 +59,108 @@ export async function createSale(input: CreateSaleInput) {
  * Resumen de ventas del día: total, count, breakdown por método de pago, top 5 productos.
  * Solo cuenta orders con source='admin'.
  */
-export async function getDailySalesSummary(isoDate?: string): Promise<DailySalesSummary> {
-  const ctx = await getStoreContext()
-  const target = isoDate ? new Date(isoDate) : new Date()
-  const from = startOfDay(target)
-  const to = endOfDay(target)
+export async function getDailySalesSummary(isoDate?: string): Promise<ActionResult<DailySalesSummary>> {
+  try {
+    const ctx = await getStoreContext()
+    const target = isoDate ? new Date(isoDate) : new Date()
+    const from = startOfDay(target)
+    const to = endOfDay(target)
 
-  const { data: orders, error: oErr } = await db
-    .from('orders')
-    .select('id, total, metadata')
-    .eq('store_id', ctx.store_id)
-    .eq('source', 'admin')
-    .neq('status', 'cancelled')
-    .gte('created_at', from)
-    .lte('created_at', to)
-
-  if (oErr) throw new Error(oErr.message)
-
-  const rows = (orders as { id: string; total: number; metadata: Record<string, unknown> }[]) ?? []
-  const orderIds = rows.map((o) => o.id)
-
-  const by_method: Record<string, number> = {}
-  let total_sales = 0
-  for (const o of rows) {
-    total_sales += o.total
-    const method = String(o.metadata?.payment_method ?? 'other')
-    by_method[method] = (by_method[method] ?? 0) + o.total
-  }
-
-  // Top 5 productos
-  let top_products: DailySalesSummary['top_products'] = []
-  if (orderIds.length > 0) {
-    const { data: items } = await db
-      .from('order_items')
-      .select('product_name, quantity, unit_price')
-      .in('order_id', orderIds)
+    const { data: orders, error: oErr } = await db
+      .from('orders')
+      .select('id, total, metadata')
       .eq('store_id', ctx.store_id)
+      .eq('source', 'admin')
+      .neq('status', 'cancelled')
+      .gte('created_at', from)
+      .lte('created_at', to)
 
-    const agg = new Map<string, { name: string; quantity: number; total: number }>()
-    for (const it of (items as { product_name: string; quantity: number; unit_price: number }[]) ?? []) {
-      const current = agg.get(it.product_name) ?? { name: it.product_name, quantity: 0, total: 0 }
-      current.quantity += it.quantity
-      current.total += it.unit_price * it.quantity
-      agg.set(it.product_name, current)
+    if (oErr) {
+      return { success: false, error: { code: 'SYSTEM_ERROR', message: oErr.message } }
     }
-    top_products = [...agg.values()]
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 5)
-  }
 
-  return {
-    total_sales,
-    total_orders: rows.length,
-    by_method,
-    top_products,
+    const rows = (orders as { id: string; total: number; metadata: Record<string, unknown> }[]) ?? []
+    const orderIds = rows.map((o) => o.id)
+
+    const by_method: Record<string, number> = {}
+    let total_sales = 0
+    for (const o of rows) {
+      total_sales += o.total
+      const method = String(o.metadata?.payment_method ?? 'other')
+      by_method[method] = (by_method[method] ?? 0) + o.total
+    }
+
+    let top_products: DailySalesSummary['top_products'] = []
+    if (orderIds.length > 0) {
+      const { data: items, error: itemsErr } = await db
+        .from('order_items')
+        .select('product_name, quantity, unit_price')
+        .in('order_id', orderIds)
+        .eq('store_id', ctx.store_id)
+
+      if (itemsErr) {
+        return { success: false, error: { code: 'SYSTEM_ERROR', message: itemsErr.message } }
+      }
+
+      const agg = new Map<string, { name: string; quantity: number; total: number }>()
+      for (const it of (items as { product_name: string; quantity: number; unit_price: number }[]) ?? []) {
+        const current = agg.get(it.product_name) ?? { name: it.product_name, quantity: 0, total: 0 }
+        current.quantity += it.quantity
+        current.total += it.unit_price * it.quantity
+        agg.set(it.product_name, current)
+      }
+      top_products = [...agg.values()]
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 5)
+    }
+
+    return {
+      success: true,
+      data: {
+        total_sales,
+        total_orders: rows.length,
+        by_method,
+        top_products,
+      },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error al cargar el resumen de ventas'
+    return { success: false, error: { code: 'SYSTEM_ERROR', message } }
   }
 }
 
 /**
  * Historial de ventas paginado (source='admin').
  */
-export async function getSalesHistory(filters: SalesHistoryFilters = {}): Promise<SalesHistoryResult> {
-  const ctx = await getStoreContext()
-  const page = filters.page ?? 1
-  const pageSize = filters.pageSize ?? 25
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
+export async function getSalesHistory(filters: SalesHistoryFilters = {}): Promise<ActionResult<SalesHistoryResult>> {
+  try {
+    const ctx = await getStoreContext()
+    const page = filters.page ?? 1
+    const pageSize = filters.pageSize ?? 25
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
 
-  let query = db
-    .from('orders')
-    .select('id, total, status, source, notes, metadata, created_at, customer:customers(id, name, phone)', {
-      count: 'exact',
-    })
-    .eq('store_id', ctx.store_id)
-    .eq('source', 'admin')
-    .order('created_at', { ascending: false })
-    .range(from, to)
+    let query = db
+      .from('orders')
+      .select('id, total, status, source, notes, metadata, created_at, customer:customers(id, name, phone)', {
+        count: 'exact',
+      })
+      .eq('store_id', ctx.store_id)
+      .eq('source', 'admin')
+      .order('created_at', { ascending: false })
+      .range(from, to)
 
-  if (filters.date_from) query = query.gte('created_at', filters.date_from)
-  if (filters.date_to) query = query.lte('created_at', filters.date_to)
+    if (filters.date_from) query = query.gte('created_at', filters.date_from)
+    if (filters.date_to) query = query.lte('created_at', filters.date_to)
 
-  const { data, error, count } = await query
-  if (error) throw new Error(error.message)
+    const { data, error, count } = await query
+    if (error) {
+      return { success: false, error: { code: 'SYSTEM_ERROR', message: error.message } }
+    }
 
-  return { items: (data ?? []) as SaleRow[], total: count ?? 0 }
+    return { success: true, data: { items: (data ?? []) as SaleRow[], total: count ?? 0 } }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error al cargar el historial de ventas'
+    return { success: false, error: { code: 'SYSTEM_ERROR', message } }
+  }
 }

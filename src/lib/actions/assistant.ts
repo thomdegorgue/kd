@@ -2,7 +2,7 @@
 
 import { getStoreContext } from '@/lib/auth/store-context'
 import { executor } from '@/lib/executor'
-import type { ActionResult, AssistantMessage, AssistantSession } from '@/lib/types'
+import type { ActionResult, AssistantMessage, AssistantSession, StoreContext } from '@/lib/types'
 
 export type SessionWithMessages = {
   session: AssistantSession
@@ -25,7 +25,13 @@ export type MessageResponse = {
 export async function getAssistantSession(
   sessionId?: string
 ): Promise<ActionResult<SessionWithMessages>> {
-  const ctx = await getStoreContext()
+  let ctx: StoreContext
+  try {
+    ctx = await getStoreContext()
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'StoreContext no disponible'
+    return { success: false, error: { code: 'SYSTEM_ERROR', message } }
+  }
 
   return executor<SessionWithMessages>({
     name: 'get_assistant_session',
@@ -40,7 +46,13 @@ export async function sendAssistantMessage(
   sessionId: string,
   content: string
 ): Promise<ActionResult<MessageResponse>> {
-  const ctx = await getStoreContext()
+  let ctx: StoreContext
+  try {
+    ctx = await getStoreContext()
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'StoreContext no disponible'
+    return { success: false, error: { code: 'SYSTEM_ERROR', message } }
+  }
 
   return executor<MessageResponse>({
     name: 'send_assistant_message',
@@ -56,7 +68,13 @@ export async function executeAssistantAction(
   actionName: string,
   actionInput: Record<string, unknown>
 ): Promise<ActionResult<unknown>> {
-  const ctx = await getStoreContext()
+  let ctx: StoreContext
+  try {
+    ctx = await getStoreContext()
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'StoreContext no disponible'
+    return { success: false, error: { code: 'SYSTEM_ERROR', message } }
+  }
 
   return executor<unknown>({
     name: 'execute_assistant_action',

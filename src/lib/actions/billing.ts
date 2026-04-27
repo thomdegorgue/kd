@@ -53,20 +53,26 @@ export type BillingPageData = {
   monthly_total: number
 }
 
-export async function getActivePlan(): Promise<BillingPageData> {
-  const ctx = await getStoreContext()
-  const [plan, billing] = await Promise.all([
-    getPlan(),
-    getBillingInfo(ctx.store_id),
-  ])
+export async function getActivePlan(): Promise<ActionResult<BillingPageData>> {
+  try {
+    const ctx = await getStoreContext()
+    const [plan, billing] = await Promise.all([
+      getPlan(),
+      getBillingInfo(ctx.store_id),
+    ])
 
-  const monthly_total = computeMonthlyTotal(
-    plan,
-    (billing.limits as Record<string, number>).max_products ?? 100,
-    billing.modules as Partial<Record<ModuleName, boolean>>,
-  )
+    const monthly_total = computeMonthlyTotal(
+      plan,
+      (billing.limits as Record<string, number>).max_products ?? 100,
+      billing.modules as Partial<Record<ModuleName, boolean>>,
+    )
 
-  return { plan, billing, monthly_total }
+    return { success: true, data: { plan, billing, monthly_total } }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error al cargar la información de suscripción'
+    console.error('[billing] getActivePlan error:', err)
+    return { success: false, error: { code: 'SYSTEM_ERROR', message } }
+  }
 }
 
 // ============================================================

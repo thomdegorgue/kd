@@ -48,7 +48,11 @@ export function useDailySalesSummary(isoDate?: string) {
 
   return useQuery({
     queryKey: queryKeys.salesSummary(store_id, date),
-    queryFn: () => getDailySalesSummary(isoDate),
+    queryFn: async () => {
+      const result = await getDailySalesSummary(isoDate)
+      if (!result.success) throw new Error(result.error.message)
+      return result.data
+    },
     staleTime: staleTimes.salesSummary,
     gcTime: gcTimes.salesSummary,
   })
@@ -62,7 +66,11 @@ export function useSalesHistory(filters: SalesHistoryFilters = {}) {
 
   return useQuery({
     queryKey: queryKeys.salesHistory(store_id, filters as Record<string, unknown>),
-    queryFn: () => getSalesHistory(filters),
+    queryFn: async () => {
+      const result = await getSalesHistory(filters)
+      if (!result.success) throw new Error(result.error.message)
+      return result.data
+    },
     staleTime: staleTimes.salesHistory,
     gcTime: gcTimes.salesHistory,
   })
