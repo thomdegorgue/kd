@@ -1,15 +1,13 @@
-﻿-- ============================================================
--- KitDigital.ar — Schema SQL Centralizado
--- Ejecutar en Supabase SQL Editor en una sola transacción
--- gen_random_uuid() es nativo en Supabase (PostgreSQL 14+), no requiere extensión
--- EXECUTE FUNCTION es la sintaxis estándar desde PostgreSQL 11.
--- Supabase (PostgreSQL 15) lo soporta nativamente. No usar EXECUTE PROCEDURE.
+-- ============================================================
+-- KitDigital.ar — Schema SQL (Idempotente / Migration-safe)
+-- Seguro para ejecutar sobre una DB existente: no borra datos.
+-- Crea lo que falta, agrega columnas nuevas, reemplaza triggers y policies.
 -- ============================================================
 
 BEGIN;
 
 -- ============================================================
--- TRIGGER DE UPDATED_AT
+-- FUNCIONES (CREATE OR REPLACE — siempre idempotente)
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -20,11 +18,27 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION sync_store_status()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.billing_status IS DISTINCT FROM OLD.billing_status THEN
+    NEW.status = NEW.billing_status;
+  ELSIF NEW.status IS DISTINCT FROM OLD.status THEN
+    NEW.billing_status = NEW.status;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION store_allows_writes(sid UUID) RETURNS BOOLEAN AS $$
+  SELECT status IN ('demo', 'active') FROM stores WHERE id = sid
+$$ LANGUAGE SQL STABLE SECURITY DEFINER;
+
 -- ============================================================
--- TABLAS GLOBALES (sin store_id)
+-- TABLAS (CREATE TABLE IF NOT EXISTS — nunca falla si ya existe)
 -- ============================================================
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL UNIQUE,
   full_name TEXT,
@@ -35,43 +49,23 @@ CREATE TABLE users (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_superadmin ON users(role) WHERE role = 'superadmin';
-
-CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON users
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ---
-
-CREATE TABLE plans (
+CREATE TABLE IF NOT EXISTS plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  -- Precio base en centavos ARS: ceil(max_products / 100) × price_per_100_products
   price_per_100_products INTEGER NOT NULL DEFAULT 0,
-  -- Precio por módulo pro activo, en centavos ARS/mes
   pro_module_price INTEGER NOT NULL DEFAULT 0,
-  -- Módulos incluidos en el precio base (core + base)
   base_modules JSONB NOT NULL DEFAULT '[]',
-  -- Configuración de trial
   trial_days INTEGER NOT NULL DEFAULT 14,
   trial_max_products INTEGER NOT NULL DEFAULT 100,
   annual_discount_months INTEGER NOT NULL DEFAULT 2,
   max_stores_total INTEGER,
-  -- Límite mensual de tokens IA para el módulo assistant (default 50k/mes)
   ai_tokens_monthly INTEGER NOT NULL DEFAULT 50000,
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TRIGGER trg_plans_updated_at BEFORE UPDATE ON plans
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ============================================================
--- TIENDA
--- ============================================================
-
-CREATE TABLE stores (
+CREATE TABLE IF NOT EXISTS stores (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   slug TEXT NOT NULL UNIQUE,
@@ -83,7 +77,6 @@ CREATE TABLE stores (
   custom_domain TEXT UNIQUE,
   custom_domain_verified BOOLEAN NOT NULL DEFAULT false,
   custom_domain_verified_at TIMESTAMPTZ,
-  -- Token TXT que el dueño debe publicar en DNS (_kitdigital-verify.<dominio>)
   custom_domain_txt_token TEXT,
   logo_url TEXT,
   cover_url TEXT,
@@ -99,7 +92,6 @@ CREATE TABLE stores (
   mp_subscription_id TEXT UNIQUE,
   mp_customer_id TEXT,
   ai_tokens_used INTEGER NOT NULL DEFAULT 0,
-  -- Timestamp del último reset mensual de ai_tokens_used
   ai_tokens_reset_at TIMESTAMPTZ DEFAULT NOW(),
   cancelled_at TIMESTAMPTZ,
   last_billing_failure_at TIMESTAMPTZ,
@@ -107,37 +99,7 @@ CREATE TABLE stores (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_stores_slug ON stores(slug);
-CREATE INDEX idx_stores_custom_domain ON stores(custom_domain);
-CREATE INDEX idx_stores_status ON stores(status);
-CREATE INDEX idx_stores_billing_status ON stores(billing_status);
-CREATE INDEX idx_stores_mp_subscription ON stores(mp_subscription_id);
-
-CREATE TRIGGER trg_stores_updated_at BEFORE UPDATE ON stores
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- Mantiene status y billing_status siempre sincronizados.
--- El campo canónico para billing es billing_status; el canónico para executor/RLS es status.
--- Este trigger garantiza que siempre tengan el mismo valor sin depender de la aplicación.
-CREATE OR REPLACE FUNCTION sync_store_status()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.billing_status IS DISTINCT FROM OLD.billing_status THEN
-    NEW.status = NEW.billing_status;
-  ELSIF NEW.status IS DISTINCT FROM OLD.status THEN
-    NEW.billing_status = NEW.status;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_stores_sync_status
-  BEFORE UPDATE ON stores
-  FOR EACH ROW EXECUTE FUNCTION sync_store_status();
-
--- ---
-
-CREATE TABLE store_users (
+CREATE TABLE IF NOT EXISTS store_users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -150,15 +112,7 @@ CREATE TABLE store_users (
   UNIQUE(store_id, user_id)
 );
 
-CREATE INDEX idx_store_users_store ON store_users(store_id);
-CREATE INDEX idx_store_users_user ON store_users(user_id);
-
-CREATE TRIGGER trg_store_users_updated_at BEFORE UPDATE ON store_users
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ---
-
-CREATE TABLE store_invitations (
+CREATE TABLE IF NOT EXISTS store_invitations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
@@ -171,13 +125,8 @@ CREATE TABLE store_invitations (
   UNIQUE(store_id, email)
 );
 
-CREATE INDEX idx_store_invitations_token ON store_invitations(token);
-CREATE INDEX idx_store_invitations_email ON store_invitations(email);
-CREATE INDEX idx_store_invitations_store ON store_invitations(store_id);
-
--- ---
-
-CREATE TABLE billing_payments (
+-- billing_payments: paid_at en lugar de period_start/period_end NOT NULL
+CREATE TABLE IF NOT EXISTS billing_payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id),
   plan_id UUID NOT NULL REFERENCES plans(id),
@@ -185,19 +134,11 @@ CREATE TABLE billing_payments (
   mp_subscription_id TEXT,
   amount INTEGER NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('approved', 'rejected', 'pending', 'refunded')),
-  period_start TIMESTAMPTZ NOT NULL,
-  period_end TIMESTAMPTZ NOT NULL,
+  paid_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_billing_payments_store ON billing_payments(store_id);
-CREATE INDEX idx_billing_payments_store_status ON billing_payments(store_id, status);
-CREATE INDEX idx_billing_payments_mp_payment ON billing_payments(mp_payment_id);
-CREATE INDEX idx_billing_payments_mp_sub ON billing_payments(mp_subscription_id);
-
--- ---
-
-CREATE TABLE billing_webhook_log (
+CREATE TABLE IF NOT EXISTS billing_webhook_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   mp_event_id TEXT NOT NULL UNIQUE,
   topic TEXT NOT NULL,
@@ -211,16 +152,7 @@ CREATE TABLE billing_webhook_log (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_billing_webhook_event ON billing_webhook_log(mp_event_id);
-CREATE INDEX idx_billing_webhook_status ON billing_webhook_log(status);
-CREATE INDEX idx_billing_webhook_store ON billing_webhook_log(store_id);
-CREATE INDEX idx_billing_webhook_created ON billing_webhook_log(created_at);
-
--- ============================================================
--- CATÁLOGO
--- ============================================================
-
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -238,17 +170,7 @@ CREATE TABLE products (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_products_store ON products(store_id);
-CREATE INDEX idx_products_store_active ON products(store_id, is_active);
-CREATE INDEX idx_products_store_featured ON products(store_id, is_featured);
-CREATE INDEX idx_products_store_deleted ON products(store_id, deleted_at);
-
-CREATE TRIGGER trg_products_updated_at BEFORE UPDATE ON products
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ---
-
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -260,27 +182,14 @@ CREATE TABLE categories (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_categories_store ON categories(store_id);
-CREATE INDEX idx_categories_store_active ON categories(store_id, is_active);
-
-CREATE TRIGGER trg_categories_updated_at BEFORE UPDATE ON categories
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ---
-
-CREATE TABLE product_categories (
+CREATE TABLE IF NOT EXISTS product_categories (
   product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   PRIMARY KEY (product_id, category_id)
 );
 
-CREATE INDEX idx_product_categories_store_cat ON product_categories(store_id, category_id);
-CREATE INDEX idx_product_categories_store_prod ON product_categories(store_id, product_id);
-
--- ---
-
-CREATE TABLE banners (
+CREATE TABLE IF NOT EXISTS banners (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   image_url TEXT NOT NULL,
@@ -293,17 +202,7 @@ CREATE TABLE banners (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_banners_store ON banners(store_id);
-CREATE INDEX idx_banners_store_active ON banners(store_id, is_active);
-
-CREATE TRIGGER trg_banners_updated_at BEFORE UPDATE ON banners
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ============================================================
--- MÓDULOS DE PRODUCTO
--- ============================================================
-
-CREATE TABLE variants (
+CREATE TABLE IF NOT EXISTS variants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL,
   product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
@@ -315,14 +214,7 @@ CREATE TABLE variants (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_variants_store_product ON variants(store_id, product_id);
-
-CREATE TRIGGER trg_variants_updated_at BEFORE UPDATE ON variants
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ---
-
-CREATE TABLE variant_attributes (
+CREATE TABLE IF NOT EXISTS variant_attributes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL,
   product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
@@ -330,11 +222,7 @@ CREATE TABLE variant_attributes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_variant_attrs_store_product ON variant_attributes(store_id, product_id);
-
--- ---
-
-CREATE TABLE variant_values (
+CREATE TABLE IF NOT EXISTS variant_values (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL,
   variant_id UUID NOT NULL REFERENCES variants(id) ON DELETE CASCADE,
@@ -343,11 +231,7 @@ CREATE TABLE variant_values (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_variant_values_store_variant ON variant_values(store_id, variant_id);
-
--- ---
-
-CREATE TABLE stock_items (
+CREATE TABLE IF NOT EXISTS stock_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL,
   product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
@@ -360,15 +244,7 @@ CREATE TABLE stock_items (
   UNIQUE(store_id, product_id, variant_id)
 );
 
-CREATE INDEX idx_stock_items_store ON stock_items(store_id);
-CREATE INDEX idx_stock_items_store_product ON stock_items(store_id, product_id);
-
-CREATE TRIGGER trg_stock_items_updated_at BEFORE UPDATE ON stock_items
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ---
-
-CREATE TABLE wholesale_prices (
+CREATE TABLE IF NOT EXISTS wholesale_prices (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL,
   product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
@@ -380,14 +256,7 @@ CREATE TABLE wholesale_prices (
   UNIQUE(store_id, product_id, variant_id)
 );
 
-CREATE INDEX idx_wholesale_prices_store ON wholesale_prices(store_id);
-
-CREATE TRIGGER trg_wholesale_prices_updated_at BEFORE UPDATE ON wholesale_prices
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ---
-
-CREATE TABLE shipping_methods (
+CREATE TABLE IF NOT EXISTS shipping_methods (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -399,17 +268,7 @@ CREATE TABLE shipping_methods (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_shipping_methods_store ON shipping_methods(store_id);
-CREATE INDEX idx_shipping_methods_store_active ON shipping_methods(store_id, is_active);
-
-CREATE TRIGGER trg_shipping_methods_updated_at BEFORE UPDATE ON shipping_methods
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ============================================================
--- CLIENTES Y PEDIDOS
--- ============================================================
-
-CREATE TABLE customers (
+CREATE TABLE IF NOT EXISTS customers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   name TEXT,
@@ -419,20 +278,11 @@ CREATE TABLE customers (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_customers_store ON customers(store_id);
-CREATE INDEX idx_customers_store_phone ON customers(store_id, phone);
-
-CREATE TRIGGER trg_customers_updated_at BEFORE UPDATE ON customers
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ---
-
-CREATE TABLE orders (
+CREATE TABLE IF NOT EXISTS orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   customer_id UUID REFERENCES customers(id),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'preparing', 'delivered', 'cancelled')),
-  -- source: origen del pedido. 'admin' = POS del dueño, 'whatsapp' = catálogo público (futuro), 'mp_checkout' = pago automático MP
   source TEXT NOT NULL DEFAULT 'admin' CHECK (source IN ('admin', 'whatsapp', 'mp_checkout')),
   total INTEGER NOT NULL CHECK (total >= 0),
   notes TEXT,
@@ -441,18 +291,7 @@ CREATE TABLE orders (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_orders_store ON orders(store_id);
-CREATE INDEX idx_orders_store_status ON orders(store_id, status);
-CREATE INDEX idx_orders_store_created ON orders(store_id, created_at);
-CREATE INDEX idx_orders_store_customer ON orders(store_id, customer_id);
-CREATE INDEX idx_orders_store_source ON orders(store_id, source);
-
-CREATE TRIGGER trg_orders_updated_at BEFORE UPDATE ON orders
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ---
-
-CREATE TABLE order_items (
+CREATE TABLE IF NOT EXISTS order_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL,
   order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
@@ -464,14 +303,7 @@ CREATE TABLE order_items (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_order_items_store_order ON order_items(store_id, order_id);
-CREATE INDEX idx_order_items_store_product ON order_items(store_id, product_id);
-
--- ============================================================
--- ENVÍOS CON SEGUIMIENTO
--- ============================================================
-
-CREATE TABLE shipments (
+CREATE TABLE IF NOT EXISTS shipments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   order_id UUID NOT NULL REFERENCES orders(id),
@@ -487,19 +319,7 @@ CREATE TABLE shipments (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_shipments_store ON shipments(store_id);
-CREATE INDEX idx_shipments_order ON shipments(store_id, order_id);
-CREATE INDEX idx_shipments_tracking ON shipments(tracking_code);
-CREATE INDEX idx_shipments_status ON shipments(store_id, status);
-
-CREATE TRIGGER trg_shipments_updated_at BEFORE UPDATE ON shipments
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ============================================================
--- PAGOS
--- ============================================================
-
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   order_id UUID NOT NULL REFERENCES orders(id),
@@ -513,19 +333,7 @@ CREATE TABLE payments (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_payments_store ON payments(store_id);
-CREATE INDEX idx_payments_store_order ON payments(store_id, order_id);
-CREATE INDEX idx_payments_store_status ON payments(store_id, status);
-CREATE INDEX idx_payments_store_created ON payments(store_id, created_at);
-
-CREATE TRIGGER trg_payments_updated_at BEFORE UPDATE ON payments
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ============================================================
--- FINANZAS
--- ============================================================
-
-CREATE TABLE finance_entries (
+CREATE TABLE IF NOT EXISTS finance_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
@@ -539,16 +347,7 @@ CREATE TABLE finance_entries (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_finance_entries_store ON finance_entries(store_id);
-CREATE INDEX idx_finance_entries_store_type ON finance_entries(store_id, type);
-CREATE INDEX idx_finance_entries_store_date ON finance_entries(store_id, date);
-
-CREATE TRIGGER trg_finance_entries_updated_at BEFORE UPDATE ON finance_entries
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ---
-
-CREATE TABLE expenses (
+CREATE TABLE IF NOT EXISTS expenses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   amount INTEGER NOT NULL CHECK (amount > 0),
@@ -564,16 +363,7 @@ CREATE TABLE expenses (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_expenses_store ON expenses(store_id);
-CREATE INDEX idx_expenses_store_category ON expenses(store_id, category);
-CREATE INDEX idx_expenses_store_date ON expenses(store_id, date);
-
-CREATE TRIGGER trg_expenses_updated_at BEFORE UPDATE ON expenses
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ---
-
-CREATE TABLE savings_accounts (
+CREATE TABLE IF NOT EXISTS savings_accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -584,14 +374,7 @@ CREATE TABLE savings_accounts (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_savings_accounts_store ON savings_accounts(store_id);
-
-CREATE TRIGGER trg_savings_accounts_updated_at BEFORE UPDATE ON savings_accounts
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ---
-
-CREATE TABLE savings_movements (
+CREATE TABLE IF NOT EXISTS savings_movements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL,
   savings_account_id UUID NOT NULL REFERENCES savings_accounts(id) ON DELETE CASCADE,
@@ -602,13 +385,7 @@ CREATE TABLE savings_movements (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_savings_movements_store_account ON savings_movements(store_id, savings_account_id);
-
--- ============================================================
--- TAREAS
--- ============================================================
-
-CREATE TABLE tasks (
+CREATE TABLE IF NOT EXISTS tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
@@ -622,18 +399,7 @@ CREATE TABLE tasks (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_tasks_store ON tasks(store_id);
-CREATE INDEX idx_tasks_store_status ON tasks(store_id, status);
-CREATE INDEX idx_tasks_store_assigned ON tasks(store_id, assigned_to);
-
-CREATE TRIGGER trg_tasks_updated_at BEFORE UPDATE ON tasks
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ============================================================
--- IA
--- ============================================================
-
-CREATE TABLE assistant_sessions (
+CREATE TABLE IF NOT EXISTS assistant_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES users(id),
@@ -642,12 +408,7 @@ CREATE TABLE assistant_sessions (
   expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '24 hours')
 );
 
-CREATE INDEX idx_assistant_sessions_store_user ON assistant_sessions(store_id, user_id);
-CREATE INDEX idx_assistant_sessions_expires ON assistant_sessions(expires_at);
-
--- ---
-
-CREATE TABLE assistant_messages (
+CREATE TABLE IF NOT EXISTS assistant_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID NOT NULL REFERENCES assistant_sessions(id) ON DELETE CASCADE,
   store_id UUID NOT NULL,
@@ -656,14 +417,7 @@ CREATE TABLE assistant_messages (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_assistant_messages_session ON assistant_messages(session_id, created_at);
-CREATE INDEX idx_assistant_messages_store ON assistant_messages(store_id, session_id);
-
--- ============================================================
--- SISTEMA DE EVENTOS
--- ============================================================
-
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID,
   type TEXT NOT NULL,
@@ -673,13 +427,249 @@ CREATE TABLE events (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_events_store ON events(store_id);
-CREATE INDEX idx_events_store_type ON events(store_id, type);
-CREATE INDEX idx_events_store_created ON events(store_id, created_at);
-CREATE INDEX idx_events_type_created ON events(type, created_at);
+-- ============================================================
+-- MIGRACIONES DE COLUMNAS (tablas existentes que pueden tener
+-- columnas faltantes respecto al schema actual)
+-- ============================================================
+
+DO $$
+BEGIN
+  -- billing_payments: reemplaza period_start/period_end NOT NULL por paid_at
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'billing_payments' AND column_name = 'paid_at') THEN
+    ALTER TABLE billing_payments ADD COLUMN paid_at TIMESTAMPTZ;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'billing_payments' AND column_name = 'period_start'
+    AND is_nullable = 'NO') THEN
+    ALTER TABLE billing_payments ALTER COLUMN period_start DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'billing_payments' AND column_name = 'period_end'
+    AND is_nullable = 'NO') THEN
+    ALTER TABLE billing_payments ALTER COLUMN period_end DROP NOT NULL;
+  END IF;
+
+  -- stores: columnas que pueden no existir en DBs creadas con schemas anteriores
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'stores' AND column_name = 'billing_period') THEN
+    ALTER TABLE stores ADD COLUMN billing_period TEXT NOT NULL DEFAULT 'monthly'
+      CHECK (billing_period IN ('monthly', 'annual'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'stores' AND column_name = 'annual_paid_until') THEN
+    ALTER TABLE stores ADD COLUMN annual_paid_until DATE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'stores' AND column_name = 'last_billing_failure_at') THEN
+    ALTER TABLE stores ADD COLUMN last_billing_failure_at TIMESTAMPTZ;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'stores' AND column_name = 'cancelled_at') THEN
+    ALTER TABLE stores ADD COLUMN cancelled_at TIMESTAMPTZ;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'stores' AND column_name = 'ai_tokens_used') THEN
+    ALTER TABLE stores ADD COLUMN ai_tokens_used INTEGER NOT NULL DEFAULT 0;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'stores' AND column_name = 'ai_tokens_reset_at') THEN
+    ALTER TABLE stores ADD COLUMN ai_tokens_reset_at TIMESTAMPTZ DEFAULT NOW();
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'stores' AND column_name = 'mp_subscription_id') THEN
+    ALTER TABLE stores ADD COLUMN mp_subscription_id TEXT UNIQUE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'stores' AND column_name = 'mp_customer_id') THEN
+    ALTER TABLE stores ADD COLUMN mp_customer_id TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'stores' AND column_name = 'custom_domain_txt_token') THEN
+    ALTER TABLE stores ADD COLUMN custom_domain_txt_token TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'stores' AND column_name = 'cover_url') THEN
+    ALTER TABLE stores ADD COLUMN cover_url TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'stores' AND column_name = 'description') THEN
+    ALTER TABLE stores ADD COLUMN description TEXT;
+  END IF;
+
+  -- plans: columnas nuevas
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'plans' AND column_name = 'annual_discount_months') THEN
+    ALTER TABLE plans ADD COLUMN annual_discount_months INTEGER NOT NULL DEFAULT 2;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'plans' AND column_name = 'ai_tokens_monthly') THEN
+    ALTER TABLE plans ADD COLUMN ai_tokens_monthly INTEGER NOT NULL DEFAULT 50000;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'plans' AND column_name = 'max_stores_total') THEN
+    ALTER TABLE plans ADD COLUMN max_stores_total INTEGER;
+  END IF;
+
+  -- billing_webhook_log: columna result (puede ser nueva)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'billing_webhook_log' AND column_name = 'result') THEN
+    ALTER TABLE billing_webhook_log ADD COLUMN result TEXT;
+  END IF;
+END $$;
 
 -- ============================================================
--- RLS POLICIES
+-- ÍNDICES (CREATE INDEX IF NOT EXISTS — nunca falla si ya existe)
+-- ============================================================
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_superadmin ON users(role) WHERE role = 'superadmin';
+CREATE INDEX IF NOT EXISTS idx_stores_slug ON stores(slug);
+CREATE INDEX IF NOT EXISTS idx_stores_custom_domain ON stores(custom_domain);
+CREATE INDEX IF NOT EXISTS idx_stores_status ON stores(status);
+CREATE INDEX IF NOT EXISTS idx_stores_billing_status ON stores(billing_status);
+CREATE INDEX IF NOT EXISTS idx_stores_mp_subscription ON stores(mp_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_store_users_store ON store_users(store_id);
+CREATE INDEX IF NOT EXISTS idx_store_users_user ON store_users(user_id);
+CREATE INDEX IF NOT EXISTS idx_store_invitations_token ON store_invitations(token);
+CREATE INDEX IF NOT EXISTS idx_store_invitations_email ON store_invitations(email);
+CREATE INDEX IF NOT EXISTS idx_store_invitations_store ON store_invitations(store_id);
+CREATE INDEX IF NOT EXISTS idx_billing_payments_store ON billing_payments(store_id);
+CREATE INDEX IF NOT EXISTS idx_billing_payments_store_status ON billing_payments(store_id, status);
+CREATE INDEX IF NOT EXISTS idx_billing_payments_mp_payment ON billing_payments(mp_payment_id);
+CREATE INDEX IF NOT EXISTS idx_billing_payments_mp_sub ON billing_payments(mp_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_billing_webhook_event ON billing_webhook_log(mp_event_id);
+CREATE INDEX IF NOT EXISTS idx_billing_webhook_status ON billing_webhook_log(status);
+CREATE INDEX IF NOT EXISTS idx_billing_webhook_store ON billing_webhook_log(store_id);
+CREATE INDEX IF NOT EXISTS idx_billing_webhook_created ON billing_webhook_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_products_store ON products(store_id);
+CREATE INDEX IF NOT EXISTS idx_products_store_active ON products(store_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_products_store_featured ON products(store_id, is_featured);
+CREATE INDEX IF NOT EXISTS idx_products_store_deleted ON products(store_id, deleted_at);
+CREATE INDEX IF NOT EXISTS idx_categories_store ON categories(store_id);
+CREATE INDEX IF NOT EXISTS idx_categories_store_active ON categories(store_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_product_categories_store_cat ON product_categories(store_id, category_id);
+CREATE INDEX IF NOT EXISTS idx_product_categories_store_prod ON product_categories(store_id, product_id);
+CREATE INDEX IF NOT EXISTS idx_banners_store ON banners(store_id);
+CREATE INDEX IF NOT EXISTS idx_banners_store_active ON banners(store_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_variants_store_product ON variants(store_id, product_id);
+CREATE INDEX IF NOT EXISTS idx_variant_attrs_store_product ON variant_attributes(store_id, product_id);
+CREATE INDEX IF NOT EXISTS idx_variant_values_store_variant ON variant_values(store_id, variant_id);
+CREATE INDEX IF NOT EXISTS idx_stock_items_store ON stock_items(store_id);
+CREATE INDEX IF NOT EXISTS idx_stock_items_store_product ON stock_items(store_id, product_id);
+CREATE INDEX IF NOT EXISTS idx_wholesale_prices_store ON wholesale_prices(store_id);
+CREATE INDEX IF NOT EXISTS idx_shipping_methods_store ON shipping_methods(store_id);
+CREATE INDEX IF NOT EXISTS idx_shipping_methods_store_active ON shipping_methods(store_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_customers_store ON customers(store_id);
+CREATE INDEX IF NOT EXISTS idx_customers_store_phone ON customers(store_id, phone);
+CREATE INDEX IF NOT EXISTS idx_orders_store ON orders(store_id);
+CREATE INDEX IF NOT EXISTS idx_orders_store_status ON orders(store_id, status);
+CREATE INDEX IF NOT EXISTS idx_orders_store_created ON orders(store_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_orders_store_customer ON orders(store_id, customer_id);
+CREATE INDEX IF NOT EXISTS idx_orders_store_source ON orders(store_id, source);
+CREATE INDEX IF NOT EXISTS idx_order_items_store_order ON order_items(store_id, order_id);
+CREATE INDEX IF NOT EXISTS idx_order_items_store_product ON order_items(store_id, product_id);
+CREATE INDEX IF NOT EXISTS idx_shipments_store ON shipments(store_id);
+CREATE INDEX IF NOT EXISTS idx_shipments_order ON shipments(store_id, order_id);
+CREATE INDEX IF NOT EXISTS idx_shipments_tracking ON shipments(tracking_code);
+CREATE INDEX IF NOT EXISTS idx_shipments_status ON shipments(store_id, status);
+CREATE INDEX IF NOT EXISTS idx_payments_store ON payments(store_id);
+CREATE INDEX IF NOT EXISTS idx_payments_store_order ON payments(store_id, order_id);
+CREATE INDEX IF NOT EXISTS idx_payments_store_status ON payments(store_id, status);
+CREATE INDEX IF NOT EXISTS idx_payments_store_created ON payments(store_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_finance_entries_store ON finance_entries(store_id);
+CREATE INDEX IF NOT EXISTS idx_finance_entries_store_type ON finance_entries(store_id, type);
+CREATE INDEX IF NOT EXISTS idx_finance_entries_store_date ON finance_entries(store_id, date);
+CREATE INDEX IF NOT EXISTS idx_expenses_store ON expenses(store_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_store_category ON expenses(store_id, category);
+CREATE INDEX IF NOT EXISTS idx_expenses_store_date ON expenses(store_id, date);
+CREATE INDEX IF NOT EXISTS idx_savings_accounts_store ON savings_accounts(store_id);
+CREATE INDEX IF NOT EXISTS idx_savings_movements_store_account ON savings_movements(store_id, savings_account_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_store ON tasks(store_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_store_status ON tasks(store_id, status);
+CREATE INDEX IF NOT EXISTS idx_tasks_store_assigned ON tasks(store_id, assigned_to);
+CREATE INDEX IF NOT EXISTS idx_assistant_sessions_store_user ON assistant_sessions(store_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_assistant_sessions_expires ON assistant_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_assistant_messages_session ON assistant_messages(session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_assistant_messages_store ON assistant_messages(store_id, session_id);
+CREATE INDEX IF NOT EXISTS idx_events_store ON events(store_id);
+CREATE INDEX IF NOT EXISTS idx_events_store_type ON events(store_id, type);
+CREATE INDEX IF NOT EXISTS idx_events_store_created ON events(store_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_events_type_created ON events(type, created_at);
+CREATE INDEX IF NOT EXISTS idx_products_store_out_of_stock ON products(store_id) WHERE stock = 0;
+CREATE INDEX IF NOT EXISTS idx_events_store_type_created ON events(store_id, type, created_at DESC);
+
+-- ============================================================
+-- TRIGGERS (drop + recreate — idempotente)
+-- ============================================================
+
+DO $$
+BEGIN
+  DROP TRIGGER IF EXISTS trg_users_updated_at ON users;
+  DROP TRIGGER IF EXISTS trg_plans_updated_at ON plans;
+  DROP TRIGGER IF EXISTS trg_stores_updated_at ON stores;
+  DROP TRIGGER IF EXISTS trg_stores_sync_status ON stores;
+  DROP TRIGGER IF EXISTS trg_store_users_updated_at ON store_users;
+  DROP TRIGGER IF EXISTS trg_products_updated_at ON products;
+  DROP TRIGGER IF EXISTS trg_categories_updated_at ON categories;
+  DROP TRIGGER IF EXISTS trg_banners_updated_at ON banners;
+  DROP TRIGGER IF EXISTS trg_variants_updated_at ON variants;
+  DROP TRIGGER IF EXISTS trg_stock_items_updated_at ON stock_items;
+  DROP TRIGGER IF EXISTS trg_wholesale_prices_updated_at ON wholesale_prices;
+  DROP TRIGGER IF EXISTS trg_shipping_methods_updated_at ON shipping_methods;
+  DROP TRIGGER IF EXISTS trg_customers_updated_at ON customers;
+  DROP TRIGGER IF EXISTS trg_orders_updated_at ON orders;
+  DROP TRIGGER IF EXISTS trg_payments_updated_at ON payments;
+  DROP TRIGGER IF EXISTS trg_finance_entries_updated_at ON finance_entries;
+  DROP TRIGGER IF EXISTS trg_expenses_updated_at ON expenses;
+  DROP TRIGGER IF EXISTS trg_savings_accounts_updated_at ON savings_accounts;
+  DROP TRIGGER IF EXISTS trg_shipments_updated_at ON shipments;
+  DROP TRIGGER IF EXISTS trg_tasks_updated_at ON tasks;
+END $$;
+
+CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_plans_updated_at BEFORE UPDATE ON plans
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_stores_updated_at BEFORE UPDATE ON stores
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_stores_sync_status BEFORE UPDATE ON stores
+  FOR EACH ROW EXECUTE FUNCTION sync_store_status();
+CREATE TRIGGER trg_store_users_updated_at BEFORE UPDATE ON store_users
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_products_updated_at BEFORE UPDATE ON products
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_categories_updated_at BEFORE UPDATE ON categories
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_banners_updated_at BEFORE UPDATE ON banners
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_variants_updated_at BEFORE UPDATE ON variants
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_stock_items_updated_at BEFORE UPDATE ON stock_items
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_wholesale_prices_updated_at BEFORE UPDATE ON wholesale_prices
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_shipping_methods_updated_at BEFORE UPDATE ON shipping_methods
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_customers_updated_at BEFORE UPDATE ON customers
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_orders_updated_at BEFORE UPDATE ON orders
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_payments_updated_at BEFORE UPDATE ON payments
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_finance_entries_updated_at BEFORE UPDATE ON finance_entries
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_expenses_updated_at BEFORE UPDATE ON expenses
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_savings_accounts_updated_at BEFORE UPDATE ON savings_accounts
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_shipments_updated_at BEFORE UPDATE ON shipments
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_tasks_updated_at BEFORE UPDATE ON tasks
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================================
+-- RLS (ALTER TABLE ENABLE ROW LEVEL SECURITY es idempotente)
 -- ============================================================
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -713,26 +703,44 @@ ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE billing_payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE billing_webhook_log ENABLE ROW LEVEL SECURITY;
 
--- Helper: permite escrituras solo en tiendas con status demo o active.
--- Bloquea automáticamente writes cuando la tienda está past_due, suspended o archived.
-CREATE OR REPLACE FUNCTION store_allows_writes(sid UUID) RETURNS BOOLEAN AS $$
-  SELECT status IN ('demo', 'active') FROM stores WHERE id = sid
-$$ LANGUAGE SQL STABLE SECURITY DEFINER;
+-- ============================================================
+-- POLICIES (drop masivo + recreate — idempotente)
+-- ============================================================
 
--- Plans: SELECT público (para pricing page, sin autenticar); mutaciones solo via service_role
+DO $$
+DECLARE _r RECORD;
+BEGIN
+  FOR _r IN
+    SELECT policyname, tablename FROM pg_policies
+    WHERE tablename IN (
+      'users','plans','stores','store_users','store_invitations',
+      'products','categories','product_categories','banners',
+      'variants','variant_attributes','variant_values',
+      'stock_items','wholesale_prices','shipping_methods','shipments',
+      'customers','orders','order_items','payments',
+      'finance_entries','expenses','savings_accounts','savings_movements',
+      'tasks','assistant_sessions','assistant_messages','events',
+      'billing_payments','billing_webhook_log'
+    )
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I', _r.policyname, _r.tablename);
+  END LOOP;
+END $$;
+
+-- Plans: SELECT público; mutaciones solo via service_role
 CREATE POLICY plans_public_select ON plans FOR SELECT USING (is_active = true);
 
--- Users: pueden ver y editar su propio perfil
+-- Users
 CREATE POLICY users_select ON users FOR SELECT USING (auth.uid() = id);
 CREATE POLICY users_update ON users FOR UPDATE USING (auth.uid() = id);
 
--- Store users: pueden ver los store_users de tiendas a las que pertenecen
+-- Store users
 CREATE POLICY store_users_select ON store_users FOR SELECT
   USING (user_id = auth.uid() OR store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid()));
 CREATE POLICY store_users_insert ON store_users FOR INSERT
   WITH CHECK (store_id IN (SELECT su.store_id FROM store_users su WHERE su.user_id = auth.uid() AND su.role IN ('owner', 'admin')));
 
--- Store invitations: owner y admin pueden ver, crear y eliminar
+-- Store invitations
 CREATE POLICY store_invitations_select ON store_invitations FOR SELECT
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin')));
 CREATE POLICY store_invitations_insert ON store_invitations FOR INSERT
@@ -742,14 +750,15 @@ CREATE POLICY store_invitations_delete ON store_invitations FOR DELETE
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
     AND store_allows_writes(store_id));
 
--- Tablas de dominio: acceso por store_id del usuario
--- Patrón genérico: SELECT/INSERT/UPDATE/DELETE donde store_id coincide con alguna tienda del usuario
-
+-- Stores
 CREATE POLICY stores_select ON stores FOR SELECT
   USING (id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid()));
 CREATE POLICY stores_update ON stores FOR UPDATE
   USING (id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin')));
 
+-- Products
+CREATE POLICY products_public_select ON products FOR SELECT
+  USING (is_active = true AND deleted_at IS NULL AND store_id IN (SELECT id FROM stores WHERE status IN ('demo', 'active', 'past_due')));
 CREATE POLICY products_select ON products FOR SELECT
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid()));
 CREATE POLICY products_insert ON products FOR INSERT
@@ -762,14 +771,11 @@ CREATE POLICY products_delete ON products FOR DELETE
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
     AND store_allows_writes(store_id));
 
--- Catálogo público: los productos activos de tiendas activas se pueden ver sin autenticación
-CREATE POLICY products_public_select ON products FOR SELECT
-  USING (is_active = true AND deleted_at IS NULL AND store_id IN (SELECT id FROM stores WHERE status IN ('demo', 'active', 'past_due')));
-
-CREATE POLICY categories_select ON categories FOR SELECT
-  USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid()));
+-- Categories
 CREATE POLICY categories_public_select ON categories FOR SELECT
   USING (is_active = true AND store_id IN (SELECT id FROM stores WHERE status IN ('demo', 'active', 'past_due')));
+CREATE POLICY categories_select ON categories FOR SELECT
+  USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid()));
 CREATE POLICY categories_insert ON categories FOR INSERT
   WITH CHECK (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
     AND store_allows_writes(store_id));
@@ -780,7 +786,7 @@ CREATE POLICY categories_delete ON categories FOR DELETE
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
     AND store_allows_writes(store_id));
 
--- Banners: lectura pública + escritura para owner/admin de la tienda
+-- Banners
 CREATE POLICY banners_public_select ON banners FOR SELECT
   USING (is_active = true AND store_id IN (SELECT id FROM stores WHERE status IN ('demo', 'active', 'past_due')));
 CREATE POLICY banners_select ON banners FOR SELECT
@@ -867,8 +873,7 @@ CREATE POLICY shipping_methods_delete ON shipping_methods FOR DELETE
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
     AND store_allows_writes(store_id));
 
--- Shipments (lectura pública por tracking_code: solo vía backend con service_role + DTO mínimo;
--- no hay política SELECT anónima: USING (true) expondría todas las filas a cualquier cliente)
+-- Shipments
 CREATE POLICY shipments_select ON shipments FOR SELECT
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid()));
 CREATE POLICY shipments_insert ON shipments FOR INSERT
@@ -907,7 +912,7 @@ CREATE POLICY orders_delete ON orders FOR DELETE
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
     AND store_allows_writes(store_id));
 
--- Order items (sin DELETE directo; se eliminan en cascada desde orders)
+-- Order items
 CREATE POLICY order_items_select ON order_items FOR SELECT
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid()));
 CREATE POLICY order_items_insert ON order_items FOR INSERT
@@ -1013,49 +1018,32 @@ CREATE POLICY product_categories_delete ON product_categories FOR DELETE
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
     AND store_allows_writes(store_id));
 
--- Eventos: usuarios solo pueden insertar (via executor); superadmin lee todo via service role
+-- Events: usuarios solo pueden insertar; superadmin lee todo via service role
 CREATE POLICY events_insert ON events FOR INSERT
   WITH CHECK (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid()));
 
--- billing_payments y billing_webhook_log: solo service_role accede directamente.
--- Sin policies para usuarios normales: cualquier acceso autenticado es bloqueado por RLS.
--- El backend usa supabaseServiceRole para leer y escribir estas tablas.
+-- billing_payments y billing_webhook_log: solo service_role (sin policies para usuarios)
 
 -- ============================================================
--- DATOS INICIALES
+-- DATOS INICIALES (solo inserta si no existe el plan base)
 -- ============================================================
 
--- Plan único. price_per_100_products y pro_module_price configurables por superadmin.
--- Valores en centavos ARS: 2000000 = $20,000 ARS | 500000 = $5,000 ARS
--- custom_domain incluido en base_modules (feature base, no pro — DP-04)
-INSERT INTO plans (name, price_per_100_products, pro_module_price, base_modules, trial_days, trial_max_products, ai_tokens_monthly) VALUES
-(
+INSERT INTO plans (name, price_per_100_products, pro_module_price, base_modules, trial_days, trial_max_products, annual_discount_months, ai_tokens_monthly)
+SELECT
   'base',
   2000000,
   500000,
   '["catalog","products","categories","cart","orders","stock","payments","banners","social","product_page","shipping","custom_domain"]',
   14,
   100,
+  2,
   50000
-);
-
--- NOTA: Los precios están en centavos ARS/mes.
--- price_per_100_products: precio base por cada 100 productos del tier elegido por la tienda.
--- pro_module_price: precio por cada módulo pro activo (variants, wholesale, finance, expenses,
---   savings_account, multiuser, tasks, assistant).
---   custom_domain ya NO es pro — es base desde DP-04.
--- Total mensual = ceil(stores.limits.max_products / 100) * price_per_100_products
---              + count(módulos_pro_activos) * pro_module_price
--- El superadmin puede actualizar estos valores desde el panel (tabla plans).
--- stores.limits.max_products define el tier de productos de cada tienda.
--- stores.limits.max_orders y stores.limits.ai_tokens se configuran por tienda desde superadmin.
+WHERE NOT EXISTS (SELECT 1 FROM plans WHERE name = 'base');
 
 -- ============================================================
--- CONSTRAINTS DE CALIDAD Y FKs FALTANTES
--- (se pueden aplicar a DBs existentes con ALTER TABLE)
+-- FKs FALTANTES EN TABLAS DE MÓDULOS (idempotente)
 -- ============================================================
 
--- FKs de store_id que faltaban en tablas de módulos de producto
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'variants_store_fk') THEN
@@ -1080,7 +1068,10 @@ BEGIN
   END IF;
 END $$;
 
--- Constraint de stock no negativo en products (auditory.md §4.2)
+-- ============================================================
+-- CONSTRAINTS DE CALIDAD
+-- ============================================================
+
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'products_stock_nonneg') THEN
@@ -1088,9 +1079,5 @@ BEGIN
       ADD CONSTRAINT products_stock_nonneg CHECK (stock IS NULL OR stock >= 0);
   END IF;
 END $$;
-
--- Índices de performance adicionales (auditory.md §4.2, §4.3)
-CREATE INDEX IF NOT EXISTS idx_products_store_out_of_stock ON products(store_id) WHERE stock = 0;
-CREATE INDEX IF NOT EXISTS idx_events_store_type_created ON events(store_id, type, created_at DESC);
 
 COMMIT;
