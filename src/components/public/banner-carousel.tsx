@@ -63,10 +63,12 @@ export function BannerCarousel({ banners, autoplayMs = 5000 }: BannerCarouselPro
       {/* Indicators */}
       {banners.length > 1 && (
         <div className="flex justify-center gap-1.5">
-          {banners.map((_, i) => (
+          {banners.map((b, i) => (
             <button
               key={i}
               onClick={() => setCurrent(i)}
+              aria-label={`Ir al banner ${i + 1}${b.title ? `: ${b.title}` : ''}`}
+              aria-current={i === current ? 'true' : undefined}
               className={cn(
                 'h-1.5 rounded-full transition-all',
                 i === current ? 'w-6 bg-primary' : 'w-1.5 bg-muted-foreground/30',

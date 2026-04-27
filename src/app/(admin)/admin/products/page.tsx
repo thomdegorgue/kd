@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import { Plus, Trash2, Pencil, Star } from 'lucide-react'
+import { Plus, Trash2, Pencil, Star, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -26,7 +26,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { EntityToolbar } from '@/components/shared/entity-toolbar'
-import { ProductSheet } from '@/components/admin/product-sheet'
+import dynamic from 'next/dynamic'
+
+const ProductSheet = dynamic(
+  () => import('@/components/admin/product-sheet').then((m) => ({ default: m.ProductSheet })),
+  { ssr: false },
+)
 import { useProducts, useDeleteProduct } from '@/lib/hooks/use-products'
 import { useCategories } from '@/lib/hooks/use-categories'
 import { useCurrency } from '@/lib/hooks/use-currency'
@@ -155,8 +160,26 @@ export default function ProductsPage() {
           ))}
         </div>
       ) : products.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">
-          {search ? 'No se encontraron productos.' : 'Aún no tenés productos.'}
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <Package className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="font-medium text-sm">
+              {search ? 'Sin resultados' : 'Todavía no cargaste productos'}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {search
+                ? 'Probá con otro término de búsqueda.'
+                : 'Creá tu primer producto para empezar a vender.'}
+            </p>
+          </div>
+          {!search && (
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="h-4 w-4 mr-1" />
+              Crear producto
+            </Button>
+          )}
         </div>
       ) : (
         <>

@@ -14,6 +14,7 @@ export type StoreRow = {
   status: string
   billing_status: string
   trial_ends_at: string | null
+  current_period_start: string | null
   current_period_end: string | null
   mp_subscription_id: string | null
   limits: Record<string, number>

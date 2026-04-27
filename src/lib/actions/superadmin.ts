@@ -3,7 +3,7 @@
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import type { ModuleName } from '@/lib/types'
+import type { ActionResult, ModuleName } from '@/lib/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
@@ -63,15 +63,11 @@ async function emitSuperadminEvent(
 // STORES — ESTADO
 // ============================================================
 
-export type UpdateStoreStatusResult =
-  | { success: true }
-  | { success: false; error: string }
-
 export async function updateStoreStatus(
   storeId: string,
   status: string,
   reason?: string,
-): Promise<UpdateStoreStatusResult> {
+): Promise<ActionResult<null>> {
   try {
     const actorId = await requireSuperadmin()
 
@@ -82,9 +78,9 @@ export async function updateStoreStatus(
       reason: reason ?? 'superadmin_override',
     })
 
-    return { success: true }
+    return { success: true, data: null }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : 'Error desconocido' }
+    return { success: false, error: { code: 'SYSTEM_ERROR', message: err instanceof Error ? err.message : 'Error desconocido' } }
   }
 }
 
@@ -92,14 +88,10 @@ export async function updateStoreStatus(
 // STORES — MÓDULOS OVERRIDE
 // ============================================================
 
-export type OverrideModulesResult =
-  | { success: true }
-  | { success: false; error: string }
-
 export async function overrideModules(
   storeId: string,
   modules: Partial<Record<ModuleName, boolean>>,
-): Promise<OverrideModulesResult> {
+): Promise<ActionResult<null>> {
   try {
     const actorId = await requireSuperadmin()
 
@@ -119,9 +111,9 @@ export async function overrideModules(
       changes: modules,
     })
 
-    return { success: true }
+    return { success: true, data: null }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : 'Error desconocido' }
+    return { success: false, error: { code: 'SYSTEM_ERROR', message: err instanceof Error ? err.message : 'Error desconocido' } }
   }
 }
 
@@ -129,14 +121,10 @@ export async function overrideModules(
 // STORES — LÍMITES OVERRIDE
 // ============================================================
 
-export type OverrideLimitsResult =
-  | { success: true }
-  | { success: false; error: string }
-
 export async function overrideLimits(
   storeId: string,
   limits: { max_products?: number; max_orders?: number; ai_tokens?: number },
-): Promise<OverrideLimitsResult> {
+): Promise<ActionResult<null>> {
   try {
     const actorId = await requireSuperadmin()
 
@@ -153,9 +141,9 @@ export async function overrideLimits(
 
     await emitSuperadminEvent(actorId, 'limits_overridden', storeId, { limits })
 
-    return { success: true }
+    return { success: true, data: null }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : 'Error desconocido' }
+    return { success: false, error: { code: 'SYSTEM_ERROR', message: err instanceof Error ? err.message : 'Error desconocido' } }
   }
 }
 
@@ -163,14 +151,10 @@ export async function overrideLimits(
 // STORES — EXTENDER TRIAL
 // ============================================================
 
-export type ExtendTrialResult =
-  | { success: true }
-  | { success: false; error: string }
-
 export async function extendTrial(
   storeId: string,
   newEndsAt: string,
-): Promise<ExtendTrialResult> {
+): Promise<ActionResult<null>> {
   try {
     const actorId = await requireSuperadmin()
 
@@ -183,9 +167,9 @@ export async function extendTrial(
       new_ends_at: newEndsAt,
     })
 
-    return { success: true }
+    return { success: true, data: null }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : 'Error desconocido' }
+    return { success: false, error: { code: 'SYSTEM_ERROR', message: err instanceof Error ? err.message : 'Error desconocido' } }
   }
 }
 
@@ -193,11 +177,7 @@ export async function extendTrial(
 // USERS — BAN / UNBAN
 // ============================================================
 
-export type BanUserResult =
-  | { success: true }
-  | { success: false; error: string }
-
-export async function banUser(userId: string): Promise<BanUserResult> {
+export async function banUser(userId: string): Promise<ActionResult<null>> {
   try {
     const actorId = await requireSuperadmin()
 
@@ -208,13 +188,13 @@ export async function banUser(userId: string): Promise<BanUserResult> {
 
     await emitSuperadminEvent(actorId, 'user_banned', null, { target_user_id: userId })
 
-    return { success: true }
+    return { success: true, data: null }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : 'Error desconocido' }
+    return { success: false, error: { code: 'SYSTEM_ERROR', message: err instanceof Error ? err.message : 'Error desconocido' } }
   }
 }
 
-export async function unbanUser(userId: string): Promise<BanUserResult> {
+export async function unbanUser(userId: string): Promise<ActionResult<null>> {
   try {
     const actorId = await requireSuperadmin()
 
@@ -222,19 +202,15 @@ export async function unbanUser(userId: string): Promise<BanUserResult> {
 
     await emitSuperadminEvent(actorId, 'user_unbanned', null, { target_user_id: userId })
 
-    return { success: true }
+    return { success: true, data: null }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : 'Error desconocido' }
+    return { success: false, error: { code: 'SYSTEM_ERROR', message: err instanceof Error ? err.message : 'Error desconocido' } }
   }
 }
 
 // ============================================================
 // PLAN — ACTUALIZAR PRECIOS
 // ============================================================
-
-export type UpdatePlanPricingResult =
-  | { success: true }
-  | { success: false; error: string }
 
 export async function updatePlanPricing(
   planId: string,
@@ -247,7 +223,7 @@ export async function updatePlanPricing(
     annual_discount_months?: number
     max_stores_total?: number | null
   },
-): Promise<UpdatePlanPricingResult> {
+): Promise<ActionResult<null>> {
   try {
     const actorId = await requireSuperadmin()
 
@@ -255,8 +231,8 @@ export async function updatePlanPricing(
 
     await emitSuperadminEvent(actorId, 'plan_pricing_updated', null, data)
 
-    return { success: true }
+    return { success: true, data: null }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : 'Error desconocido' }
+    return { success: false, error: { code: 'SYSTEM_ERROR', message: err instanceof Error ? err.message : 'Error desconocido' } }
   }
 }

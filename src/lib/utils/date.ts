@@ -1,10 +1,14 @@
+const TZ = 'America/Argentina/Buenos_Aires'
+
 const DATE_FORMATTER = new Intl.DateTimeFormat('es-AR', {
+  timeZone: TZ,
   day: 'numeric',
   month: 'short',
   year: 'numeric',
 })
 
 const DATETIME_FORMATTER = new Intl.DateTimeFormat('es-AR', {
+  timeZone: TZ,
   day: 'numeric',
   month: 'short',
   year: 'numeric',

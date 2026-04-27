@@ -110,7 +110,10 @@ export function ProductDetailView({ product, slug }: ProductDetailViewProps) {
       price: (unitPrice / 100).toFixed(2),
       priceCurrency: 'ARS',
       url: productUrl,
-      availability: 'https://schema.org/InStock',
+      availability:
+        typeof stock === 'number' && stock <= 0
+          ? 'https://schema.org/OutOfStock'
+          : 'https://schema.org/InStock',
     },
   } as const
 

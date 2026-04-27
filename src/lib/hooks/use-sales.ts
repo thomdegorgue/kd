@@ -31,8 +31,8 @@ export function useCreateSale() {
       queryClient.invalidateQueries({ queryKey: queryKeys.stock(store_id) })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboardStats(store_id) })
       queryClient.invalidateQueries({ queryKey: queryKeys.savings(store_id) })
-      queryClient.invalidateQueries({ queryKey: ['sales-summary', store_id] })
-      queryClient.invalidateQueries({ queryKey: ['sales-history', store_id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.salesSummary(store_id) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.salesHistory(store_id) })
       toast.success('Venta registrada')
     },
     onError: (error) => toast.error(error.message),

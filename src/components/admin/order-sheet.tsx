@@ -17,10 +17,21 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { OrderStatusBadge } from '@/components/admin/order-status-badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useOrder, useUpdateOrderStatus, useCancelOrder, useCreateOrder } from '@/lib/hooks/use-orders'
 import { useCurrency } from '@/lib/hooks/use-currency'
 import type { OrderStatus } from '@/lib/types'
 import { useProducts } from '@/lib/hooks/use-products'
+import { useDebounce } from '@/lib/hooks/use-debounce'
 import { useRouter } from 'next/navigation'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -55,8 +66,15 @@ export function OrderSheet({ id, open, onOpenChange }: OrderSheetProps) {
   const cancelMutation = useCancelOrder()
   const createMutation = useCreateOrder()
   const { formatPrice } = useCurrency()
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const [productSearch, setProductSearch] = useState('')
+  const debouncedProductSearch = useDebounce(productSearch, 300)
 
-  const { data: productsData } = useProducts({ pageSize: 200 })
+  const { data: productsData } = useProducts({
+    pageSize: 20,
+    search: debouncedProductSearch || undefined,
+    is_active: true,
+  })
   const products = (productsData?.items ?? []) as unknown as {
     id: string
     name: string
@@ -76,8 +94,6 @@ export function OrderSheet({ id, open, onOpenChange }: OrderSheetProps) {
     })).min(1, 'Agregá al menos un producto'),
   })
   type CreateFormValues = z.infer<typeof createFormSchema>
-
-  const [productSearch, setProductSearch] = useState('')
   const form = useForm<CreateFormValues>({
     resolver: zodResolver(createFormSchema),
     defaultValues: { customer_name: '', customer_phone: '', notes: '', items: [] },
@@ -96,10 +112,7 @@ export function OrderSheet({ id, open, onOpenChange }: OrderSheetProps) {
     setProductSearch('')
   }
 
-  const filteredProducts = products
-    .filter((p) => p.is_active)
-    .filter((p) => !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase()))
-    .slice(0, 10)
+  const filteredProducts = products.slice(0, 10)
 
   const status = order?.status as OrderStatus | undefined
   const items = (order?.items ?? []) as Array<{
@@ -335,15 +348,39 @@ export function OrderSheet({ id, open, onOpenChange }: OrderSheetProps) {
                     </Button>
                   )}
                   {!isCancelled && !isDelivered && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      disabled={cancelMutation.isPending}
-                      onClick={() => cancelMutation.mutate({ id: id!, reason: 'Cancelado desde panel' })}
-                    >
-                      Cancelar
-                    </Button>
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        disabled={cancelMutation.isPending}
+                        onClick={() => setCancelDialogOpen(true)}
+                      >
+                        Cancelar
+                      </Button>
+                      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Cancelar pedido</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              ¿Estás seguro? Esta acción no se puede deshacer. El pedido quedará como cancelado.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Volver</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={() => {
+                                setCancelDialogOpen(false)
+                                cancelMutation.mutate({ id: id!, reason: 'Cancelado desde panel' })
+                              }}
+                            >
+                              Sí, cancelar pedido
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
                   )}
                 </div>
               </div>

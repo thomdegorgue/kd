@@ -9,6 +9,7 @@ export type OrderFilters = {
   status?: string
   date_from?: string
   date_to?: string
+  search?: string
 }
 
 export type OrderListResult = {

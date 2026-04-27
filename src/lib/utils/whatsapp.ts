@@ -34,7 +34,11 @@ interface BuildMessageOutput {
 }
 
 function formatMoney(cents: number): string {
-  return `$${Math.round(cents / 100).toLocaleString('es-AR')}`
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    maximumFractionDigits: 0,
+  }).format(cents / 100)
 }
 
 function cleanPhone(phone: string): string {

@@ -13,7 +13,7 @@ import {
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import { queryKeys, staleTimes, gcTimes } from '@/lib/hooks/query-keys'
 
-export function useOrders(filters?: OrderFilters) {
+export function useOrders(filters?: OrderFilters, options?: { pollingMs?: number }) {
   const { store_id } = useAdminContext()
 
   return useQuery({
@@ -25,6 +25,7 @@ export function useOrders(filters?: OrderFilters) {
     },
     staleTime: staleTimes.orders,
     gcTime: gcTimes.orders,
+    refetchInterval: options?.pollingMs,
   })
 }
 

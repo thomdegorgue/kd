@@ -10,7 +10,7 @@ export function useStock(filters?: { low_stock_only?: boolean; low_stock_thresho
   const { store_id } = useAdminContext()
 
   return useQuery({
-    queryKey: queryKeys.stock(store_id),
+    queryKey: [...queryKeys.stock(store_id), filters ?? {}],
     queryFn: async () => {
       const result = await listStock(filters)
       if (!result.success) throw new Error(result.error.message)

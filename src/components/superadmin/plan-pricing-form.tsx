@@ -98,7 +98,7 @@ export function PlanPricingForm({ plan }: Props) {
         annual_discount_months: values.annual_discount_months,
         max_stores_total: values.max_stores_total,
       })
-      setMessage(result.success ? 'Plan actualizado.' : result.error)
+      setMessage(result.success ? 'Plan actualizado.' : result.error.message)
       if (result.success) router.refresh()
     })
   }

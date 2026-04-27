@@ -11,17 +11,20 @@ import {
   deleteVariant,
 } from '@/lib/actions/variants'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
+import { queryKeys, staleTimes, gcTimes } from '@/lib/hooks/query-keys'
 
 export function useVariantAttributes(product_id: string) {
   const { store_id } = useAdminContext()
 
   return useQuery({
-    queryKey: ['variant-attributes', store_id, product_id],
+    queryKey: queryKeys.variantAttributes(store_id, product_id),
     queryFn: async () => {
       const result = await listVariantAttributes(product_id)
       if (!result.success) throw new Error(result.error.message)
       return result.data
     },
+    staleTime: staleTimes.variantAttributes,
+    gcTime: gcTimes.variantAttributes,
     enabled: !!product_id,
   })
 }
@@ -37,7 +40,7 @@ export function useCreateVariantAttribute() {
       return result.data
     },
     onSuccess: (_data, input) => {
-      queryClient.invalidateQueries({ queryKey: ['variant-attributes', store_id, input.product_id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.variantAttributes(store_id, input.product_id) })
       toast.success('Atributo creado')
     },
     onError: (error) => toast.error(error.message),
@@ -48,12 +51,14 @@ export function useVariants(product_id: string) {
   const { store_id } = useAdminContext()
 
   return useQuery({
-    queryKey: ['variants', store_id, product_id],
+    queryKey: queryKeys.variants(store_id, product_id),
     queryFn: async () => {
       const result = await listVariants(product_id)
       if (!result.success) throw new Error(result.error.message)
       return result.data
     },
+    staleTime: staleTimes.variants,
+    gcTime: gcTimes.variants,
     enabled: !!product_id,
   })
 }
@@ -69,7 +74,7 @@ export function useCreateVariant() {
       return result.data
     },
     onSuccess: (_data, input) => {
-      queryClient.invalidateQueries({ queryKey: ['variants', store_id, input.product_id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.variants(store_id, input.product_id) })
       toast.success('Variante creada')
     },
     onError: (error) => toast.error(error.message),
@@ -87,7 +92,7 @@ export function useUpdateVariant(product_id: string) {
       return result.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['variants', store_id, product_id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.variants(store_id, product_id) })
       toast.success('Variante actualizada')
     },
     onError: (error) => toast.error(error.message),
@@ -105,7 +110,7 @@ export function useDeleteVariant(product_id: string) {
       return result.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['variants', store_id, product_id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.variants(store_id, product_id) })
       toast.success('Variante eliminada')
     },
     onError: (error) => toast.error(error.message),

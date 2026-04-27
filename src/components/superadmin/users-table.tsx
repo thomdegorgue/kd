@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Search, Ban, CheckCircle } from 'lucide-react'
+import { Search, Ban, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,22 +12,44 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useRouter } from 'next/navigation'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { useRouter, usePathname } from 'next/navigation'
 import type { UserRow } from '@/lib/db/queries/superadmin'
 import { banUser, unbanUser } from '@/lib/actions/superadmin'
 
 type Props = {
   initialItems: UserRow[]
   total: number
+  page: number
+  pageSize: number
 }
 
-export function UsersTable({ initialItems, total }: Props) {
+export function UsersTable({ initialItems, total, page, pageSize }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
   const [pending, startTransition] = useTransition()
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
   const [bannedFilter, setBannedFilter] = useState('all')
   const [actionMsg, setActionMsg] = useState<string | null>(null)
+  const [banConfirmUserId, setBanConfirmUserId] = useState<string | null>(null)
+  const totalPages = Math.ceil(total / pageSize)
+
+  const handlePageChange = (newPage: number) => {
+    const params = new URLSearchParams()
+    if (newPage > 1) params.set('page', String(newPage))
+    const qs = params.toString()
+    startTransition(() => router.push(qs ? `${pathname}?${qs}` : pathname))
+  }
 
   const filtered = initialItems.filter((u) => {
     const matchSearch =
@@ -45,7 +67,7 @@ export function UsersTable({ initialItems, total }: Props) {
   const handleBan = (userId: string) => {
     startTransition(async () => {
       const result = await banUser(userId)
-      setActionMsg(result.success ? 'Usuario baneado.' : result.error)
+      setActionMsg(result.success ? 'Usuario baneado.' : result.error.message)
       if (result.success) router.refresh()
     })
   }
@@ -53,7 +75,7 @@ export function UsersTable({ initialItems, total }: Props) {
   const handleUnban = (userId: string) => {
     startTransition(async () => {
       const result = await unbanUser(userId)
-      setActionMsg(result.success ? 'Ban removido.' : result.error)
+      setActionMsg(result.success ? 'Ban removido.' : result.error.message)
       if (result.success) router.refresh()
     })
   }
@@ -97,7 +119,8 @@ export function UsersTable({ initialItems, total }: Props) {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Mostrando {filtered.length} de {total} usuarios
+        {total} usuarios · página {page} de {totalPages || 1}
+        {filtered.length !== initialItems.length && ` (${filtered.length} filtrados)`}
       </p>
 
       <div className="rounded-md border overflow-hidden">
@@ -150,20 +173,47 @@ export function UsersTable({ initialItems, total }: Props) {
                           size="sm"
                           disabled={pending}
                           onClick={() => handleUnban(user.id)}
-                          title="Quitar ban"
+                          aria-label="Quitar ban"
                         >
                           <CheckCircle className="h-4 w-4 text-emerald-600" />
                         </Button>
                       ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={pending}
-                          onClick={() => handleBan(user.id)}
-                          title="Banear usuario"
-                        >
-                          <Ban className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={pending}
+                            onClick={() => setBanConfirmUserId(user.id)}
+                            aria-label="Banear usuario"
+                          >
+                            <Ban className="h-4 w-4 text-destructive" />
+                          </Button>
+                          <AlertDialog
+                            open={banConfirmUserId === user.id}
+                            onOpenChange={(open) => { if (!open) setBanConfirmUserId(null) }}
+                          >
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Banear usuario</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  ¿Banear a <strong>{user.email}</strong>? No podrá acceder hasta que se quite el ban.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  onClick={() => {
+                                    setBanConfirmUserId(null)
+                                    handleBan(user.id)
+                                  }}
+                                >
+                                  Sí, banear
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
                       )
                     )}
                   </td>
@@ -173,6 +223,30 @@ export function UsersTable({ initialItems, total }: Props) {
           </table>
         </div>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1 || pending}
+            onClick={() => handlePageChange(page - 1)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {page} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages || pending}
+            onClick={() => handlePageChange(page + 1)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

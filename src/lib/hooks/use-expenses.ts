@@ -32,7 +32,7 @@ export function useExpensesSummary(date_from?: string, date_to?: string) {
   const { store_id } = useAdminContext()
 
   return useQuery({
-    queryKey: ['expenses-summary', store_id, date_from, date_to],
+    queryKey: queryKeys.expensesSummary(store_id, date_from, date_to),
     queryFn: async () => {
       const result = await getExpensesSummary(date_from, date_to)
       if (!result.success) throw new Error(result.error.message)
@@ -55,7 +55,7 @@ export function useCreateExpense() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.expenses(store_id) })
-      queryClient.invalidateQueries({ queryKey: ['expenses-summary', store_id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.expensesSummary(store_id) })
       toast.success('Gasto registrado')
     },
     onError: (error) => toast.error(error.message),
@@ -74,7 +74,7 @@ export function useUpdateExpense() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.expenses(store_id) })
-      queryClient.invalidateQueries({ queryKey: ['expenses-summary', store_id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.expensesSummary(store_id) })
       toast.success('Gasto actualizado')
     },
     onError: (error) => toast.error(error.message),
@@ -93,7 +93,7 @@ export function useDeleteExpense() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.expenses(store_id) })
-      queryClient.invalidateQueries({ queryKey: ['expenses-summary', store_id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.expensesSummary(store_id) })
       toast.success('Gasto eliminado')
     },
     onError: (error) => toast.error(error.message),

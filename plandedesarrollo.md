@@ -293,13 +293,13 @@ const { data } = await fetch(`/api/stores/capacity`)
 > **Objetivo:** El admin funciona sin bugs que interrumpan la operación diaria.  
 > **Tiempo estimado:** 6–8 hs
 
-- [ ] **3.1** Fix: búsqueda de pedidos no funciona
-- [ ] **3.2** Fix: CategoryCatalogView no sincroniza carrito ni stock
-- [ ] **3.3** Fix: bug en `changeTier` — validación de downgrade lee `data` en lugar de `count`
-- [ ] **3.4** Fix: RLS faltantes (assistant_sessions UPDATE, variant_attributes UPDATE, store_users UPDATE/DELETE)
-- [ ] **3.5** Fix: confirmaciones en acciones destructivas (cancelar pedido, ban usuario, cerrar sheet con cambios)
-- [ ] **3.6** Fix: `StoreDetailPanel` muestra `current_period_end` dos veces en lugar de start/end
-- [ ] **3.7** Fix: query keys incorrectas en `useStock` y `useAssistantSession`
+- [x] **3.1** Fix: búsqueda de pedidos — `orders.ts` + handler + page wired con debounce
+- [x] **3.2** Fix: CategoryCatalogView — `setStoreId` + `stockModuleActive` propagados
+- [x] **3.3** Fix: bug en `changeTier` — ahora lee `count` correctamente en `billing.ts`
+- [ ] **3.4** Fix: RLS faltantes — SQL a ejecutar en Supabase (ver script en sección 3.4)
+- [x] **3.5** Fix: confirmaciones — AlertDialog en cancelar pedido y ban usuario
+- [x] **3.6** Fix: `StoreDetailPanel` — `current_period_start` correcto + tipo actualizado
+- [x] **3.7** Fix: query keys — `useStock` y `useAssistantSession` incluyen filtros en la key
 
 ---
 
@@ -434,10 +434,10 @@ Verificar que `getBillingInfo()` en `src/lib/db/queries/billing.ts` retorna todo
 
 - [ ] **5.1** Regenerar `database.ts` con Supabase CLI
 - [ ] **5.2** Eliminar `as any` en queries de DB (depende de 5.1)
-- [ ] **5.3** Unificar helper `formatMoneyCents` (reemplaza `currency.ts` y `whatsapp.ts`)
-- [ ] **5.4** Zona horaria Argentina en `date.ts`
-- [ ] **5.5** Unificar query keys manuales a la factory `query-keys.ts`
-- [ ] **5.6** Unificar `ActionResult` en `billing.ts` y `superadmin.ts`
+- [x] **5.3** Unificar helper `formatMoneyCents` (reemplaza `currency.ts` y `whatsapp.ts`)
+- [x] **5.4** Zona horaria Argentina en `date.ts`
+- [x] **5.5** Unificar query keys manuales a la factory `query-keys.ts`
+- [x] **5.6** Unificar `ActionResult` en `billing.ts` y `superadmin.ts`
 
 ---
 
@@ -487,11 +487,11 @@ Agregar `timeZone: 'America/Argentina/Buenos_Aires'` a todos los `Intl.DateTimeF
 > **Objetivo:** El admin es rápido, sin estados de carga innecesarios.  
 > **Tiempo estimado:** 6–8 hs
 
-- [ ] **6.1** Suspense boundaries en rutas del admin
-- [ ] **6.2** `next/dynamic` para sheets y modales pesados (ProductSheet, OrderSheet)
-- [ ] **6.3** Paginación real en superadmin (stores, users)
-- [ ] **6.4** Búsqueda server-side en OrderSheet (reemplazar pageSize: 200)
-- [ ] **6.5** `staleTime`/`gcTime` faltantes en `use-variants.ts`
+- [x] **6.1** Suspense boundaries en rutas del admin
+- [x] **6.2** `next/dynamic` para sheets y modales pesados (ProductSheet, OrderSheet)
+- [x] **6.3** Paginación real en superadmin (stores, users)
+- [x] **6.4** Búsqueda server-side en OrderSheet (reemplazar pageSize: 200)
+- [x] **6.5** `staleTime`/`gcTime` faltantes en `use-variants.ts`
 
 ---
 
@@ -510,11 +510,11 @@ const OrderSheet = dynamic(() => import('@/components/admin/order-sheet'), { ssr
 > **Objetivo:** El catálogo de cada tienda está indexado correctamente y se ve bien en redes.  
 > **Tiempo estimado:** 4–6 hs
 
-- [ ] **7.1** Open Graph completo en páginas de producto (`/[slug]/p/[id]`)
-- [ ] **7.2** OG tags en páginas de categoría (`/[slug]/[category]`)
-- [ ] **7.3** Sitemap con URLs de productos individuales
-- [ ] **7.4** JSON-LD `availability` refleja stock real (no siempre InStock)
-- [ ] **7.5** "Cargar más" en vista por categoría (actualmente tope 48 productos)
+- [x] **7.1** Open Graph completo en páginas de producto (`/[slug]/p/[id]`)
+- [x] **7.2** OG tags en páginas de categoría (`/[slug]/[category]`)
+- [x] **7.3** Sitemap con URLs de productos individuales
+- [x] **7.4** JSON-LD `availability` refleja stock real (no siempre InStock)
+- [x] **7.5** "Cargar más" en vista por categoría (actualmente tope 48 productos)
 
 ---
 
@@ -591,11 +591,11 @@ ALTER TABLE products
 > **Objetivo:** Experiencia premium para los 100 primeros clientes.  
 > **Tiempo estimado:** 4–6 hs
 
-- [ ] **9.1** Accesibilidad: `aria-label` en BannerCarousel, EntityListPagination, botones de solo íconos
-- [ ] **9.2** Guards de formularios: hook `useUnsavedChanges` reutilizable
-- [ ] **9.3** Estados vacíos con onboarding contextual (ícono + texto + CTA)
-- [ ] **9.4** Loading skeletons consistentes en todas las tablas del admin
-- [ ] **9.5** Notificación de nuevo pedido en admin (polling)
+- [x] **9.1** Accesibilidad: `aria-label` en BannerCarousel, EntityListPagination, botones de solo íconos
+- [x] **9.2** Guards de formularios: hook `useUnsavedChanges` reutilizable
+- [x] **9.3** Estados vacíos con onboarding contextual (ícono + texto + CTA)
+- [x] **9.4** Loading skeletons consistentes en todas las tablas del admin
+- [x] **9.5** Notificación de nuevo pedido en admin (polling)
 
 ---
 

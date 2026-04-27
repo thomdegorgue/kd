@@ -29,12 +29,13 @@ registerHandler({
   invalidates: [],
   validate: () => ({ valid: true }),
   execute: async (input, context) => {
-    const { page = 1, pageSize = 50, status, date_from, date_to } = input as {
+    const { page = 1, pageSize = 50, status, date_from, date_to, search } = input as {
       page?: number
       pageSize?: number
       status?: string
       date_from?: string
       date_to?: string
+      search?: string
     }
 
     const from = (page - 1) * pageSize
@@ -55,6 +56,9 @@ registerHandler({
     }
     if (date_to) {
       query = query.lte('created_at', date_to)
+    }
+    if (search) {
+      query = query.ilike('customer_name', `%${search}%`)
     }
 
     const { data, error, count } = await query

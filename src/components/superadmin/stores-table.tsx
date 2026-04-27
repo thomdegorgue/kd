@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { ExternalLink, Search } from 'lucide-react'
+import { ExternalLink, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,8 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useRouter, usePathname } from 'next/navigation'
 import type { StoreListItem } from '@/lib/db/queries/superadmin'
 import { PRO_MODULES } from '@/lib/billing/calculator'
+import { useDebounce } from '@/lib/hooks/use-debounce'
+import { useEffect } from 'react'
 
 function BillingBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; className: string }> = {
@@ -31,20 +34,42 @@ function BillingBadge({ status }: { status: string }) {
 type Props = {
   initialItems: StoreListItem[]
   total: number
+  page: number
+  pageSize: number
+  initialSearch?: string
+  initialStatus?: string
 }
 
-export function StoresTable({ initialItems, total }: Props) {
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+export function StoresTable({ initialItems, total, page, pageSize, initialSearch, initialStatus }: Props) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const [, startTransition] = useTransition()
+  const [search, setSearch] = useState(initialSearch ?? '')
+  const [statusFilter, setStatusFilter] = useState(initialStatus ?? 'all')
+  const debouncedSearch = useDebounce(search, 400)
+  const totalPages = Math.ceil(total / pageSize)
 
-  const filtered = initialItems.filter((s) => {
-    const matchSearch =
-      !search ||
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.slug.toLowerCase().includes(search.toLowerCase())
-    const matchStatus = statusFilter === 'all' || s.billing_status === statusFilter
-    return matchSearch && matchStatus
-  })
+  const buildUrl = (p: number, s: string, st: string) => {
+    const params = new URLSearchParams()
+    if (p > 1) params.set('page', String(p))
+    if (s) params.set('search', s)
+    if (st !== 'all') params.set('status', st)
+    const qs = params.toString()
+    return qs ? `${pathname}?${qs}` : pathname
+  }
+
+  useEffect(() => {
+    startTransition(() => {
+      router.push(buildUrl(1, debouncedSearch, statusFilter))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, statusFilter])
+
+  const handlePageChange = (newPage: number) => {
+    startTransition(() => {
+      router.push(buildUrl(newPage, debouncedSearch, statusFilter))
+    })
+  }
 
   return (
     <div className="space-y-4">
@@ -73,7 +98,7 @@ export function StoresTable({ initialItems, total }: Props) {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Mostrando {filtered.length} de {total} tiendas
+        {total} tiendas · página {page} de {totalPages || 1}
       </p>
 
       <div className="rounded-md border overflow-hidden">
@@ -90,7 +115,7 @@ export function StoresTable({ initialItems, total }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filtered.map((store) => {
+              {initialItems.map((store) => {
                 const tier = (store.limits as Record<string, number>).max_products ?? '—'
                 const proCount = PRO_MODULES.filter(
                   (m) => (store.modules as Record<string, boolean>)[m] === true,
@@ -132,6 +157,30 @@ export function StoresTable({ initialItems, total }: Props) {
           </table>
         </div>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => handlePageChange(page - 1)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {page} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => handlePageChange(page + 1)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

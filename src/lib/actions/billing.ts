@@ -19,7 +19,7 @@ import {
   type CancelSubscriptionInput,
   type ChangeTierInput,
 } from '@/lib/validations/billing'
-import type { ModuleName, Plan } from '@/lib/types'
+import type { ActionResult, ModuleName, Plan } from '@/lib/types'
 import type { BillingInfo } from '@/lib/db/queries/billing'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -73,13 +73,9 @@ export async function getActivePlan(): Promise<BillingPageData> {
 // CREATE SUBSCRIPTION
 // ============================================================
 
-export type CreateSubscriptionResult =
-  | { success: true; init_point: string }
-  | { success: false; error: string }
-
 export async function createSubscription(
   rawInput: unknown,
-): Promise<CreateSubscriptionResult> {
+): Promise<ActionResult<{ init_point: string }>> {
   try {
     const ctx = await getStoreContext()
     const input = createSubscriptionSchema.parse(rawInput) as CreateSubscriptionInput
@@ -150,11 +146,11 @@ export async function createSubscription(
       total_ars: totalARS,
     })
 
-    return { success: true, init_point }
+    return { success: true, data: { init_point } }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error al crear suscripción'
     console.error('[billing] createSubscription error:', err)
-    return { success: false, error: message }
+    return { success: false, error: { code: 'SYSTEM_ERROR', message } }
   }
 }
 
@@ -162,13 +158,9 @@ export async function createSubscription(
 // CANCEL SUBSCRIPTION
 // ============================================================
 
-export type CancelSubscriptionResult =
-  | { success: true }
-  | { success: false; error: string }
-
 export async function cancelSubscription(
   rawInput: unknown = {},
-): Promise<CancelSubscriptionResult> {
+): Promise<ActionResult<null>> {
   try {
     const ctx = await getStoreContext()
     const input = cancelSubscriptionSchema.parse(rawInput) as CancelSubscriptionInput
@@ -176,7 +168,7 @@ export async function cancelSubscription(
     const billing = await getBillingInfo(ctx.store_id)
 
     if (!billing.mp_subscription_id) {
-      return { success: false, error: 'No hay suscripción activa para cancelar' }
+      return { success: false, error: { code: 'NOT_FOUND', message: 'No hay suscripción activa para cancelar' } }
     }
 
     await cancelPreapproval(billing.mp_subscription_id)
@@ -191,11 +183,11 @@ export async function cancelSubscription(
       subscription_id: billing.mp_subscription_id,
     })
 
-    return { success: true }
+    return { success: true, data: null }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error al cancelar suscripción'
     console.error('[billing] cancelSubscription error:', err)
-    return { success: false, error: message }
+    return { success: false, error: { code: 'SYSTEM_ERROR', message } }
   }
 }
 
@@ -203,18 +195,14 @@ export async function cancelSubscription(
 // CREATE ANNUAL SUBSCRIPTION (Checkout Preference — pago único)
 // ============================================================
 
-export type CreateAnnualSubscriptionResult =
-  | { success: true; init_point: string }
-  | { success: false; error: string }
-
 export async function createAnnualSubscription(
   tier: number,
-): Promise<CreateAnnualSubscriptionResult> {
+): Promise<ActionResult<{ init_point: string }>> {
   try {
     const ctx = await getStoreContext()
 
     if (!Number.isInteger(tier) || tier < 100) {
-      return { success: false, error: 'Tier inválido (mínimo 100)' }
+      return { success: false, error: { code: 'INVALID_INPUT', message: 'Tier inválido (mínimo 100)' } }
     }
 
     const [plan, ownerEmail] = await Promise.all([
@@ -226,7 +214,7 @@ export async function createAnnualSubscription(
     const annualARS = centavosToARS(annualCentavos)
 
     if (annualARS <= 0) {
-      return { success: false, error: 'Precio anual inválido' }
+      return { success: false, error: { code: 'INVALID_INPUT', message: 'Precio anual inválido' } }
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'
@@ -266,11 +254,11 @@ export async function createAnnualSubscription(
       total_ars: annualARS,
     })
 
-    return { success: true, init_point }
+    return { success: true, data: { init_point } }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error al crear plan anual'
     console.error('[billing] createAnnualSubscription error:', err)
-    return { success: false, error: message }
+    return { success: false, error: { code: 'SYSTEM_ERROR', message } }
   }
 }
 
@@ -278,11 +266,7 @@ export async function createAnnualSubscription(
 // CHANGE TIER
 // ============================================================
 
-export type ChangeTierResult =
-  | { success: true; init_point: string }
-  | { success: false; error: string }
-
-export async function changeTier(rawInput: unknown): Promise<ChangeTierResult> {
+export async function changeTier(rawInput: unknown): Promise<ActionResult<{ init_point: string }>> {
   try {
     const ctx = await getStoreContext()
     const input = changeTierSchema.parse(rawInput) as ChangeTierInput
@@ -294,18 +278,17 @@ export async function changeTier(rawInput: unknown): Promise<ChangeTierResult> {
     ])
 
     // Validar downgrade: no puede tener más productos activos que el nuevo tier
-    const { data: productCount } = await db
+    const { count: activeProductCount } = await db
       .from('products')
-      .select('id', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true })
       .eq('store_id', ctx.store_id)
       .is('deleted_at', null)
       .eq('is_active', true)
 
-    const activeProductCount = (productCount as { count: number } | null)?.count ?? 0
-    if (activeProductCount > input.new_tier) {
+    if ((activeProductCount ?? 0) > input.new_tier) {
       return {
         success: false,
-        error: `Tenés ${activeProductCount} productos activos. Desactivá algunos antes de reducir a ${input.new_tier}.`,
+        error: { code: 'LIMIT_EXCEEDED', message: `Tenés ${activeProductCount} productos activos. Desactivá algunos antes de reducir a ${input.new_tier}.` },
       }
     }
 
@@ -352,10 +335,10 @@ export async function changeTier(rawInput: unknown): Promise<ChangeTierResult> {
       total_ars: totalARS,
     })
 
-    return { success: true, init_point }
+    return { success: true, data: { init_point } }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error al cambiar tier'
     console.error('[billing] changeTier error:', err)
-    return { success: false, error: message }
+    return { success: false, error: { code: 'SYSTEM_ERROR', message } }
   }
 }

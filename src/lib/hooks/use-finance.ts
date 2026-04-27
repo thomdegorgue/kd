@@ -32,7 +32,7 @@ export function useFinanceSummary(date_from?: string, date_to?: string) {
   const { store_id } = useAdminContext()
 
   return useQuery({
-    queryKey: ['finance-summary', store_id, date_from, date_to],
+    queryKey: queryKeys.financeSummary(store_id, date_from, date_to),
     queryFn: async () => {
       const result = await getFinanceSummary(date_from, date_to)
       if (!result.success) throw new Error(result.error.message)
@@ -55,7 +55,7 @@ export function useCreateFinanceEntry() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.financeEntries(store_id) })
-      queryClient.invalidateQueries({ queryKey: ['finance-summary', store_id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.financeSummary(store_id) })
       toast.success('Entrada creada')
     },
     onError: (error) => toast.error(error.message),
@@ -74,7 +74,7 @@ export function useUpdateFinanceEntry() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.financeEntries(store_id) })
-      queryClient.invalidateQueries({ queryKey: ['finance-summary', store_id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.financeSummary(store_id) })
       toast.success('Entrada actualizada')
     },
     onError: (error) => toast.error(error.message),
@@ -93,7 +93,7 @@ export function useDeleteFinanceEntry() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.financeEntries(store_id) })
-      queryClient.invalidateQueries({ queryKey: ['finance-summary', store_id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.financeSummary(store_id) })
       toast.success('Entrada eliminada')
     },
     onError: (error) => toast.error(error.message),

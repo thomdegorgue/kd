@@ -9,20 +9,20 @@ import {
   removeCustomDomain,
 } from '@/lib/actions/custom-domain'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
-import { queryKeys } from '@/lib/hooks/query-keys'
+import { queryKeys, staleTimes, gcTimes } from '@/lib/hooks/query-keys'
 
 export function useCustomDomain() {
   const { store_id } = useAdminContext()
 
   return useQuery({
-    queryKey: ['custom-domain', store_id],
+    queryKey: queryKeys.customDomain(store_id),
     queryFn: async () => {
       const result = await getCustomDomainStatus()
       if (!result.success) throw new Error(result.error.message)
       return result.data
     },
-    staleTime: 60 * 1000,
-    gcTime: 5 * 60 * 1000,
+    staleTime: staleTimes.customDomain,
+    gcTime: gcTimes.customDomain,
   })
 }
 

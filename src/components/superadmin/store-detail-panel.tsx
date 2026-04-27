@@ -89,7 +89,7 @@ export function StoreDetailPanel({ store }: Props) {
   const handleStatusSave = () => {
     startTransition(async () => {
       const result = await updateStoreStatus(store.id, status)
-      setStatusMsg(result.success ? 'Guardado.' : result.error)
+      setStatusMsg(result.success ? 'Guardado.' : result.error.message)
       if (result.success) router.refresh()
     })
   }
@@ -99,7 +99,7 @@ export function StoreDetailPanel({ store }: Props) {
     setModules(updated)
     startTransition(async () => {
       const result = await overrideModules(store.id, { [mod]: value })
-      setModulesMsg(result.success ? 'Guardado.' : result.error)
+      setModulesMsg(result.success ? 'Guardado.' : result.error.message)
       if (result.success) router.refresh()
     })
   }
@@ -111,7 +111,7 @@ export function StoreDetailPanel({ store }: Props) {
         max_orders: Number(maxOrders),
         ai_tokens: Number(aiTokens),
       })
-      setLimitsMsg(result.success ? 'Guardado.' : result.error)
+      setLimitsMsg(result.success ? 'Guardado.' : result.error.message)
       if (result.success) router.refresh()
     })
   }
@@ -120,7 +120,7 @@ export function StoreDetailPanel({ store }: Props) {
     if (!trialDate) return
     startTransition(async () => {
       const result = await extendTrial(store.id, new Date(trialDate).toISOString())
-      setTrialMsg(result.success ? 'Guardado.' : result.error)
+      setTrialMsg(result.success ? 'Guardado.' : result.error.message)
       if (result.success) router.refresh()
     })
   }
@@ -289,8 +289,8 @@ export function StoreDetailPanel({ store }: Props) {
           </p>
           <p>
             <span className="text-muted-foreground">Inicio período: </span>
-            {store.current_period_end
-              ? new Date(store.current_period_end).toLocaleDateString('es-AR')
+            {store.current_period_start
+              ? new Date(store.current_period_start).toLocaleDateString('es-AR')
               : '—'}
           </p>
           <p>

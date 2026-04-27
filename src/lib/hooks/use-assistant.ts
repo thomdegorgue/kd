@@ -17,7 +17,7 @@ export function useAssistantSession(sessionId?: string) {
   const { store_id } = useAdminContext()
 
   return useQuery({
-    queryKey: queryKeys.assistantSession(store_id),
+    queryKey: [...queryKeys.assistantSession(store_id), sessionId ?? 'new'],
     queryFn: async () => {
       const result = await getAssistantSession(sessionId)
       if (!result.success) throw new Error(result.error.message)

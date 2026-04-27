@@ -39,8 +39,12 @@ export const queryKeys = {
   // Finance
   financeEntries: (storeId: string, filters?: Record<string, unknown>) =>
     filters ? ['finance-entries', storeId, filters] as const : ['finance-entries', storeId] as const,
+  financeSummary: (storeId: string, dateFrom?: string, dateTo?: string) =>
+    ['finance-summary', storeId, dateFrom, dateTo] as const,
   expenses: (storeId: string, filters?: Record<string, unknown>) =>
     filters ? ['expenses', storeId, filters] as const : ['expenses', storeId] as const,
+  expensesSummary: (storeId: string, dateFrom?: string, dateTo?: string) =>
+    ['expenses-summary', storeId, dateFrom, dateTo] as const,
 
   // Tasks
   tasks: (storeId: string, filters?: Record<string, unknown>) =>
@@ -64,8 +68,17 @@ export const queryKeys = {
   // Savings
   savings: (storeId: string) => ['savings', storeId] as const,
 
+  // Variants
+  variantAttributes: (storeId: string, productId: string) =>
+    ['variant-attributes', storeId, productId] as const,
+  variants: (storeId: string, productId: string) => ['variants', storeId, productId] as const,
+
+  // Custom domain
+  customDomain: (storeId: string) => ['custom-domain', storeId] as const,
+
   // Sales (POS) — F16
-  salesSummary: (storeId: string, date: string) => ['sales-summary', storeId, date] as const,
+  salesSummary: (storeId: string, date?: string) =>
+    date ? ['sales-summary', storeId, date] as const : ['sales-summary', storeId] as const,
   salesHistory: (storeId: string, filters?: Record<string, unknown>) =>
     filters ? ['sales-history', storeId, filters] as const : ['sales-history', storeId] as const,
 
@@ -99,6 +112,11 @@ export const staleTimes = {
   shipments: 30 * 1000,
   wholesale: 2 * 60 * 1000,
   savings: 2 * 60 * 1000,
+  variants: 2 * 60 * 1000,
+  variantAttributes: 5 * 60 * 1000,
+  customDomain: 60 * 1000,
+  financeSummary: 60 * 1000,
+  expensesSummary: 2 * 60 * 1000,
   plans: 30 * 60 * 1000,
   billing: 60 * 1000,
   storeUsers: 2 * 60 * 1000,
@@ -127,6 +145,11 @@ export const gcTimes = {
   shipments: 5 * 60 * 1000,
   wholesale: 10 * 60 * 1000,
   savings: 10 * 60 * 1000,
+  variants: 10 * 60 * 1000,
+  variantAttributes: 15 * 60 * 1000,
+  customDomain: 5 * 60 * 1000,
+  financeSummary: 5 * 60 * 1000,
+  expensesSummary: 5 * 60 * 1000,
   plans: 60 * 60 * 1000,
   billing: 5 * 60 * 1000,
   storeUsers: 10 * 60 * 1000,

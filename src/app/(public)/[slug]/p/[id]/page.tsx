@@ -14,9 +14,28 @@ export async function generateMetadata({
   const store = await getStoreBySlug(slug)
   if (!store) return {}
   const product = await getProductPublicDetail(store.id, id)
+  if (!product) return { title: store.name }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'
+  const pageUrl = `${appUrl}/${slug}/p/${id}`
+  const imageUrl = product.image_url ?? store.logo_url ?? undefined
+
   return {
-    title: product ? `${product.name} — ${store.name}` : store.name,
-    description: product?.description ?? undefined,
+    title: `${product.name} — ${store.name}`,
+    description: product.description ?? undefined,
+    openGraph: {
+      title: `${product.name} — ${store.name}`,
+      description: product.description ?? undefined,
+      url: pageUrl,
+      type: 'website',
+      images: imageUrl ? [{ url: imageUrl, alt: product.name }] : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${product.name} — ${store.name}`,
+      description: product.description ?? undefined,
+      images: imageUrl ? [imageUrl] : undefined,
+    },
   }
 }
 

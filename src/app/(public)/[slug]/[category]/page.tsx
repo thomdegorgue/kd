@@ -15,8 +15,25 @@ export async function generateMetadata({
   const store = await getStoreBySlug(slug)
   if (!store) return {}
   const cat = await getCategoryPublic(store.id, categoryId)
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'
+  const pageUrl = `${appUrl}/${slug}/${categoryId}`
+  const title = cat ? `${cat.name} — ${store.name}` : store.name
+  const imageUrl = store.logo_url ?? undefined
+
   return {
-    title: cat ? `${cat.name} — ${store.name}` : store.name,
+    title,
+    openGraph: {
+      title,
+      url: pageUrl,
+      type: 'website',
+      images: imageUrl ? [{ url: imageUrl, alt: store.name }] : undefined,
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      images: imageUrl ? [imageUrl] : undefined,
+    },
   }
 }
 
@@ -32,7 +49,7 @@ export default async function CategoryPage({
   const category = await getCategoryPublic(store.id, categoryId)
   if (!category) notFound()
 
-  const [{ products }, categories] = await Promise.all([
+  const [{ products, total }, categories] = await Promise.all([
     listProductsPublic(store.id, { categoryId }),
     listCategoriesPublic(store.id),
   ])
@@ -40,10 +57,14 @@ export default async function CategoryPage({
   return (
     <CategoryCatalogView
       products={products}
+      total={total}
+      storeId={store.id}
+      categoryId={categoryId}
       categories={categories}
       currentCategoryId={categoryId}
       categoryName={category.name}
       hasProductPageModule={!!store.modules.product_page}
+      stockModuleActive={!!store.modules.stock}
       slug={slug}
     />
   )

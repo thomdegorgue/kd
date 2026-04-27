@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { Plus, ShoppingCart } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
@@ -15,9 +16,15 @@ import {
 } from '@/components/ui/table'
 import { EntityToolbar } from '@/components/shared/entity-toolbar'
 import { OrderStatusBadge, ORDER_STATUS_OPTIONS } from '@/components/admin/order-status-badge'
-import { OrderSheet } from '@/components/admin/order-sheet'
+import dynamic from 'next/dynamic'
+
+const OrderSheet = dynamic(
+  () => import('@/components/admin/order-sheet').then((m) => ({ default: m.OrderSheet })),
+  { ssr: false },
+)
 import { useOrders } from '@/lib/hooks/use-orders'
 import { useCurrency } from '@/lib/hooks/use-currency'
+import { useDebounce } from '@/lib/hooks/use-debounce'
 import type { OrderStatus } from '@/lib/types'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -32,16 +39,30 @@ export default function OrdersPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const { data, isLoading } = useOrders({
-    page,
-    pageSize: 50,
-    status: statusFilter || undefined,
-  })
+  const debouncedSearch = useDebounce(search, 300)
+
+  const { data, isLoading } = useOrders(
+    { page, pageSize: 50, status: statusFilter || undefined, search: debouncedSearch || undefined },
+    { pollingMs: 30_000 },
+  )
   const { formatPrice } = useCurrency()
 
   const orders = data?.items ?? []
   const total = data?.total ?? 0
   const totalPages = Math.ceil(total / 50)
+
+  // Notify on new orders since last poll
+  const prevTotalRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (total === 0 || isLoading) return
+    if (prevTotalRef.current !== null && total > prevTotalRef.current && page === 1 && !statusFilter && !debouncedSearch) {
+      const diff = total - prevTotalRef.current
+      toast.info(`${diff} nuevo${diff > 1 ? 's' : ''} pedido${diff > 1 ? 's' : ''}`, {
+        description: 'Revisar la lista de pedidos.',
+      })
+    }
+    prevTotalRef.current = total
+  }, [total, isLoading, page, statusFilter, debouncedSearch])
 
   function openOrder(id: string) {
     setSelectedOrderId(id)
@@ -113,8 +134,18 @@ export default function OrdersPage() {
           ))}
         </div>
       ) : orders.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">
-          {statusFilter ? 'No hay pedidos con ese estado.' : 'Aún no tenés pedidos.'}
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <ShoppingCart className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="font-medium text-sm">
+              {statusFilter ? 'No hay pedidos con ese estado' : 'Todavía no recibiste pedidos'}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {statusFilter ? 'Probá con otro filtro.' : 'Los pedidos de tu catálogo aparecerán acá.'}
+            </p>
+          </div>
         </div>
       ) : (
         <>

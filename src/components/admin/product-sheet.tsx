@@ -26,6 +26,7 @@ import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import { useCurrency } from '@/lib/hooks/use-currency'
 import { useCategories } from '@/lib/hooks/use-categories'
 import { useProduct, useCreateProduct, useUpdateProduct, useUpdateProductPage } from '@/lib/hooks/use-products'
+import { useUnsavedChanges } from '@/lib/hooks/use-unsaved-changes'
 
 // ── Form schema ──────────────────────────────────────────────
 
@@ -81,6 +82,7 @@ export function ProductSheet({ id, open, onOpenChange }: ProductSheetProps) {
   // ── Main form ─────────────────────────────────────────────
 
   const form = useForm<FormValues>({
+
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
@@ -94,6 +96,8 @@ export function ProductSheet({ id, open, onOpenChange }: ProductSheetProps) {
       stock: null,
     },
   })
+
+  useUnsavedChanges(form.formState.isDirty)
 
   // Reset on open/product change
   useEffect(() => {
