@@ -10,14 +10,18 @@ import {
   isProModule,
   type AnnualPlanPricing,
 } from '@/lib/billing/calculator'
+import { getPack, packsToModules, modulesToPacks } from '@/lib/billing/packs'
+import type { PackId } from '@/lib/billing/packs'
 import { getPlan, getBillingInfo, getStoreOwnerEmail } from '@/lib/db/queries/billing'
 import {
   createSubscriptionSchema,
   cancelSubscriptionSchema,
   changeTierSchema,
+  togglePackSchema,
   type CreateSubscriptionInput,
   type CancelSubscriptionInput,
   type ChangeTierInput,
+  type TogglePackInput,
 } from '@/lib/validations/billing'
 import type { ActionResult, ModuleName, Plan } from '@/lib/types'
 import type { BillingInfo } from '@/lib/db/queries/billing'
@@ -347,5 +351,78 @@ export async function changeTier(rawInput: unknown): Promise<ActionResult<{ init
     const message = err instanceof Error ? err.message : 'Error al cambiar tier'
     console.error('[billing] changeTier error:', err)
     return { success: false, error: { code: 'SYSTEM_ERROR', message } }
+  }
+}
+
+// ============================================================
+// TOGGLE PACK — activar/desactivar pack completo (atómico)
+// ============================================================
+
+export async function togglePack(
+  rawInput: unknown,
+): Promise<ActionResult<{ pack_id: PackId; enabled: boolean }>> {
+  try {
+    const ctx = await getStoreContext()
+    const input = togglePackSchema.parse(rawInput) as TogglePackInput
+
+    const pack = getPack(input.pack_id)
+
+    // No se puede desactivar el pack core
+    if (pack.id === 'core') {
+      return {
+        success: false,
+        error: { code: 'INVALID_INPUT', message: 'El pack core no se puede desactivar' },
+      }
+    }
+
+    // Obtener módulos actuales
+    const { data: storeData } = await db
+      .from('stores')
+      .select('modules')
+      .eq('id', ctx.store_id)
+      .single()
+
+    if (!storeData) {
+      return {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Tienda no encontrada' },
+      }
+    }
+
+    const currentModules = (storeData.modules ?? {}) as Record<string, boolean>
+    const nextModules = { ...currentModules }
+
+    // Aplicar cambio: activar o desactivar todos los módulos del pack
+    for (const m of pack.modules) {
+      nextModules[m] = input.enabled
+    }
+
+    // Actualizar módulos en la BD
+    const { error } = await db
+      .from('stores')
+      .update({ modules: nextModules })
+      .eq('id', ctx.store_id)
+
+    if (error) {
+      throw new Error(`DB error: ${error.message}`)
+    }
+
+    await emitBillingEvent(ctx.store_id, 'pack_toggled', {
+      pack_id: pack.id,
+      enabled: input.enabled,
+      modules: pack.modules,
+    })
+
+    return ensureActionResultSerializable({
+      success: true,
+      data: { pack_id: input.pack_id, enabled: input.enabled },
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error al cambiar pack'
+    console.error('[billing] togglePack error:', err)
+    return ensureActionResultSerializable({
+      success: false,
+      error: { code: 'SYSTEM_ERROR', message },
+    })
   }
 }

@@ -9,6 +9,7 @@ import {
   cancelSubscription,
   changeTier,
   createAnnualSubscription,
+  togglePack,
 } from '@/lib/actions/billing'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import { queryKeys, staleTimes, gcTimes } from '@/lib/hooks/query-keys'
@@ -110,6 +111,27 @@ export function useChangeTier() {
     },
     onError: () => {
       toast.error('Error al cambiar el tier')
+    },
+  })
+}
+
+export function useTogglePack() {
+  const { store_id } = useAdminContext()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: unknown) => togglePack(input),
+    onSuccess: (result) => {
+      if (!result.success) {
+        toast.error(result.error.message)
+        return
+      }
+      const action = result.data.enabled ? 'activado' : 'desactivado'
+      toast.success(`Pack ${action} correctamente`)
+      queryClient.invalidateQueries({ queryKey: queryKeys.billing(store_id) })
+    },
+    onError: () => {
+      toast.error('Error al cambiar el pack')
     },
   })
 }
