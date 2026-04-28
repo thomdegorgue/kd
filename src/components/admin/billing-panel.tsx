@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { Switch } from '@/components/ui/switch'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,50 +17,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  PRO_MODULES,
-  computePriceBreakdown,
-  calculateAnnualPrice,
-  ANNUAL_INCLUDED_PRO_MODULES,
-  formatARS,
-  type PlanPricing,
-  type AnnualPlanPricing,
-} from '@/lib/billing/calculator'
+import { PackCard } from '@/components/admin/pack-card'
+import { PACKS, computePackTotal } from '@/lib/billing/packs'
+import { formatARS } from '@/lib/billing/calculator'
 import {
   useBilling,
   useCreateSubscription,
   useCancelSubscription,
   useChangeTier,
   useCreateAnnualSubscription,
+  useTogglePack,
 } from '@/lib/hooks/use-billing'
-import type { ModuleName, Plan } from '@/lib/types'
-
-// ============================================================
-// LABEL MAP para módulos pro
-// ============================================================
-
-const PRO_MODULE_LABELS: Record<string, string> = {
-  variants: 'Variantes de producto',
-  wholesale: 'Precios mayoristas',
-  finance: 'Flujo de caja',
-  expenses: 'Gastos detallados',
-  savings_account: 'Cuentas de ahorro',
-  multiuser: 'Múltiples usuarios',
-  tasks: 'Tareas del equipo',
-  assistant: 'Asistente IA',
-}
-
-// ============================================================
-// BILLING STATUS BADGE
-// ============================================================
+import type { Plan } from '@/lib/types'
+import type { PackId } from '@/lib/billing/packs'
 
 function BillingStatusBadge({ status }: { status: string }) {
   if (status === 'active') {
@@ -91,61 +60,11 @@ function BillingStatusBadge({ status }: { status: string }) {
   return <Badge variant="outline">{status}</Badge>
 }
 
-// ============================================================
-// PRICE SUMMARY
-// ============================================================
-
-function PriceSummary({
-  plan,
-  tier,
-  activeModules,
-}: {
-  plan: Plan & PlanPricing
-  tier: number
-  activeModules: Partial<Record<ModuleName, boolean>>
-}) {
-  const breakdown = computePriceBreakdown(plan, tier, activeModules)
-
-  return (
-    <div className="rounded-lg border bg-muted/30 p-4 space-y-2.5">
-      <div className="flex justify-between items-center text-sm">
-        <span className="text-muted-foreground">
-          Plan base ({tier} productos × {breakdown.tiers} tier{breakdown.tiers !== 1 ? 's' : ''})
-        </span>
-        <span className="font-medium">{formatARS(breakdown.basePrice)}</span>
-      </div>
-
-      {breakdown.activeProModules.map((m) => (
-        <div key={m} className="flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">+ {PRO_MODULE_LABELS[m] ?? m}</span>
-          <span className="font-medium">{formatARS(plan.pro_module_price)}</span>
-        </div>
-      ))}
-
-      <Separator />
-
-      <div className="flex justify-between items-center">
-        <span className="font-semibold text-sm">Total mensual</span>
-        <span className="text-lg font-bold">{formatARS(breakdown.total)}</span>
-      </div>
-    </div>
-  )
-}
-
-// ============================================================
-// MAIN COMPONENT
-// ============================================================
-
 export function BillingPanel() {
   const { data, isLoading, isError } = useBilling()
-  const createSubscriptionMutation = useCreateSubscription()
+  const togglePackMutation = useTogglePack()
   const cancelSubscriptionMutation = useCancelSubscription()
-  const changeTierMutation = useChangeTier()
-  const createAnnualMutation = useCreateAnnualSubscription()
-
   const [selectedTier, setSelectedTier] = useState<number | null>(null)
-  const [pendingProModules, setPendingProModules] = useState<Set<string> | null>(null)
-  const [annualTier, setAnnualTier] = useState<number>(100)
 
   if (isLoading) {
     return (
@@ -167,370 +86,190 @@ export function BillingPanel() {
 
   const { plan, billing } = data
   const billingStatus = billing.billing_status
-  const billingPeriod = billing.billing_period ?? 'monthly'
-  const annualPaidUntil = billing.annual_paid_until
   const currentTier = (billing.limits as Record<string, number>).max_products ?? 100
-  const currentModules = billing.modules as Partial<Record<ModuleName, boolean>>
   const hasMpSubscription = !!billing.mp_subscription_id
   const isCancelled = !!billing.cancelled_at
 
-  const tier = selectedTier ?? currentTier
-  const activeModules = pendingProModules !== null
-    ? Object.fromEntries([...pendingProModules].map((m) => [m, true])) as Partial<Record<ModuleName, boolean>>
-    : currentModules
-
-  const typedPlan = plan as Plan & PlanPricing
-  const annualPlan = plan as Plan & AnnualPlanPricing
-  const annualDiscountMonths =
-    (annualPlan as unknown as { annual_discount_months?: number }).annual_discount_months ?? 2
-  const monthlyEquivalent =
-    Math.ceil(annualTier / 100) * typedPlan.price_per_100_products * 12
-  const annualPrice = calculateAnnualPrice(annualPlan, annualTier)
-  const annualSavings = monthlyEquivalent - annualPrice
-
-  const tierOptions = [100, 200, 300, 500, 1000, 2000]
-
-  function toggleProModule(module: string) {
-    const base = pendingProModules ?? new Set(
-      PRO_MODULES.filter((m) => currentModules[m] === true),
-    )
-    const next = new Set(base)
-    if (next.has(module)) {
-      next.delete(module)
-    } else {
-      next.add(module)
-    }
-    setPendingProModules(next)
-  }
-
-  const hasChanges =
-    (selectedTier !== null && selectedTier !== currentTier) ||
-    pendingProModules !== null
-
-  function handleSubscribe() {
-    const proModules = pendingProModules !== null
-      ? [...pendingProModules]
-      : PRO_MODULES.filter((m) => currentModules[m] === true)
-
-    createSubscriptionMutation.mutate({ tier, pro_modules: proModules })
-  }
-
-  function handleChangeTier() {
-    if (selectedTier) {
-      changeTierMutation.mutate({ new_tier: selectedTier })
-    }
-  }
-
-  const isBusy =
-    createSubscriptionMutation.isPending ||
-    cancelSubscriptionMutation.isPending ||
-    changeTierMutation.isPending ||
-    createAnnualMutation.isPending
-
-  // ── DEMO → mostrar setup de suscripción ──────────────────────
   const isDemo = billingStatus === 'demo'
   const isActive = billingStatus === 'active'
   const isPastDue = billingStatus === 'past_due'
-  const isAnnual = billingPeriod === 'annual'
 
-  const PRO_MODULE_LABEL_LIST = ANNUAL_INCLUDED_PRO_MODULES.map(
-    (m) => PRO_MODULE_LABELS[m] ?? m,
-  )
+  // Detectar packs activos de los módulos
+  const activePackIds: PackId[] = []
+  const modules = billing.modules as Record<string, boolean>
+  for (const pack of PACKS) {
+    const allModulesActive = pack.modules.every(m => modules[m] === true)
+    if (allModulesActive) activePackIds.push(pack.id as PackId)
+  }
+
+  const packPricing = computePackTotal(activePackIds)
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      {/* Estado actual */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Estado de suscripción</CardTitle>
+    <div className="space-y-6 max-w-6xl">
+      {/* HERO SECTION */}
+      <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-white shadow-lg">
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-3xl font-bold mb-2">Tu suscripción</h2>
+              <p className="text-slate-300 text-sm">Gestiona tu plan, packs y acceso a módulos.</p>
+            </div>
             <BillingStatusBadge status={billingStatus} />
           </div>
-          {isDemo && billing.trial_ends_at && (
-            <CardDescription>
-              Prueba gratuita hasta el{' '}
-              {new Date(billing.trial_ends_at).toLocaleDateString('es-AR', {
-                timeZone: 'America/Argentina/Buenos_Aires',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })}
-            </CardDescription>
-          )}
-          {isActive && !isAnnual && billing.current_period_end && (
-            <CardDescription>
-              Próximo cobro:{' '}
-              {new Date(billing.current_period_end).toLocaleDateString('es-AR', {
-                timeZone: 'America/Argentina/Buenos_Aires',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })}
-            </CardDescription>
-          )}
-          {isActive && isAnnual && annualPaidUntil && (
-            <CardDescription>
-              Plan anual activo hasta el{' '}
-              {new Date(annualPaidUntil).toLocaleDateString('es-AR', {
-                timeZone: 'America/Argentina/Buenos_Aires',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })}
-            </CardDescription>
-          )}
-          {isPastDue && (
-            <CardDescription className="text-destructive">
-              Tu suscripción está vencida. Activá una nueva suscripción para recuperar el acceso completo.
-            </CardDescription>
-          )}
-        </CardHeader>
-      </Card>
 
-      {/* Selector de modalidad */}
-      <Tabs defaultValue={isAnnual ? 'annual' : 'monthly'} className="w-full">
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-1">Costo mensual</p>
+              <p className="text-4xl font-bold">{formatARS(packPricing.total + (billing.limits as Record<string, number>).max_products * 200000)}</p>
+            </div>
+            <div>
+              <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-1">Próximo cobro</p>
+              <p className="text-xl font-semibold">
+                {billing.current_period_end
+                  ? new Date(billing.current_period_end).toLocaleDateString('es-AR', {
+                      day: 'numeric',
+                      month: 'short',
+                    })
+                  : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-1">Packs activos</p>
+              <p className="text-2xl font-bold">{activePackIds.filter(p => p !== 'core').length}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* TABS */}
+      <Tabs defaultValue="packs" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="monthly">Plan Mensual</TabsTrigger>
-          <TabsTrigger value="annual">Plan Anual (2 meses gratis)</TabsTrigger>
+          <TabsTrigger value="packs">Packs</TabsTrigger>
+          <TabsTrigger value="historial">Historial</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="annual" className="space-y-4 pt-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Plan Anual — Pago único</CardTitle>
-              <CardDescription>
-                Pagás {12 - annualDiscountMonths} meses y recibís 12. Incluye todos los módulos
-                pro excepto Asistente IA.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Tier de productos</label>
-                <Select
-                  value={String(annualTier)}
-                  onValueChange={(v) => setAnnualTier(Number(v))}
-                >
-                  <SelectTrigger className="w-full sm:w-64">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tierOptions.map((t) => (
-                      <SelectItem key={t} value={String(t)}>
-                        {t} productos
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        <TabsContent value="packs" className="space-y-6 pt-6">
+          {/* PACKS GRID */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Elige tus módulos</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {PACKS.map(pack => (
+                <PackCard
+                  key={pack.id}
+                  pack={pack}
+                  isActive={activePackIds.includes(pack.id)}
+                  onToggle={pack.id !== 'core' ? (enabled) => {
+                    togglePackMutation.mutate({ pack_id: pack.id as PackId, enabled })
+                  } : undefined}
+                  disabled={pack.id === 'core' || !isActive}
+                  isLoading={togglePackMutation.isPending}
+                />
+              ))}
+            </div>
+          </div>
 
-              <div className="rounded-lg border bg-muted/30 p-4 space-y-2.5">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Precio mensual equivalente</span>
-                  <span className="line-through text-muted-foreground">
-                    {formatARS(monthlyEquivalent)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Ahorro</span>
-                  <span className="font-medium text-emerald-600">
-                    −{formatARS(annualSavings)}
-                  </span>
-                </div>
-                <Separator />
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold text-sm">Total anual</span>
-                  <span className="text-lg font-bold">{formatARS(annualPrice)}</span>
-                </div>
-              </div>
+          <Separator />
 
-              <div className="space-y-1.5">
-                <p className="text-sm font-medium">Módulos pro incluidos</p>
-                <ul className="text-xs text-muted-foreground space-y-0.5 list-disc pl-5">
-                  {PRO_MODULE_LABEL_LIST.map((label) => (
-                    <li key={label}>{label}</li>
+          {/* RESUMEN Y CTA */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Resumen de precio */}
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Resumen</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Tier de productos ({currentTier})</span>
+                    <span className="font-medium">{formatARS((Math.ceil(currentTier / 100) * 2000000))}</span>
+                  </div>
+                  {activePackIds.filter(p => p !== 'core').map(packId => (
+                    <div key={packId} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">+ {PACKS.find(p => p.id === packId)?.label}</span>
+                      <span className="font-medium">{formatARS(1000000)}</span>
+                    </div>
                   ))}
-                </ul>
-                <p className="text-xs text-muted-foreground pt-1">
-                  Asistente IA se contrata aparte como add-on mensual.
-                </p>
-              </div>
+                  {packPricing.bundleDiscount > 0 && (
+                    <div className="flex justify-between text-sm text-emerald-600 font-medium">
+                      <span>Descuento bundle (3 packs)</span>
+                      <span>−{formatARS(packPricing.bundleDiscount)}</span>
+                    </div>
+                  )}
+                  <Separator />
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="font-semibold">Total mensual</span>
+                    <span className="text-2xl font-bold">{formatARS(packPricing.total + (Math.ceil(currentTier / 100) * 2000000))}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-              <Button
-                onClick={() => createAnnualMutation.mutate(annualTier)}
-                disabled={isBusy}
-                size="lg"
-                className="gap-2 w-full sm:w-auto"
-              >
-                {createAnnualMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
+            {/* Acciones */}
+            <div className="space-y-3">
+              {isActive && hasMpSubscription && !isCancelled && (
+                <AlertDialog>
+                  <AlertDialogTrigger
+                    render={
+                      <Button variant="outline" size="lg" disabled={cancelSubscriptionMutation.isPending} className="w-full text-destructive">
+                        Cancelar suscripción
+                      </Button>
+                    }
+                  />
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Cancelar suscripción?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Tu acceso continuará hasta el{' '}
+                        {billing.current_period_end
+                          ? new Date(billing.current_period_end).toLocaleDateString('es-AR', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                            })
+                          : 'fin del período actual'}
+                        . Después la tienda pasará a modo vencido.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>No, mantener</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => cancelSubscriptionMutation.mutate({})}
+                        className="bg-destructive hover:bg-destructive/90"
+                      >
+                        Sí, cancelar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+
+              {(isDemo || isPastDue) && (
+                <Button size="lg" className="w-full gap-2 rounded-xl bg-gradient-to-r from-primary to-primary/90">
                   <Zap className="h-4 w-4" />
-                )}
-                {isActive && isAnnual ? 'Renovar Plan Anual' : 'Contratar Plan Anual'}
-                <ChevronRight className="h-4 w-4 ml-auto" />
-              </Button>
-            </CardContent>
-          </Card>
+                  Activar suscripción
+                  <ChevronRight className="h-4 w-4 ml-auto" />
+                </Button>
+              )}
+
+              {isActive && isCancelled && billing.current_period_end && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                  Suscripción cancelada. Acceso hasta el{' '}
+                  {new Date(billing.current_period_end).toLocaleDateString('es-AR')}
+                </p>
+              )}
+            </div>
+          </div>
         </TabsContent>
 
-        <TabsContent value="monthly" className="space-y-4 pt-4">
-      {/* Tier de productos */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Tier de productos</CardTitle>
-          <CardDescription>
-            El precio base escala según cuántos productos querés poder tener activos.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Select
-            value={String(tier)}
-            onValueChange={(v) => setSelectedTier(Number(v))}
-          >
-            <SelectTrigger className="w-full sm:w-64">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {tierOptions.map((t) => (
-                <SelectItem key={t} value={String(t)}>
-                  {t} productos — {formatARS(Math.ceil(t / 100) * typedPlan.price_per_100_products)}/mes
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
-      {/* Módulos pro */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Módulos pro</CardTitle>
-          <CardDescription>
-            Cada módulo agrega {formatARS(typedPlan.pro_module_price)}/mes al total.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {PRO_MODULES.map((module) => {
-            const isOn = pendingProModules !== null
-              ? pendingProModules.has(module)
-              : currentModules[module] === true
-
-            return (
-              <div key={module} className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">{PRO_MODULE_LABELS[module] ?? module}</p>
-                  {isOn && (
-                    <p className="text-xs text-muted-foreground">
-                      + {formatARS(typedPlan.pro_module_price)}/mes
-                    </p>
-                  )}
-                </div>
-                <Switch
-                  checked={isOn}
-                  onCheckedChange={() => toggleProModule(module)}
-                  disabled={isBusy}
-                />
-              </div>
-            )
-          })}
-        </CardContent>
-      </Card>
-
-      {/* Resumen de precio */}
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-muted-foreground">Resumen</p>
-        <PriceSummary plan={typedPlan} tier={tier} activeModules={activeModules} />
-      </div>
-
-      {/* CTA */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        {(isDemo || isPastDue) && (
-          <Button
-            onClick={handleSubscribe}
-            disabled={isBusy}
-            className="gap-2"
-            size="lg"
-          >
-            {createSubscriptionMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Zap className="h-4 w-4" />
-            )}
-            Activar suscripción
-            <ChevronRight className="h-4 w-4 ml-auto" />
-          </Button>
-        )}
-
-        {isActive && hasChanges && selectedTier && selectedTier !== currentTier && (
-          <Button
-            onClick={handleChangeTier}
-            disabled={isBusy}
-            variant="outline"
-            size="lg"
-            className="gap-2"
-          >
-            {changeTierMutation.isPending && (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            )}
-            Cambiar a {selectedTier} productos
-          </Button>
-        )}
-
-        {isActive && !isAnnual && hasMpSubscription && !isCancelled && (
-          <AlertDialog>
-            <AlertDialogTrigger
-              render={
-                <Button variant="outline" size="lg" disabled={isBusy} className="text-destructive">
-                  Cancelar suscripción
-                </Button>
-              }
-            />
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Cancelar suscripción?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Tu acceso continuará hasta el{' '}
-                  {billing.current_period_end
-                    ? new Date(billing.current_period_end).toLocaleDateString('es-AR', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })
-                    : 'fin del período actual'}
-                  . Después la tienda pasará a modo vencido y solo podrás leer los datos.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>No, mantener</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => cancelSubscriptionMutation.mutate({})}
-                  className="bg-destructive hover:bg-destructive/90"
-                >
-                  Sí, cancelar
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
-
-        {isActive && !isAnnual && !hasMpSubscription && (
-          <p className="text-xs text-muted-foreground self-center">
-            Para cancelar tu suscripción escribinos por WhatsApp o a soporte.
-          </p>
-        )}
-
-        {isActive && !isAnnual && isCancelled && billing.current_period_end && (
-          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 self-center">
-            Suscripción cancelada. Acceso hasta el{' '}
-            {new Date(billing.current_period_end).toLocaleDateString('es-AR', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}
-            .
-          </p>
-        )}
-      </div>
+        <TabsContent value="historial" className="pt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Historial de pagos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Historial de pagos próximamente.</p>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
