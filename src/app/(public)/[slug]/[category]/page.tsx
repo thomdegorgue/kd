@@ -1,8 +1,6 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { getStoreBySlug } from '@/lib/db/queries/stores'
-import { listProductsPublic } from '@/lib/db/queries/products'
-import { listCategoriesPublic, getCategoryPublic } from '@/lib/db/queries/categories'
-import { CategoryCatalogView } from './category-catalog-view'
+import { getCategoryPublic } from '@/lib/db/queries/categories'
 
 export const revalidate = 3600
 
@@ -17,7 +15,7 @@ export async function generateMetadata({
   const cat = await getCategoryPublic(store.id, categoryId)
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'
-  const pageUrl = `${appUrl}/${slug}/${categoryId}`
+  const pageUrl = `${appUrl}/${slug}?category=${categoryId}`
   const title = cat ? `${cat.name} — ${store.name}` : store.name
   const imageUrl = store.logo_url ?? undefined
 
@@ -49,23 +47,5 @@ export default async function CategoryPage({
   const category = await getCategoryPublic(store.id, categoryId)
   if (!category) notFound()
 
-  const [{ products, total }, categories] = await Promise.all([
-    listProductsPublic(store.id, { categoryId }),
-    listCategoriesPublic(store.id),
-  ])
-
-  return (
-    <CategoryCatalogView
-      products={products}
-      total={total}
-      storeId={store.id}
-      categoryId={categoryId}
-      categories={categories}
-      currentCategoryId={categoryId}
-      categoryName={category.name}
-      hasProductPageModule={!!store.modules.product_page}
-      stockModuleActive={!!store.modules.stock}
-      slug={slug}
-    />
-  )
+  redirect(`/${slug}?category=${categoryId}`)
 }

@@ -16,7 +16,7 @@ import {
   Sparkles,
   Truck,
 } from 'lucide-react'
-import { Sheet, SheetClose, SheetContent, SheetTitle } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -67,46 +67,103 @@ function matchesVariant(
   return true
 }
 
+function buildInitialSelected(product: PublicProductDetail): Record<string, string> {
+  if (!product.variant_attributes?.length || !product.variants?.length) return {}
+  const initial: Record<string, string> = {}
+  for (const a of product.variant_attributes) {
+    const values = Array.from(
+      new Set(product.variants.map((v) => v.values[a.id]).filter(Boolean)),
+    ) as string[]
+    if (values.length) initial[a.id] = values[0]
+  }
+  return initial
+}
+
 export function ProductDetailDrawer({
   productId,
   open,
   onOpenChange,
   onAdded,
 }: ProductDetailDrawerProps) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        className="w-full sm:w-[440px] lg:w-[480px] xl:w-[520px] flex flex-col gap-0 p-0"
+      >
+        {productId ? (
+          <DrawerBody
+            key={productId}
+            productId={productId}
+            onClose={() => onOpenChange(false)}
+            onAdded={onAdded}
+          />
+        ) : (
+          <DrawerHeader title="Detalle de producto" onClose={() => onOpenChange(false)} />
+        )}
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function DrawerHeader({ title, onClose }: { title: string; onClose: () => void }) {
+  return (
+    <div className="flex items-center gap-3 border-b border-border px-4 py-3 shrink-0">
+      <button
+        type="button"
+        onClick={onClose}
+        className="text-muted-foreground transition-colors hover:text-foreground"
+        aria-label="Volver"
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </button>
+      <SheetTitle className="flex-1 truncate text-sm font-semibold">{title}</SheetTitle>
+      <button
+        type="button"
+        onClick={onClose}
+        className="text-muted-foreground transition-colors hover:text-foreground"
+        aria-label="Cerrar"
+      >
+        <span className="text-lg leading-none">×</span>
+      </button>
+    </div>
+  )
+}
+
+interface DrawerBodyProps {
+  productId: string
+  onClose: () => void
+  onAdded?: () => void
+}
+
+function DrawerBody({ productId, onClose, onAdded }: DrawerBodyProps) {
   const store = useStore()
   const addItem = useCartStore((s) => s.addItem)
-
-  const [loading, setLoading] = useState(false)
-  const [product, setProduct] = useState<PublicProductDetail | null>(null)
-  const [qty, setQty] = useState(1)
-  const [selected, setSelected] = useState<Record<string, string>>({})
-  const [galleryIdx, setGalleryIdx] = useState(0)
 
   const brand = store.config?.primary_color ?? 'hsl(var(--primary))'
   const brandSoft = store.config?.secondary_color ?? '#f5f5f5'
 
-  // Fetch detalle al abrir o cambiar producto
-  useEffect(() => {
-    if (!open || !productId) return
-    let cancelled = false
-    setLoading(true)
-    setProduct(null)
-    setSelected({})
-    setQty(1)
-    setGalleryIdx(0)
+  const [loading, setLoading] = useState(true)
+  const [product, setProduct] = useState<PublicProductDetail | null>(null)
+  const [selected, setSelected] = useState<Record<string, string>>({})
+  const [qty, setQty] = useState(1)
+  const [galleryIdx, setGalleryIdx] = useState(0)
 
+  useEffect(() => {
+    let cancelled = false
     getProductDetail(store.id, productId, {
       includeVariants: !!store.modules.variants,
     }).then((p) => {
       if (cancelled) return
       setProduct(p)
+      if (p) setSelected(buildInitialSelected(p))
       setLoading(false)
     })
-
     return () => {
       cancelled = true
     }
-  }, [open, productId, store.id, store.modules.variants])
+  }, [productId, store.id, store.modules.variants])
 
   const hasVariants = !!(
     product &&
@@ -114,22 +171,6 @@ export function ProductDetailDrawer({
     product.variant_attributes?.length &&
     product.variants?.length
   )
-
-  // Inicializar selección por defecto cuando llega el producto
-  useEffect(() => {
-    if (!hasVariants || !product?.variant_attributes || !product.variants) return
-    setSelected((prev) => {
-      if (Object.keys(prev).length > 0) return prev
-      const initial: Record<string, string> = {}
-      for (const a of product.variant_attributes!) {
-        const values = Array.from(
-          new Set(product.variants!.map((v) => v.values[a.id]).filter(Boolean)),
-        ) as string[]
-        if (values.length) initial[a.id] = values[0]
-      }
-      return initial
-    })
-  }, [hasVariants, product])
 
   const selectedVariant = useMemo(() => {
     if (!hasVariants || !product?.variants) return null
@@ -155,20 +196,23 @@ export function ProductDetailDrawer({
   const noStock = stockActive && stock === 0
   const lowStock = stockActive && typeof stock === 'number' && stock > 0 && stock <= 5
 
-  const pageMeta = product?.metadata
-    ? ((product.metadata as Record<string, unknown>).page as ProductPageMeta | undefined)
-    : undefined
-  const hasProductPage = !!store.modules.product_page && pageMeta?.active === true
-  const gallery = hasProductPage ? pageMeta?.gallery_urls ?? [] : []
+  const productPageActive = !!store.modules.product_page
+  const pageMeta = useMemo<ProductPageMeta | undefined>(() => {
+    if (!product?.metadata) return undefined
+    return (product.metadata as Record<string, unknown>).page as ProductPageMeta | undefined
+  }, [product])
+  const hasProductPage = productPageActive && pageMeta?.active === true
   const longDesc = hasProductPage ? pageMeta?.long_description : undefined
   const specs = hasProductPage ? pageMeta?.specs ?? [] : []
 
   const allImages = useMemo(() => {
+    if (!product) return []
     const arr: string[] = []
-    if (product?.image_url) arr.push(product.image_url)
-    for (const url of gallery) if (url && !arr.includes(url)) arr.push(url)
+    if (product.image_url) arr.push(product.image_url)
+    const gal = hasProductPage ? pageMeta?.gallery_urls ?? [] : []
+    for (const url of gal) if (url && !arr.includes(url)) arr.push(url)
     return arr
-  }, [product?.image_url, gallery])
+  }, [product, hasProductPage, pageMeta])
 
   const currentImage = allImages[galleryIdx] ?? null
 
@@ -185,7 +229,7 @@ export function ProductDetailDrawer({
       })
     }
     onAdded?.()
-    onOpenChange(false)
+    onClose()
   }, [
     product,
     noStock,
@@ -196,7 +240,7 @@ export function ProductDetailDrawer({
     variantLabel,
     addItem,
     onAdded,
-    onOpenChange,
+    onClose,
   ])
 
   const handleWhatsApp = useCallback(() => {
@@ -227,387 +271,346 @@ export function ProductDetailDrawer({
     }))
   }, [store.config?.trust_badges])
 
+  if (loading || !product) {
+    return (
+      <>
+        <DrawerHeader title="Cargando..." onClose={onClose} />
+        <DetailSkeleton brandSoft={brandSoft} />
+      </>
+    )
+  }
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        showCloseButton={false}
-        className="w-full sm:w-[440px] lg:w-[480px] xl:w-[520px] flex flex-col gap-0 p-0"
-      >
-        {/* Header */}
-        <div className="flex items-center gap-3 border-b border-border px-4 py-3 shrink-0">
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="text-muted-foreground transition-colors hover:text-foreground"
-            aria-label="Volver"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <SheetTitle className="flex-1 truncate text-sm font-semibold">
-            {product?.name ?? 'Detalle de producto'}
-          </SheetTitle>
-          <SheetClose className="text-muted-foreground transition-colors hover:text-foreground" aria-label="Cerrar">
-            <span className="text-lg leading-none">×</span>
-          </SheetClose>
+    <>
+      <DrawerHeader title={product.name} onClose={onClose} />
+
+      <ScrollArea className="flex-1 min-h-0">
+        <div
+          className="relative aspect-square w-full"
+          style={{ background: brandSoft }}
+        >
+          {currentImage ? (
+            <Image
+              src={currentImage}
+              alt={product.name}
+              fill
+              sizes="(max-width: 640px) 100vw, 520px"
+              className="object-cover"
+              priority
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <Package className="h-24 w-24" style={{ color: brand, opacity: 0.18 }} />
+            </div>
+          )}
+
+          <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+            {hasCompare && savingsPct !== null && savingsPct > 0 && (
+              <span
+                className="text-xs font-semibold px-2 py-0.5 rounded-md text-white"
+                style={{ background: brand }}
+              >
+                -{savingsPct}%
+              </span>
+            )}
+            {noStock && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
+                Sin stock
+              </span>
+            )}
+          </div>
+
+          {allImages.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={() =>
+                  setGalleryIdx((i) => (i - 1 + allImages.length) % allImages.length)
+                }
+                className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-1.5 shadow-sm transition-colors hover:bg-background"
+                aria-label="Imagen anterior"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setGalleryIdx((i) => (i + 1) % allImages.length)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-1.5 shadow-sm transition-colors hover:bg-background"
+                aria-label="Imagen siguiente"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
+                {allImages.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setGalleryIdx(i)}
+                    aria-label={`Ir a imagen ${i + 1}`}
+                    className="rounded-full transition-all"
+                    style={{
+                      height: 6,
+                      width: i === galleryIdx ? 18 : 6,
+                      background:
+                        i === galleryIdx
+                          ? 'rgba(255,255,255,0.95)'
+                          : 'rgba(255,255,255,0.55)',
+                    }}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
-        {loading || !product ? (
-          <DetailSkeleton brandSoft={brandSoft} />
-        ) : (
-          <>
-            <ScrollArea className="flex-1 min-h-0">
-              {/* Imagen principal */}
-              <div
-                className="relative aspect-square w-full"
-                style={{ background: brandSoft }}
+        {allImages.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto px-5 py-3 scrollbar-none">
+            {allImages.map((url, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setGalleryIdx(i)}
+                className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
+                  i === galleryIdx ? '' : 'border-transparent'
+                }`}
+                style={i === galleryIdx ? { borderColor: brand } : undefined}
+                aria-label={`Miniatura ${i + 1}`}
               >
-                {currentImage ? (
-                  <Image
-                    src={currentImage}
-                    alt={product.name}
-                    fill
-                    sizes="(max-width: 640px) 100vw, 520px"
-                    className="object-cover"
-                    priority
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center">
-                    <Package
-                      className="h-24 w-24"
-                      style={{ color: brand, opacity: 0.18 }}
-                    />
-                  </div>
-                )}
+                <Image src={url} alt={`Miniatura ${i + 1}`} fill className="object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
 
-                {/* Badges sobre imagen */}
-                <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-                  {hasCompare && savingsPct !== null && savingsPct > 0 && (
-                    <span
-                      className="text-xs font-semibold px-2 py-0.5 rounded-md text-white"
-                      style={{ background: brand }}
-                    >
-                      -{savingsPct}%
-                    </span>
-                  )}
-                  {noStock && (
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
-                      Sin stock
-                    </span>
-                  )}
-                </div>
-
-                {/* Carrusel de imágenes */}
-                {allImages.length > 1 && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setGalleryIdx((i) => (i - 1 + allImages.length) % allImages.length)
-                      }
-                      className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-1.5 shadow-sm transition-colors hover:bg-background"
-                      aria-label="Imagen anterior"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setGalleryIdx((i) => (i + 1) % allImages.length)
-                      }
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-1.5 shadow-sm transition-colors hover:bg-background"
-                      aria-label="Imagen siguiente"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                    <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
-                      {allImages.map((_, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setGalleryIdx(i)}
-                          aria-label={`Ir a imagen ${i + 1}`}
-                          className="rounded-full transition-all"
-                          style={{
-                            height: 6,
-                            width: i === galleryIdx ? 18 : 6,
-                            background:
-                              i === galleryIdx
-                                ? 'rgba(255,255,255,0.9)'
-                                : 'rgba(255,255,255,0.55)',
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Miniaturas */}
-              {allImages.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto px-5 py-3 scrollbar-none">
-                  {allImages.map((url, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setGalleryIdx(i)}
-                      className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
-                        i === galleryIdx ? '' : 'border-transparent'
-                      }`}
-                      style={i === galleryIdx ? { borderColor: brand } : undefined}
-                      aria-label={`Miniatura ${i + 1}`}
-                    >
-                      <Image src={url} alt={`Miniatura ${i + 1}`} fill className="object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div className="space-y-5 p-5">
-                {/* Title + price */}
-                <div>
-                  <h2 className="text-lg font-semibold leading-tight">{product.name}</h2>
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold" style={{ color: brand }}>
-                      {formatPriceShort(unitPrice)}
-                    </span>
-                    {hasCompare && (
-                      <span className="text-sm text-muted-foreground line-through">
-                        {formatPriceShort(comparePrice!)}
-                      </span>
-                    )}
-                  </div>
-                  {hasCompare && (
-                    <Badge variant="secondary" className="mt-2 gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      Ahorrás {formatPriceShort(comparePrice! - unitPrice)}
-                    </Badge>
-                  )}
-                </div>
-
-                <Separator />
-
-                {/* Variantes */}
-                {hasVariants && product.variant_attributes && product.variants && (
-                  <div className="space-y-4">
-                    {product.variant_attributes.map((attr) => {
-                      const options = Array.from(
-                        new Set(product.variants!.map((v) => v.values[attr.id]).filter(Boolean)),
-                      ) as string[]
-                      if (!options.length) return null
-
-                      const isColor = options.every((v) => isHexColor(v))
-
-                      return (
-                        <div key={attr.id} className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                              {attr.name}
-                            </p>
-                            {selected[attr.id] && !isColor && (
-                              <p className="text-xs text-muted-foreground">{selected[attr.id]}</p>
-                            )}
-                          </div>
-
-                          {isColor ? (
-                            <div className="flex flex-wrap gap-2">
-                              {options.map((v) => {
-                                const active = selected[attr.id] === v
-                                return (
-                                  <button
-                                    key={v}
-                                    type="button"
-                                    onClick={() => setSelected((s) => ({ ...s, [attr.id]: v }))}
-                                    className="h-8 w-8 rounded-full border-2 transition-transform hover:scale-110"
-                                    style={{
-                                      background: v,
-                                      borderColor: active ? brand : 'transparent',
-                                      outlineOffset: 2,
-                                      outline: active ? `2px solid ${brand}` : 'none',
-                                    }}
-                                    aria-label={`${attr.name}: ${v}`}
-                                  />
-                                )
-                              })}
-                            </div>
-                          ) : (
-                            <div className="flex flex-wrap gap-2">
-                              {options.map((v) => {
-                                const active = selected[attr.id] === v
-                                return (
-                                  <button
-                                    key={v}
-                                    type="button"
-                                    onClick={() => setSelected((s) => ({ ...s, [attr.id]: v }))}
-                                    className="h-9 min-w-11 rounded-lg border px-3 text-xs font-semibold transition-colors"
-                                    style={
-                                      active
-                                        ? { background: brand, color: '#fff', borderColor: brand }
-                                        : { borderColor: 'hsl(var(--border))' }
-                                    }
-                                  >
-                                    {v}
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-
-                    {!selectedVariant && (
-                      <p className="text-xs text-destructive">
-                        Esa combinación no está disponible.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Stock */}
-                {stockActive && typeof stock === 'number' && (
-                  <div className="flex items-center gap-2 text-xs">
-                    <span
-                      className="h-2 w-2 rounded-full"
-                      style={{
-                        background: noStock ? 'hsl(var(--destructive))' : brand,
-                      }}
-                    />
-                    <span className="text-muted-foreground">
-                      {noStock
-                        ? 'Sin stock'
-                        : lowStock
-                          ? `Últimas ${stock} unidades`
-                          : `${stock} unidades disponibles`}
-                    </span>
-                  </div>
-                )}
-
-                {/* Description */}
-                {product.description && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Descripción
-                    </p>
-                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                      {product.description}
-                    </p>
-                  </div>
-                )}
-
-                {/* Long description */}
-                {longDesc && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Más información
-                    </p>
-                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                      {longDesc}
-                    </p>
-                  </div>
-                )}
-
-                {/* Specs */}
-                {specs.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Especificaciones
-                    </p>
-                    <div className="overflow-hidden rounded-xl border border-border">
-                      <table className="w-full text-xs">
-                        <tbody>
-                          {specs.map((spec, i) => (
-                            <tr key={i} className={i % 2 === 0 ? 'bg-muted/30' : ''}>
-                              <td className="w-2/5 px-3 py-2 font-medium text-muted-foreground">
-                                {spec.key}
-                              </td>
-                              <td className="px-3 py-2">{spec.value}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* Trust badges */}
-                <div className="grid grid-cols-3 gap-2">
-                  {trustItems.map(({ Icon, label }) => (
-                    <div
-                      key={label}
-                      className="flex flex-col items-center gap-1 rounded-xl bg-muted p-3 text-center"
-                    >
-                      <Icon className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-[10px] leading-tight text-muted-foreground">
-                        {label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </ScrollArea>
-
-            {/* Footer sticky */}
-            <div className="border-t border-border bg-background p-4 space-y-3 shrink-0">
-              <div className="flex items-stretch gap-3">
-                <div
-                  className="flex items-stretch h-11 rounded-xl overflow-hidden border-2"
-                  style={{ borderColor: brand }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setQty((q) => Math.max(1, q - 1))}
-                    className="w-9 flex items-center justify-center transition-colors hover:bg-muted/40"
-                    aria-label="Restar"
-                  >
-                    <Minus className="h-3.5 w-3.5" style={{ color: brand }} />
-                  </button>
-                  <span
-                    className="w-10 flex items-center justify-center text-sm font-bold"
-                    style={{ color: brand }}
-                  >
-                    {qty}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setQty((q) => q + 1)}
-                    className="w-9 flex items-center justify-center text-white transition-opacity hover:opacity-90"
-                    style={{ background: brand }}
-                    aria-label="Sumar"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleAdd}
-                  disabled={noStock || (hasVariants && !selectedVariant)}
-                  className="flex-1 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{ background: brand }}
-                >
-                  {noStock
-                    ? 'Sin stock'
-                    : `Agregar · ${formatPriceShort(unitPrice * qty)}`}
-                </button>
-              </div>
-
-              {store.whatsapp && !noStock && (
-                <button
-                  type="button"
-                  onClick={handleWhatsApp}
-                  disabled={hasVariants && !selectedVariant}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{ background: '#25D366' }}
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  Pedir directo por WhatsApp
-                </button>
+        <div className="space-y-5 p-5">
+          <div>
+            <h2 className="text-lg font-semibold leading-tight">{product.name}</h2>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="text-2xl font-bold" style={{ color: brand }}>
+                {formatPriceShort(unitPrice)}
+              </span>
+              {hasCompare && (
+                <span className="text-sm text-muted-foreground line-through">
+                  {formatPriceShort(comparePrice!)}
+                </span>
               )}
             </div>
-          </>
+            {hasCompare && (
+              <Badge variant="secondary" className="mt-2 gap-1">
+                <Sparkles className="h-3 w-3" />
+                Ahorrás {formatPriceShort(comparePrice! - unitPrice)}
+              </Badge>
+            )}
+          </div>
+
+          <Separator />
+
+          {hasVariants && product.variant_attributes && product.variants && (
+            <div className="space-y-4">
+              {product.variant_attributes.map((attr) => {
+                const options = Array.from(
+                  new Set(product.variants!.map((v) => v.values[attr.id]).filter(Boolean)),
+                ) as string[]
+                if (!options.length) return null
+                const isColor = options.every((v) => isHexColor(v))
+
+                return (
+                  <div key={attr.id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {attr.name}
+                      </p>
+                      {selected[attr.id] && !isColor && (
+                        <p className="text-xs text-muted-foreground">{selected[attr.id]}</p>
+                      )}
+                    </div>
+
+                    {isColor ? (
+                      <div className="flex flex-wrap gap-2">
+                        {options.map((v) => {
+                          const active = selected[attr.id] === v
+                          return (
+                            <button
+                              key={v}
+                              type="button"
+                              onClick={() => setSelected((s) => ({ ...s, [attr.id]: v }))}
+                              className="h-8 w-8 rounded-full border-2 transition-transform hover:scale-110"
+                              style={{
+                                background: v,
+                                borderColor: active ? brand : 'transparent',
+                                outlineOffset: 2,
+                                outline: active ? `2px solid ${brand}` : 'none',
+                              }}
+                              aria-label={`${attr.name}: ${v}`}
+                            />
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {options.map((v) => {
+                          const active = selected[attr.id] === v
+                          return (
+                            <button
+                              key={v}
+                              type="button"
+                              onClick={() => setSelected((s) => ({ ...s, [attr.id]: v }))}
+                              className="h-9 min-w-11 rounded-lg border px-3 text-xs font-semibold transition-colors"
+                              style={
+                                active
+                                  ? { background: brand, color: '#fff', borderColor: brand }
+                                  : { borderColor: 'hsl(var(--border))' }
+                              }
+                            >
+                              {v}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+              {!selectedVariant && (
+                <p className="text-xs text-destructive">
+                  Esa combinación no está disponible.
+                </p>
+              )}
+            </div>
+          )}
+
+          {stockActive && typeof stock === 'number' && (
+            <div className="flex items-center gap-2 text-xs">
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ background: noStock ? 'hsl(var(--destructive))' : brand }}
+              />
+              <span className="text-muted-foreground">
+                {noStock
+                  ? 'Sin stock'
+                  : lowStock
+                    ? `Últimas ${stock} unidades`
+                    : `${stock} unidades disponibles`}
+              </span>
+            </div>
+          )}
+
+          {product.description && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Descripción
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                {product.description}
+              </p>
+            </div>
+          )}
+
+          {longDesc && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Más información
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                {longDesc}
+              </p>
+            </div>
+          )}
+
+          {specs.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Especificaciones
+              </p>
+              <div className="overflow-hidden rounded-xl border border-border">
+                <table className="w-full text-xs">
+                  <tbody>
+                    {specs.map((spec, i) => (
+                      <tr key={i} className={i % 2 === 0 ? 'bg-muted/30' : ''}>
+                        <td className="w-2/5 px-3 py-2 font-medium text-muted-foreground">
+                          {spec.key}
+                        </td>
+                        <td className="px-3 py-2">{spec.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-2">
+            {trustItems.map(({ Icon, label }) => (
+              <div
+                key={label}
+                className="flex flex-col items-center gap-1 rounded-xl bg-muted p-3 text-center"
+              >
+                <Icon className="h-4 w-4 text-muted-foreground" />
+                <span className="text-[10px] leading-tight text-muted-foreground">
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </ScrollArea>
+
+      <div className="border-t border-border bg-background p-4 space-y-3 shrink-0">
+        <div className="flex items-stretch gap-3">
+          <div
+            className="flex items-stretch h-11 rounded-xl overflow-hidden border-2"
+            style={{ borderColor: brand }}
+          >
+            <button
+              type="button"
+              onClick={() => setQty((q) => Math.max(1, q - 1))}
+              className="w-9 flex items-center justify-center transition-colors hover:bg-muted/40"
+              aria-label="Restar"
+            >
+              <Minus className="h-3.5 w-3.5" style={{ color: brand }} />
+            </button>
+            <span
+              className="w-10 flex items-center justify-center text-sm font-bold"
+              style={{ color: brand }}
+            >
+              {qty}
+            </span>
+            <button
+              type="button"
+              onClick={() => setQty((q) => q + 1)}
+              className="w-9 flex items-center justify-center text-white transition-opacity hover:opacity-90"
+              style={{ background: brand }}
+              aria-label="Sumar"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={noStock || (hasVariants && !selectedVariant)}
+            className="flex-1 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ background: brand }}
+          >
+            {noStock ? 'Sin stock' : `Agregar · ${formatPriceShort(unitPrice * qty)}`}
+          </button>
+        </div>
+
+        {store.whatsapp && !noStock && (
+          <button
+            type="button"
+            onClick={handleWhatsApp}
+            disabled={hasVariants && !selectedVariant}
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ background: '#25D366' }}
+          >
+            <MessageCircle className="h-4 w-4" />
+            Pedir directo por WhatsApp
+          </button>
         )}
-      </SheetContent>
-    </Sheet>
+      </div>
+    </>
   )
 }
 

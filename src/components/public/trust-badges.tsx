@@ -1,7 +1,6 @@
 'use client'
 
-import { Truck, Shield, RotateCcw } from 'lucide-react'
-import { Card } from '@/components/ui/card'
+import { RotateCcw, Shield, Truck } from 'lucide-react'
 import { useStore } from '@/components/public/store-context'
 
 export function TrustBadges() {
@@ -12,21 +11,25 @@ export function TrustBadges() {
     ? configured.filter((b) => typeof b === 'string' && b.trim()).slice(0, 3)
     : null
 
-  // Si está configurado explícitamente como [] => no mostrar.
   if (Array.isArray(configured) && badges && badges.length === 0) return null
 
-  const fallbackBadges = ['Envío en 24–48hs', 'Compra segura', 'Cambio sin costo']
-  const items = badges ?? fallbackBadges
+  const fallback = ['Envío en 24–48hs', 'Compra segura', 'Cambio sin costo']
+  const items = badges ?? fallback
 
   return (
-    <div className="grid grid-cols-3 gap-3 sm:gap-4">
-      {items.map((text, idx) => {
+    <div className="grid grid-cols-3 gap-2">
+      {items.map((label, idx) => {
         const Icon = idx === 0 ? Truck : idx === 1 ? Shield : RotateCcw
         return (
-          <Card key={text} className="flex flex-col items-center justify-center p-4 sm:p-6 text-center">
-            <Icon className="h-6 w-6 sm:h-8 sm:w-8 text-primary mb-2" />
-            <h4 className="text-xs sm:text-sm font-medium leading-tight">{text}</h4>
-          </Card>
+          <div
+            key={`${label}-${idx}`}
+            className="flex flex-col items-center gap-1 text-center bg-background rounded-xl py-3 border border-border"
+          >
+            <Icon className="h-4 w-4 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground leading-tight px-1.5">
+              {label}
+            </span>
+          </div>
         )
       })}
     </div>

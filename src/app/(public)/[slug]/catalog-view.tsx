@@ -2,19 +2,19 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Tag } from 'lucide-react'
 import { ProductGrid } from '@/components/public/product-grid'
 import { CategoryFilter } from '@/components/public/category-filter'
 import { BannerCarousel } from '@/components/public/banner-carousel'
 import { TrustBadges } from '@/components/public/trust-badges'
-import { CartButton } from '@/components/public/cart-button'
 import { CartDrawer } from '@/components/public/cart-drawer'
 import { ProductDetailDrawer } from '@/components/public/product-detail-drawer'
-import { SearchBar } from '@/components/public/search-bar'
-import { StoreHeader } from '@/components/public/store-header'
+import { CatalogHeader } from '@/components/public/catalog-header'
+import { CatalogHero } from '@/components/public/catalog-hero'
 import { useStore } from '@/components/public/store-context'
 import { useCartStore } from '@/lib/stores/cart-store'
 import { loadMoreProducts } from '@/lib/actions/catalog-public'
-import type { Product, Category, Banner } from '@/lib/types'
+import type { Banner, Category, Product } from '@/lib/types'
 
 function normalize(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -24,8 +24,10 @@ interface CatalogViewProps {
   products: Product[]
   initialTotal: number
   categories: Category[]
+  categoryCounts: Record<string, number>
   banners: Banner[]
   hasBannersModule: boolean
+  hasCategoriesModule: boolean
   hasProductPageModule: boolean
   hasShippingModule: boolean
   hasStockModule: boolean
@@ -37,8 +39,10 @@ export function CatalogView({
   products: initialProducts,
   initialTotal,
   categories,
+  categoryCounts,
   banners,
   hasBannersModule,
+  hasCategoriesModule,
   hasProductPageModule,
   hasShippingModule,
   hasStockModule,
@@ -48,6 +52,7 @@ export function CatalogView({
   const store = useStore()
   const router = useRouter()
   const setStoreId = useCartStore((s) => s.setStoreId)
+
   const [cartOpen, setCartOpen] = useState(false)
   const [detailProductId, setDetailProductId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -60,10 +65,8 @@ export function CatalogView({
     setStoreId(store.id)
   }, [store.id, setStoreId])
 
-  // hasMore: hay más en el servidor Y no hay búsqueda activa (búsqueda es client-side)
   const hasMore = displayedProducts.length < totalCount && !searchQuery
 
-  // Filtro client-side: solo por búsqueda (categoría se filtra server-side via URL)
   const filteredProducts = displayedProducts.filter((p) => {
     if (!searchQuery) return true
     const q = normalize(searchQuery)
@@ -73,7 +76,6 @@ export function CatalogView({
     )
   })
 
-  // Cambio de categoría: actualiza URL sin full reload
   const handleCategorySelect = useCallback(
     (categoryId: string | null) => {
       if (categoryId) {
@@ -109,60 +111,86 @@ export function CatalogView({
     [hasProductPageModule],
   )
 
+  const activeCategory = selectedCategoryId
+    ? categories.find((c) => c.id === selectedCategoryId)
+    : null
+
   return (
-    <div className="container mx-auto space-y-6 px-4 py-6">
-      {/* Header premium */}
-      <StoreHeader
-        name={store.name}
-        description={store.description}
-        coverUrl={store.cover_url}
-        city={store.config?.city ?? null}
-        hours={store.config?.hours ?? null}
+    <>
+      <CatalogHeader
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onCartClick={() => setCartOpen(true)}
       />
 
-      {/* Banners */}
-      {hasBannersModule && banners.length > 0 && (
-        <BannerCarousel banners={banners} />
-      )}
-
-      {/* Trust Badges */}
-      {hasShippingModule && <TrustBadges />}
-
-      {/* Search */}
-      <SearchBar onSearch={setSearchQuery} />
-
-      {/* Categories */}
-      <CategoryFilter
-        categories={categories}
-        selectedId={selectedCategoryId}
-        onSelect={handleCategorySelect}
-      />
-
-      {/* Products */}
-      <ProductGrid
-        products={filteredProducts}
-        onClickDetail={hasProductPageModule ? handleProductDetail : undefined}
-        stockModuleActive={hasStockModule}
-      />
-
-      {/* Cargar más */}
-      {hasMore && (
-        <div className="flex justify-center pt-2">
-          <button
-            onClick={handleLoadMore}
-            disabled={loadingMore}
-            className="rounded-md border px-6 py-2 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50"
-          >
-            {loadingMore ? 'Cargando...' : 'Cargar más productos'}
-          </button>
+      <div className="max-w-3xl mx-auto px-4 space-y-0">
+        {/* Hero / Cover */}
+        <div className="-mx-4">
+          {hasBannersModule && banners.length > 0 ? (
+            <div className="px-4 pt-3">
+              <BannerCarousel banners={banners} />
+            </div>
+          ) : (
+            <CatalogHero />
+          )}
         </div>
-      )}
 
-      {/* Cart FAB + Drawer */}
-      <CartButton onClick={() => setCartOpen(true)} />
+        {/* Categorías */}
+        {hasCategoriesModule && categories.length > 0 && (
+          <div className="py-4">
+            <CategoryFilter
+              categories={categories}
+              selectedId={selectedCategoryId}
+              onSelect={handleCategorySelect}
+              productCounts={categoryCounts}
+              totalCount={Object.values(categoryCounts).reduce((s, n) => s + n, 0) || initialTotal}
+            />
+          </div>
+        )}
+
+        {/* Trust Badges */}
+        {hasShippingModule && (
+          <div className="pb-4">
+            <TrustBadges />
+          </div>
+        )}
+
+        {/* Header de categoría activa */}
+        {activeCategory && (
+          <div className="flex items-center gap-2 mb-3 py-1">
+            <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-sm font-medium">{activeCategory.name}</span>
+            <span className="text-xs text-muted-foreground">
+              — {filteredProducts.length} {filteredProducts.length === 1 ? 'producto' : 'productos'}
+            </span>
+          </div>
+        )}
+
+        {/* Productos */}
+        <div className="pb-8">
+          <ProductGrid
+            products={filteredProducts}
+            onClickDetail={hasProductPageModule ? handleProductDetail : undefined}
+            stockModuleActive={hasStockModule}
+          />
+        </div>
+
+        {hasMore && (
+          <div className="flex justify-center pb-8">
+            <button
+              type="button"
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="rounded-full border border-border bg-background px-6 py-2 text-xs font-medium transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              {loadingMore ? 'Cargando...' : 'Cargar más productos'}
+            </button>
+          </div>
+        )}
+      </div>
+
       <CartDrawer open={cartOpen} onOpenChange={setCartOpen} />
 
-      {/* Product detail drawer (instant, no page reload) */}
       {hasProductPageModule && (
         <ProductDetailDrawer
           productId={detailProductId}
@@ -171,6 +199,6 @@ export function CatalogView({
           onAdded={() => setCartOpen(true)}
         />
       )}
-    </div>
+    </>
   )
 }

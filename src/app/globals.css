@@ -146,6 +146,21 @@ input[type="color"] {
 .animate-fade-in-up {
   animation: fade-in-up 260ms ease-out both;
 }
+
+/* Hide scrollbar (cross-browser) */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Extra small text */
+.text-2xs {
+  font-size: 0.625rem;
+  line-height: 0.875rem;
+}
 input[type="color"]::-webkit-color-swatch-wrapper {
   padding: 0;
 }

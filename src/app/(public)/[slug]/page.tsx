@@ -1,6 +1,6 @@
 import { getStoreBySlug } from '@/lib/db/queries/stores'
 import { listProductsPublic } from '@/lib/db/queries/products'
-import { listCategoriesPublic } from '@/lib/db/queries/categories'
+import { getCategoryProductCountsPublic, listCategoriesPublic } from '@/lib/db/queries/categories'
 import { getBannersPublic } from '@/lib/db/queries/banners'
 import { notFound } from 'next/navigation'
 import { CatalogView } from './catalog-view'
@@ -54,9 +54,12 @@ export default async function StorePage({
   const store = await getStoreBySlug(slug)
   if (!store) notFound()
 
-  const [{ products, total }, categories, banners] = await Promise.all([
+  const [{ products, total }, categories, categoryCounts, banners] = await Promise.all([
     listProductsPublic(store.id, { categoryId, page: 1 }),
-    listCategoriesPublic(store.id),
+    store.modules.categories ? listCategoriesPublic(store.id) : Promise.resolve([]),
+    store.modules.categories
+      ? getCategoryProductCountsPublic(store.id)
+      : Promise.resolve({} as Record<string, number>),
     store.modules.banners ? getBannersPublic(store.id) : Promise.resolve([]),
   ])
 
@@ -66,8 +69,10 @@ export default async function StorePage({
       products={products}
       initialTotal={total}
       categories={categories}
+      categoryCounts={categoryCounts}
       banners={banners}
       hasBannersModule={!!store.modules.banners}
+      hasCategoriesModule={!!store.modules.categories}
       hasProductPageModule={!!store.modules.product_page}
       hasShippingModule={!!store.modules.shipping}
       hasStockModule={!!store.modules.stock}

@@ -19,16 +19,7 @@ export default async function StoreLayout({
 
   return (
     <StoreProvider store={store}>
-      <PublicLayout
-        store={{
-          name: store.name,
-          logo_url: store.logo_url,
-          whatsapp: store.whatsapp,
-          config: store.config,
-        }}
-      >
-        {children}
-      </PublicLayout>
+      <PublicLayout>{children}</PublicLayout>
     </StoreProvider>
   )
 }
