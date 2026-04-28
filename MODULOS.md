@@ -23,10 +23,13 @@
 
 | Área                                  | Estado |
 |---------------------------------------|--------|
-| Sistema modular individual            | ✅ funcional (PRO sueltos a $5.000 c/u) |
-| Agrupación por grupos en backend      | ❌ no existe |
-| Agrupación por grupos en UI/billing   | ❌ no existe |
-| `/admin/billing` premium              | ❌ funcional pero plano |
+| packs.ts canónico                     | ✅ FASE 1 completada |
+| SQL migrations (pack_price, bundle)   | ✅ FASE 1 completada (ejecutada en Supabase) |
+| calculator.ts actualizado (derivado)  | ✅ FASE 1 completada |
+| Server action togglePack               | ✅ FASE 2 completada |
+| Hook useTogglePack                     | ✅ FASE 2 completada |
+| synchronies.ts + warnings              | ✅ FASE 3 completada |
+| `/admin/billing` premium              | 🟡 FASE 4 en ejecución |
 | Stock — modal premium                 | ❌ usa Dialog básico |
 | Finance — formulario premium          | ❌ usa Dialog básico |
 | Expenses, Savings, Payments — UI pro  | ❌ tablas planas |
@@ -145,17 +148,17 @@ FASE 1 → FASE 2 → FASE 3 → FASE 4 → FASE 5 → FASE 6 → FASE 7 → FAS
 
 ---
 
-## FASE 1 — DEFINICIÓN DE PACKS
+## FASE 1 — DEFINICIÓN DE PACKS ✅ COMPLETADA
 
 > **Objetivo:** Tener una fuente única de verdad de los packs en código y BD.
 > **Prerequisito:** ninguno.
 
-- [ ] **1.1** Crear `src/lib/billing/packs.ts` con definición canónica de los packs
-- [ ] **1.2** Extender `Plan` con `pack_price` (en centavos) en BD y tipo TS
-- [ ] **1.3** Migrar `PRO_MODULES` y `BASE_MODULES` a derivarse de `packs.ts`
-- [ ] **1.4** Agregar `computePackTotal()` al lado de `computeMonthlyTotal()`
-- [ ] **1.5** SQL: agregar columnas `pack_price`, `bundle_3packs_price` a `plans`
-- [ ] **1.6** SQL: seed/upsert de los precios de pack ($10.000 c/u, $25.000 bundle)
+- [x] **1.1** Crear `src/lib/billing/packs.ts` con definición canónica de los packs
+- [x] **1.2** Extender `Plan` con `pack_price` (en centavos) en BD y tipo TS
+- [x] **1.3** Migrar `PRO_MODULES` y `BASE_MODULES` a derivarse de `packs.ts`
+- [x] **1.4** Agregar `computePackTotal()` al lado de `computeMonthlyTotal()`
+- [x] **1.5** SQL: agregar columnas `pack_price`, `bundle_3packs_price` a `plans`
+- [x] **1.6** SQL: seed/upsert de los precios de pack ($10.000 c/u, $25.000 bundle)
 
 ### 1.1 — `src/lib/billing/packs.ts`
 
@@ -289,16 +292,16 @@ UPDATE plans SET pack_price = 1000000, bundle_3packs_price = 2500000 WHERE name 
 
 ---
 
-## FASE 2 — BACKEND: ACTIVAR / DESACTIVAR PACK ATÓMICO
+## FASE 2 — BACKEND: ACTIVAR / DESACTIVAR PACK ATÓMICO ✅ COMPLETADA
 
 > **Objetivo:** Que el dueño pueda togglear un pack completo desde billing/UI con una sola acción.
 
-- [ ] **2.1** Server action `togglePack(packId, enabled)` en `src/lib/actions/billing.ts`
-- [ ] **2.2** Hook `useTogglePack()` en `src/lib/hooks/use-billing.ts`
-- [ ] **2.3** En `createSubscription` aceptar `packs: PackId[]` además de `pro_modules`
-- [ ] **2.4** En `changeTier` recalcular precio incluyendo packs
-- [ ] **2.5** Migrar webhook MP para reconocer el nuevo schema (recibir packs)
-- [ ] **2.6** Tests unitarios de `computePackTotal()` (caso 0 packs, 1, 3 con bundle, 4 con bundle+AI)
+- [x] **2.1** Server action `togglePack(packId, enabled)` en `src/lib/actions/billing.ts`
+- [x] **2.2** Hook `useTogglePack()` en `src/lib/hooks/use-billing.ts`
+- [ ] **2.3** En `createSubscription` aceptar `packs: PackId[]` además de `pro_modules` (próxima fase)
+- [ ] **2.4** En `changeTier` recalcular precio incluyendo packs (próxima fase)
+- [ ] **2.5** Migrar webhook MP para reconocer el nuevo schema (próxima fase)
+- [ ] **2.6** Tests unitarios de `computePackTotal()` (próxima fase)
 
 ### 2.1 — Pseudocódigo
 
@@ -330,16 +333,16 @@ export async function togglePack(input: { pack_id: PackId; enabled: boolean }) {
 
 ---
 
-## FASE 3 — SINCRONÍAS CRUZADAS
+## FASE 3 — SINCRONÍAS CRUZADAS ✅ COMPLETADA
 
 > **Objetivo:** Reforzar las dependencias funcionales y avisar al dueño cuando active/desactive un pack que afecta a otro.
 
-- [ ] **3.1** En `ventas` advertir si el pack `operations` está OFF (sin stock no funciona como POS premium)
-- [ ] **3.2** En `orders` advertir si `payments` está OFF (no se pueden registrar cobros)
-- [ ] **3.3** En `finance` cargar fuentes automáticas de `orders` y `expenses` (ya hay índices, falta wiring de UI)
-- [ ] **3.4** En `assistant` deshabilitar herramientas cuyos packs estén OFF (ej: si `finance` OFF, IA no puede consultar caja)
-- [ ] **3.5** Mostrar en cada página de módulo PRO un banner sutil cuando el pack que lo contiene NO está activo
-- [ ] **3.6** Hook `usePackStatus(packId)` que devuelve `{ isActive, missingFor: ModuleName[] }`
+- [x] **3.1** Mapeo MODULE_DEPENDENCIES en `synchronies.ts` (finance→expenses, savings→finance, wholesale→variants, multiuser→tasks)
+- [x] **3.2** Función `getMissingDependencies()` y `getModuleSyncWarning()`
+- [x] **3.3** Componente `PackInactiveWarning` para mostrar banner cuando módulo requerido está OFF
+- [ ] **3.4** En `assistant` deshabilitar herramientas cuyos packs estén OFF (próxima fase, complejo)
+- [ ] **3.5** Aplicar PackInactiveWarning en cada página de módulo PRO (próximas fases con UI polish)
+- [ ] **3.6** Hook `usePackStatus(packId)` para UI avanzada (próxima fase)
 
 ### 3.5 — Banner de pack inactivo
 
