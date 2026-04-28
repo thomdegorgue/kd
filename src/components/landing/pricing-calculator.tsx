@@ -2,104 +2,36 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Check } from 'lucide-react'
+import { Check, Zap } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
-  PRO_MODULES,
-  computePriceBreakdown,
   formatARS,
 } from '@/lib/billing/calculator'
-import type { ModuleName } from '@/lib/types'
-
-const PLAN_PRICING = {
-  price_per_100_products: 2000000, // $20.000 ARS en centavos
-  pro_module_price: 500000,        // $5.000 ARS en centavos
-}
+import { PACKS, computePackTotal } from '@/lib/billing/packs'
+import type { PackId } from '@/lib/billing/packs'
 
 const TIERS = [100, 200, 300, 500, 1000, 2000] as const
-
-type ModuleGroup = {
-  title: string
-  tier: 'base' | 'pro'
-  note?: string
-  modules: ReadonlyArray<{ id: ModuleName; label: string }>
-}
-
-// Canónico: system/modules.md §Grupos de Módulos
-const BASE_GROUPS: readonly ModuleGroup[] = [
-  {
-    title: 'Catálogo y Ventas',
-    tier: 'base',
-    modules: [
-      { id: 'catalog', label: 'Catálogo público' },
-      { id: 'products', label: 'Gestión de productos' },
-      { id: 'categories', label: 'Categorías' },
-      { id: 'cart', label: 'Carrito WhatsApp' },
-      { id: 'orders', label: 'Gestión de pedidos' },
-      { id: 'product_page', label: 'Página de producto' },
-      { id: 'banners', label: 'Banners promocionales' },
-      { id: 'social', label: 'Redes sociales' },
-    ],
-  },
-  {
-    title: 'Operaciones',
-    tier: 'base',
-    modules: [
-      { id: 'stock', label: 'Control de stock' },
-      { id: 'shipping', label: 'Envíos y tracking' },
-      { id: 'payments', label: 'Registro de cobros' },
-    ],
-  },
-  {
-    title: 'Dominio',
-    tier: 'base',
-    modules: [{ id: 'custom_domain', label: 'Dominio propio' }],
-  },
-]
-
-const PRO_GROUPS: readonly ModuleGroup[] = [
-  {
-    title: 'Equipo',
-    tier: 'pro',
-    modules: [
-      { id: 'multiuser', label: 'Multi-usuario' },
-      { id: 'tasks', label: 'Tareas' },
-    ],
-  },
-  {
-    title: 'Comercial',
-    tier: 'pro',
-    modules: [
-      { id: 'variants', label: 'Variantes de producto' },
-      { id: 'wholesale', label: 'Precios mayoristas' },
-    ],
-  },
-  {
-    title: 'Finanzas',
-    tier: 'pro',
-    modules: [
-      { id: 'finance', label: 'Finanzas' },
-      { id: 'expenses', label: 'Gastos' },
-      { id: 'savings_account', label: 'Caja de ahorro' },
-    ],
-  },
-  {
-    title: 'IA',
-    tier: 'pro',
-    note: 'Solo add-on mensual (no incluido en plan anual)',
-    modules: [{ id: 'assistant', label: 'Asistente IA' }],
-  },
-]
+const PRICE_PER_100_PRODUCTS = 2000000 // $20.000 ARS en centavos
 
 export function PricingCalculator() {
   const [maxProducts, setMaxProducts] = useState<number>(100)
-  const [activeModules, setActiveModules] = useState<Partial<Record<ModuleName, boolean>>>({})
+  const [activePacks, setActivePacks] = useState<Set<PackId>>(new Set())
 
-  const breakdown = computePriceBreakdown(PLAN_PRICING, maxProducts, activeModules)
+  const operationalPacks = activePacks.has('operations') && activePacks.has('finance') && activePacks.has('team')
+  const packPricing = computePackTotal(Array.from(activePacks) as PackId[])
+  const baseTierPrice = Math.ceil(maxProducts / 100) * PRICE_PER_100_PRODUCTS
+  const total = baseTierPrice + packPricing.total
 
-  function handleModuleToggle(module: ModuleName, checked: boolean) {
-    setActiveModules(prev => ({ ...prev, [module]: checked }))
+  function handlePackToggle(packId: PackId, checked: boolean) {
+    const newPacks = new Set(activePacks)
+    if (checked) {
+      newPacks.add(packId)
+    } else {
+      newPacks.delete(packId)
+    }
+    setActivePacks(newPacks)
   }
 
   return (
@@ -128,77 +60,79 @@ export function PricingCalculator() {
         </div>
       </div>
 
-      {/* Modules grid — agrupado por system/modules.md §Grupos */}
-      <div id="modulos" className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-14">
+      {/* Packs grid */}
+      <div id="packs" className="mb-14">
+        <p className="text-xs font-medium tracking-wider uppercase text-[#6e6e73] mb-8">
+          Elige los módulos que necesitás
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {PACKS.map(pack => {
+            const isActive = activePacks.has(pack.id as PackId)
+            const isFeatured = pack.is_featured
 
-        {/* Base groups */}
-        <div className="space-y-8">
-          <p className="text-xs font-medium tracking-wider uppercase text-[#6e6e73]">
-            Incluido en todo plan
-          </p>
-          {BASE_GROUPS.map(group => (
-            <div key={group.title}>
-              <p className="text-xs font-semibold text-[#1b1b1b] mb-3 tracking-wide">
-                {group.title}
-              </p>
-              <ul className="space-y-3.5">
-                {group.modules.map(mod => (
-                  <li key={mod.id} className="flex items-center gap-3">
-                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-emerald-600 stroke-[2.5]" />
-                    </span>
-                    <span className="text-sm text-[#1b1b1b]">{mod.label}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+            return (
+              <div
+                key={pack.id}
+                className={`border rounded-xl p-5 transition-all ${
+                  isFeatured
+                    ? 'border-violet-300/60 bg-gradient-to-br from-violet-50 to-white shadow-md'
+                    : isActive
+                      ? 'border-[#1b1b1b]/20 bg-[#f9f9f9]'
+                      : 'border-[#e0e0e0] bg-white hover:border-[#1b1b1b]/30'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-sm font-semibold text-[#1b1b1b]">{pack.label}</h3>
+                      {isFeatured && (
+                        <Badge className="gap-0.5 text-[10px] bg-violet-600">
+                          <Zap className="h-2.5 w-2.5" />
+                          Destacado
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-[#6e6e73] line-clamp-2">{pack.description}</p>
+                  </div>
+                </div>
 
-        {/* Pro groups */}
-        <div className="space-y-8">
-          <p className="text-xs font-medium tracking-wider uppercase text-[#6e6e73]">
-            Módulos pro ·{' '}
-            <span className="text-violet-600 normal-case tracking-normal">
-              {formatARS(PLAN_PRICING.pro_module_price)}/mes c/u
-            </span>
-          </p>
-          {PRO_GROUPS.map(group => (
-            <div key={group.title}>
-              <p className="text-xs font-semibold text-[#1b1b1b] mb-3 tracking-wide">
-                {group.title}
-                {group.note && (
-                  <span className="ml-2 text-[10px] font-normal text-[#6e6e73] normal-case tracking-normal">
-                    {group.note}
-                  </span>
+                <div className="space-y-2 mb-4 pb-4 border-b border-[#e0e0e0]">
+                  {pack.modules.map(m => (
+                    <div key={m} className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                      <span className="text-[10px] text-[#6e6e73]">{m}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {pack.is_paid && (
+                  <div className="mb-4">
+                    <p className="text-2xl font-bold text-[#1b1b1b]">$10.000</p>
+                    <p className="text-xs text-[#6e6e73]">por mes</p>
+                  </div>
                 )}
-              </p>
-              <ul className="space-y-3.5">
-                {group.modules.map(mod => {
-                  const isActive = activeModules[mod.id] === true
-                  return (
-                    <li key={mod.id} className="flex items-center justify-between gap-4">
-                      <label
-                        htmlFor={`module-${mod.id}`}
-                        className={`text-sm cursor-pointer select-none transition-colors flex-1 ${
-                          isActive ? 'text-[#1b1b1b] font-medium' : 'text-[#6e6e73]'
-                        }`}
-                      >
-                        {mod.label}
-                      </label>
-                      <Switch
-                        id={`module-${mod.id}`}
-                        size="sm"
-                        checked={isActive}
-                        onCheckedChange={(checked) => handleModuleToggle(mod.id, checked)}
-                      />
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
-          ))}
+
+                {pack.id !== 'core' && (
+                  <Switch
+                    checked={isActive}
+                    onCheckedChange={(checked) => handlePackToggle(pack.id as PackId, checked)}
+                    aria-label={`${pack.label}`}
+                  />
+                )}
+                {pack.id === 'core' && (
+                  <p className="text-xs text-emerald-600 font-medium">Siempre incluido</p>
+                )}
+              </div>
+            )
+          })}
         </div>
+        {operationalPacks && (
+          <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+            <p className="text-sm text-emerald-800 font-medium">
+              ✓ 3 packs operacionales activos — Descuento bundle aplicado (-$5.000/mes)
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Summary card */}
@@ -213,28 +147,40 @@ export function PricingCalculator() {
             <div className="space-y-2">
               <div className="flex items-baseline gap-3 flex-wrap">
                 <span className="text-sm text-[#6e6e73]">
-                  {formatARS(PLAN_PRICING.price_per_100_products)} × {breakdown.tiers}{' '}
-                  {breakdown.tiers === 1 ? 'bloque' : 'bloques'} de 100 productos
+                  {formatARS(PRICE_PER_100_PRODUCTS)} × {Math.ceil(maxProducts / 100)}{' '}
+                  {Math.ceil(maxProducts / 100) === 1 ? 'bloque' : 'bloques'} de 100 productos
                 </span>
                 <span className="text-sm font-semibold text-[#1b1b1b]">
-                  = {formatARS(breakdown.basePrice)}
+                  = {formatARS(baseTierPrice)}
                 </span>
               </div>
-              {breakdown.activeProModules.length > 0 && (
-                <div className="flex items-baseline gap-3 flex-wrap">
-                  <span className="text-sm text-[#6e6e73]">
-                    {formatARS(PLAN_PRICING.pro_module_price)} ×{' '}
-                    {breakdown.activeProModules.length}{' '}
-                    {breakdown.activeProModules.length === 1 ? 'módulo pro' : 'módulos pro'}
-                  </span>
-                  <span className="text-sm font-semibold text-violet-600">
-                    + {formatARS(breakdown.proPrice)}
-                  </span>
-                </div>
+              {Array.from(activePacks).length > 0 && (
+                <>
+                  {Array.from(activePacks).map((packId) => {
+                    const pack = PACKS.find(p => p.id === packId)
+                    if (!pack || !pack.is_paid) return null
+                    return (
+                      <div key={packId} className="flex items-baseline gap-3 flex-wrap">
+                        <span className="text-sm text-[#6e6e73]">+ {pack.label}</span>
+                        <span className="text-sm font-semibold text-violet-600">
+                          + {formatARS(1000000)}
+                        </span>
+                      </div>
+                    )
+                  })}
+                  {operationalPacks && packPricing.bundleDiscount > 0 && (
+                    <div className="flex items-baseline gap-3 flex-wrap text-emerald-600">
+                      <span className="text-sm text-emerald-700">Descuento bundle (3 packs)</span>
+                      <span className="text-sm font-semibold">
+                        − {formatARS(packPricing.bundleDiscount)}
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
-              {breakdown.activeProModules.length === 0 && (
+              {Array.from(activePacks).length === 0 && (
                 <p className="text-sm text-[#6e6e73]/60 italic">
-                  Activá módulos pro para verlos reflejados en el total.
+                  Activá packs para verlos reflejados en el total.
                 </p>
               )}
             </div>
@@ -247,7 +193,7 @@ export function PricingCalculator() {
                 Total mensual
               </p>
               <p className="text-5xl font-bold tracking-tighter tabular-nums text-[#1b1b1b] transition-all duration-300">
-                {formatARS(breakdown.total)}
+                {formatARS(total)}
               </p>
               <p className="text-xs text-[#6e6e73] mt-1.5">
                 / mes · sin permanencia

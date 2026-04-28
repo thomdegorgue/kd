@@ -13,12 +13,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from '@/components/ui/sheet'
 import {
   Table,
   TableBody,
@@ -194,118 +194,127 @@ export default function ShippingPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-4">
-      <h2 className="text-lg font-semibold">Envíos</h2>
-
-      <EntityToolbar
-        placeholder="Buscar envíos..."
-        searchValue={search}
-        onSearchChange={setSearch}
-        filterPreset="envios"
-      />
-
-      {/* Tabs */}
-      <div className="flex gap-1">
-        {(['methods', 'shipments'] as const).map((t) => (
-          <Button
-            key={t}
-            variant={tab === t ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setTab(t)}
-          >
-            {t === 'methods' ? 'Métodos de envío' : 'Envíos'}
-          </Button>
-        ))}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="px-4 sm:px-6 pt-4">
+        <div className="flex items-center gap-3 mb-4">
+          <Truck className="h-5 w-5 text-muted-foreground" />
+          <h2 className="text-lg font-semibold leading-none">Envíos</h2>
+        </div>
       </div>
 
-      {tab === 'methods' && (
-        <div className="space-y-4">
-          <div className="flex justify-end">
-            <Button size="sm" onClick={openNew}>
-              <Plus className="h-4 w-4 mr-1" />
-              Nuevo método
+      <div className="px-4 sm:px-6">
+        <EntityToolbar
+          placeholder="Buscar envíos..."
+          searchValue={search}
+          onSearchChange={setSearch}
+          filterPreset="envios"
+        />
+      </div>
+
+      <div className="px-4 sm:px-6 space-y-6">
+        {/* Tabs */}
+        <div className="flex gap-1">
+          {(['methods', 'shipments'] as const).map((t) => (
+            <Button
+              key={t}
+              variant={tab === t ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setTab(t)}
+            >
+              {t === 'methods' ? 'Métodos de envío' : 'Envíos'}
             </Button>
-          </div>
-
-          {methodsLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
-          ) : (methods as Record<string, unknown>[]).length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">
-              No hay métodos de envío configurados.
-            </div>
-          ) : (
-            <div className="border rounded-lg overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead className="text-right">Precio</TableHead>
-                    <TableHead className="text-center">Activo</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(methods as Record<string, unknown>[]).map((m) => (
-                    <TableRow key={m.id as string}>
-                      <TableCell className="font-medium text-sm">{m.name as string}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {(m.price as number) === 0 ? 'Gratis' : formatPrice(m.price as number)}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Switch
-                          checked={m.is_active as boolean}
-                          onCheckedChange={(checked) =>
-                            updateMethodMutation.mutate({ id: m.id as string, is_active: checked })
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(m)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            disabled={deleteMethodMutation.isPending}
-                            onClick={() => deleteMethodMutation.mutate(m.id as string)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          ))}
         </div>
-      )}
 
-      {tab === 'shipments' && (
-        <div className="space-y-4">
-          {shipmentsLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+        {tab === 'methods' && (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <Button size="sm" onClick={openNew}>
+                <Plus className="h-4 w-4 mr-1" />
+                Nuevo método
+              </Button>
             </div>
-          ) : filteredShipments.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">
-              No hay envíos registrados.
-            </div>
-          ) : (
-            <>
-              {/* Mobile: cards */}
-              <div className="grid gap-3 sm:hidden">
-                {(filteredShipments as Record<string, unknown>[]).map((s) => {
-                  const status = s.status as ShipmentStatus
-                  const transitions = SHIPMENT_TRANSITIONS[status] ?? []
-                  const next = transitions.find((t) => t !== 'cancelled') as ShipmentStatus | undefined
-                  return (
-                    <div key={s.id as string} className="rounded-xl border bg-card p-4 space-y-3">
+
+            {methodsLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
+              </div>
+            ) : (methods as Record<string, unknown>[]).length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">
+                No hay métodos de envío configurados.
+              </div>
+            ) : (
+              <div className="border rounded-lg overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Nombre</TableHead>
+                      <TableHead className="text-right">Precio</TableHead>
+                      <TableHead className="text-center">Activo</TableHead>
+                      <TableHead className="w-20" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(methods as Record<string, unknown>[]).map((m) => (
+                      <TableRow key={m.id as string} className="hover:bg-muted/50">
+                        <TableCell className="font-medium text-sm">{m.name as string}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {(m.price as number) === 0 ? 'Gratis' : formatPrice(m.price as number)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Switch
+                            checked={m.is_active as boolean}
+                            onCheckedChange={(checked) =>
+                              updateMethodMutation.mutate({ id: m.id as string, is_active: checked })
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon-sm" onClick={() => openEdit(m)} aria-label={`Editar ${m.name as string}`}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              disabled={deleteMethodMutation.isPending}
+                              onClick={() => deleteMethodMutation.mutate(m.id as string)}
+                              aria-label={`Eliminar ${m.name as string}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === 'shipments' && (
+          <div className="space-y-4">
+            {shipmentsLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
+              </div>
+            ) : filteredShipments.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">
+                No hay envíos registrados.
+              </div>
+            ) : (
+              <>
+                {/* Mobile: cards */}
+                <div className="grid gap-3 sm:hidden">
+                  {(filteredShipments as Record<string, unknown>[]).map((s) => {
+                    const status = s.status as ShipmentStatus
+                    const transitions = SHIPMENT_TRANSITIONS[status] ?? []
+                    const next = transitions.find((t) => t !== 'cancelled') as ShipmentStatus | undefined
+                    return (
+                      <div key={s.id as string} className="rounded-xl border bg-card p-4 space-y-3 hover:bg-muted/50 transition-colors">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-xs text-muted-foreground flex items-center gap-2">
@@ -367,113 +376,117 @@ export default function ShippingPage() {
                 })}
               </div>
 
-              {/* Desktop/tablet: table */}
-              <div className="hidden sm:block border rounded-lg overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Código</TableHead>
-                      <TableHead>Pedido</TableHead>
-                      <TableHead className="min-w-[260px]">Estado</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(filteredShipments as Record<string, unknown>[]).map((s) => {
-                      const status = s.status as ShipmentStatus
-                      const transitions = SHIPMENT_TRANSITIONS[status] ?? []
-                      const next = transitions.find((t) => t !== 'cancelled') as ShipmentStatus | undefined
-                      return (
-                        <TableRow key={s.id as string}>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <span className="font-mono text-xs font-medium">{s.tracking_code as string}</span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(s.tracking_code as string)
-                                  toast.success('Código copiado')
-                                }}
-                              >
-                                <Copy className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">
-                            {(s.order_id as string).slice(0, 8)}...
-                          </TableCell>
-                          <TableCell>
-                            <ShipmentTimeline
-                              status={status}
-                              disabled={updateStatusMutation.isPending}
-                              onAdvance={(nextStatus) =>
-                                updateStatusMutation.mutate({ id: s.id as string, status: nextStatus })
-                              }
-                            />
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {new Date(s.created_at as string).toLocaleDateString('es-AR', {
-                              day: '2-digit', month: '2-digit',
-                            })}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex gap-1 justify-end">
-                              {next && (
+                {/* Desktop/tablet: table */}
+                <div className="hidden sm:block border rounded-lg overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead>Código</TableHead>
+                        <TableHead>Pedido</TableHead>
+                        <TableHead className="min-w-[260px]">Estado</TableHead>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(filteredShipments as Record<string, unknown>[]).map((s) => {
+                        const status = s.status as ShipmentStatus
+                        const transitions = SHIPMENT_TRANSITIONS[status] ?? []
+                        const next = transitions.find((t) => t !== 'cancelled') as ShipmentStatus | undefined
+                        return (
+                          <TableRow key={s.id as string} className="hover:bg-muted/50">
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <span className="font-mono text-xs font-medium">{s.tracking_code as string}</span>
                                 <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-xs h-7"
-                                  disabled={updateStatusMutation.isPending}
-                                  onClick={() =>
-                                    updateStatusMutation.mutate({ id: s.id as string, status: next })
-                                  }
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(s.tracking_code as string)
+                                    toast.success('Código copiado')
+                                  }}
+                                  aria-label="Copiar código"
                                 >
-                                  {SHIPMENT_STATUS_LABELS[next] ?? next}
+                                  <Copy className="h-4 w-4" />
                                 </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-              {shipPages > 1 && (
-                <div className="flex items-center justify-center gap-2">
-                  <Button variant="outline" size="sm" disabled={shipPage <= 1} onClick={() => setShipPage((p) => p - 1)}>Anterior</Button>
-                  <span className="text-sm text-muted-foreground">{shipPage} / {shipPages}</span>
-                  <Button variant="outline" size="sm" disabled={shipPage >= shipPages} onClick={() => setShipPage((p) => p + 1)}>Siguiente</Button>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {(s.order_id as string).slice(0, 8)}...
+                            </TableCell>
+                            <TableCell>
+                              <ShipmentTimeline
+                                status={status}
+                                disabled={updateStatusMutation.isPending}
+                                onAdvance={(nextStatus) =>
+                                  updateStatusMutation.mutate({ id: s.id as string, status: nextStatus })
+                                }
+                              />
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {new Date(s.created_at as string).toLocaleDateString('es-AR', {
+                                day: '2-digit', month: '2-digit',
+                              })}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex gap-1 justify-end">
+                                {next && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs h-7"
+                                    disabled={updateStatusMutation.isPending}
+                                    onClick={() =>
+                                      updateStatusMutation.mutate({ id: s.id as string, status: next })
+                                    }
+                                  >
+                                    {SHIPMENT_STATUS_LABELS[next] ?? next}
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
+                {shipPages > 1 && (
+                  <div className="flex items-center justify-center gap-2">
+                    <Button variant="outline" size="sm" disabled={shipPage <= 1} onClick={() => setShipPage((p) => p - 1)}>Anterior</Button>
+                    <span className="text-sm text-muted-foreground">{shipPage} / {shipPages}</span>
+                    <Button variant="outline" size="sm" disabled={shipPage >= shipPages} onClick={() => setShipPage((p) => p + 1)}>Siguiente</Button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
-      {/* Method form dialog */}
-      <Dialog
+      {/* Sheet para método de envío */}
+      <Sheet
         open={showNewMethod || !!editingMethod}
         onOpenChange={(open) => {
           if (!open) { setShowNewMethod(false); setEditingMethod(null) }
         }}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingMethod ? 'Editar método' : 'Nuevo método de envío'}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={form.handleSubmit(onSubmitMethod)} className="space-y-4">
-            <div className="space-y-1">
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5 text-muted-foreground" />
+              {editingMethod ? 'Editar método' : 'Nuevo método de envío'}
+            </SheetTitle>
+          </SheetHeader>
+          <form onSubmit={form.handleSubmit(onSubmitMethod)} className="py-4 space-y-6">
+            <div className="space-y-2">
               <Label htmlFor="name">Nombre</Label>
               <Input id="name" {...form.register('name')} placeholder="Ej: Envío a domicilio" />
               {form.formState.errors.name && (
                 <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
               )}
             </div>
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label htmlFor="price_pesos">Precio ($) — 0 para gratis</Label>
               <Input
                 id="price_pesos"
@@ -492,17 +505,17 @@ export default function ShippingPage() {
               <Label htmlFor="is_active">Activo</Label>
             </div>
             <Separator />
-            <DialogFooter>
+            <SheetFooter className="gap-2 sm:gap-0">
               <Button type="button" variant="outline" onClick={() => { setShowNewMethod(false); setEditingMethod(null) }}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={createMethodMutation.isPending || updateMethodMutation.isPending}>
                 {createMethodMutation.isPending || updateMethodMutation.isPending ? 'Guardando...' : 'Guardar'}
               </Button>
-            </DialogFooter>
+            </SheetFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

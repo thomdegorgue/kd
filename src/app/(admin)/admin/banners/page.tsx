@@ -17,7 +17,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Pencil, Trash2, Plus, Link as LinkIcon, Image as ImageIcon } from 'lucide-react'
+import { GripVertical, Pencil, Trash2, Plus, Link as LinkIcon, Image as ImageIcon, LayoutGrid } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -216,65 +216,79 @@ export default function BannersPage() {
   const isPending = createMutation.isPending || updateMutation.isPending
 
   return (
-    <div className="p-4 sm:p-6 space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Banners</h2>
-          <p className="text-sm text-muted-foreground">
-            Arrastrá para reordenar. {items.length} banner{items.length !== 1 ? 's' : ''}.
-          </p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="px-4 sm:px-6 pt-4">
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3">
+            <LayoutGrid className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <h2 className="text-lg font-semibold leading-none">Banners</h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                Arrastrá para reordenar. {items.length} banner{items.length !== 1 ? 's' : ''}.
+              </p>
+            </div>
+          </div>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-1" />
+            Nuevo
+          </Button>
         </div>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-1" />
-          Nuevo
-        </Button>
       </div>
 
-      <EntityToolbar
-        placeholder="Buscar banners..."
-        searchValue={search}
-        onSearchChange={setSearch}
-        filterPreset="banners"
-      />
+      <div className="px-4 sm:px-6">
+        <EntityToolbar
+          placeholder="Buscar banners..."
+          searchValue={search}
+          onSearchChange={setSearch}
+          filterPreset="banners"
+        />
+      </div>
 
-      {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl border overflow-hidden">
-              <Skeleton className="aspect-video w-full" />
-              <div className="p-4 space-y-2">
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-3 w-1/2" />
+      {/* Content */}
+      <div className="px-4 sm:px-6">
+        {isLoading ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-xl border overflow-hidden">
+                <Skeleton className="aspect-video w-full rounded-t-xl" />
+                <div className="p-4 space-y-2">
+                  <Skeleton className="h-4 w-2/3 rounded" />
+                  <Skeleton className="h-3 w-1/2 rounded" />
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      ) : items.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">
-          Aún no tenés banners. Agregá imágenes para mostrar en tu catálogo.
-        </div>
-      ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={items.map((b) => b.id)} strategy={rectSortingStrategy}>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {items.map((banner) => (
-                <SortableItem
-                  key={banner.id}
-                  banner={banner}
-                  onEdit={() => openEdit(banner)}
-                  onDelete={() => setDeleteId(banner.id)}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-      )}
+            ))}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground text-sm">
+            Aún no tenés banners. Agregá imágenes para mostrar en tu catálogo.
+          </div>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={items.map((b) => b.id)} strategy={rectSortingStrategy}>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {items.map((banner) => (
+                  <SortableItem
+                    key={banner.id}
+                    banner={banner}
+                    onEdit={() => openEdit(banner)}
+                    onDelete={() => setDeleteId(banner.id)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </div>
 
       {/* Create / Edit sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent>
           <SheetHeader>
-            <SheetTitle>{editingBanner ? 'Editar banner' : 'Nuevo banner'}</SheetTitle>
+            <SheetTitle className="flex items-center gap-2">
+              <LayoutGrid className="h-5 w-5 text-muted-foreground" />
+              {editingBanner ? 'Editar banner' : 'Nuevo banner'}
+            </SheetTitle>
           </SheetHeader>
           <div className="mt-4 space-y-4">
             <div>

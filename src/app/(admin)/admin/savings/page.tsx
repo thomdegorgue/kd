@@ -12,12 +12,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from '@/components/ui/sheet'
 import {
   useSavingsAccounts,
   useSavingsMovements,
@@ -88,125 +88,140 @@ export default function SavingsPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold">Cuentas de ahorro</h2>
-        <Button size="sm" onClick={() => setShowNewAccount(true)}>
-          <Plus className="h-4 w-4 mr-1" />
-          Nueva cuenta
-        </Button>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="px-4 sm:px-6 pt-4">
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3">
+            <PiggyBank className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <h2 className="text-lg font-semibold leading-none">Cuentas de ahorro</h2>
+              <p className="text-xs text-muted-foreground mt-1">{(accounts as Record<string, unknown>[]).length} cuentas</p>
+            </div>
+          </div>
+          <Button size="sm" onClick={() => setShowNewAccount(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            Nueva cuenta
+          </Button>
+        </div>
       </div>
 
-      {isLoading ? (
-        <div className="grid sm:grid-cols-2 gap-3">
-          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-32" />)}
-        </div>
-      ) : (accounts as Record<string, unknown>[]).length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">
-          <PiggyBank className="h-8 w-8 mx-auto mb-2 opacity-30" />
-          No hay cuentas de ahorro.
-        </div>
-      ) : (
-        <div className="grid sm:grid-cols-2 gap-3">
-          {(accounts as Record<string, unknown>[]).map((account) => {
-            const balance = account.balance as number
-            const target = account.target_amount as number | null
-            const progress = target ? Math.min(100, (balance / target) * 100) : null
-            const isSelected = selectedAccountId === account.id
+      <div className="px-4 sm:px-6 space-y-6">
 
-            return (
-              <Card
-                key={account.id as string}
-                className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-primary' : 'hover:shadow-md'}`}
-                onClick={() => setSelectedAccountId(isSelected ? null : account.id as string)}
-              >
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">{account.name as string}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <p className="text-2xl font-bold tabular-nums">{formatPrice(balance)}</p>
-                  {target && (
-                    <>
-                      <Progress value={progress ?? 0} className="h-1.5" />
-                      <p className="text-xs text-muted-foreground">
-                        Meta: {formatPrice(target)} ({Math.round(progress ?? 0)}%)
-                      </p>
-                    </>
-                  )}
-                  {isSelected && (
-                    <div className="flex gap-2 pt-1">
-                      <Button
-                        size="sm"
-                        className="flex-1"
-                        onClick={(e) => { e.stopPropagation(); setMovementType('deposit') }}
-                      >
-                        <ArrowDown className="h-3.5 w-3.5 mr-1" />
-                        Depositar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={(e) => { e.stopPropagation(); setMovementType('withdrawal') }}
-                      >
-                        <ArrowUp className="h-3.5 w-3.5 mr-1" />
-                        Retirar
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Movements list for selected account */}
-      {selectedAccount && (movements as Record<string, unknown>[]).length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            Movimientos — {selectedAccount.name as string}
-          </h3>
-          <div className="space-y-1">
-            {(movements as Record<string, unknown>[]).map((m) => (
-              <div key={m.id as string} className="flex items-center justify-between p-2 rounded border bg-card">
-                <div className="flex items-center gap-2">
-                  {m.type === 'deposit' ? (
-                    <ArrowDown className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <ArrowUp className="h-4 w-4 text-destructive" />
-                  )}
-                  <span className="text-sm">{(m.description as string | null) ?? (m.type === 'deposit' ? 'Depósito' : 'Retiro')}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`tabular-nums text-sm font-medium ${m.type === 'deposit' ? 'text-green-600' : 'text-destructive'}`}>
-                    {m.type === 'deposit' ? '+' : '-'}{formatPrice(m.amount as number)}
-                  </span>
-                  <Badge variant="outline" className="text-xs">
-                    {new Date(m.date as string).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
-                  </Badge>
-                </div>
-              </div>
-            ))}
+        {isLoading ? (
+          <div className="grid sm:grid-cols-2 gap-3">
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-lg" />)}
           </div>
-        </div>
-      )}
+        ) : (accounts as Record<string, unknown>[]).length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground text-sm">
+            <PiggyBank className="h-8 w-8 mx-auto mb-2 opacity-30" />
+            No hay cuentas de ahorro.
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 gap-3">
+            {(accounts as Record<string, unknown>[]).map((account) => {
+              const balance = account.balance as number
+              const target = account.target_amount as number | null
+              const progress = target ? Math.min(100, (balance / target) * 100) : null
+              const isSelected = selectedAccountId === account.id
 
-      {/* New account dialog */}
-      <Dialog open={showNewAccount} onOpenChange={setShowNewAccount}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nueva cuenta de ahorro</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={accountForm.handleSubmit(onSubmitAccount)} className="space-y-4">
+              return (
+                <Card
+                  key={account.id as string}
+                  className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-primary' : 'hover:shadow-md'}`}
+                  onClick={() => setSelectedAccountId(isSelected ? null : account.id as string)}
+                >
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">{account.name as string}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <p className="text-2xl font-bold tabular-nums">{formatPrice(balance)}</p>
+                    {target && (
+                      <>
+                        <Progress value={progress ?? 0} className="h-1.5" />
+                        <p className="text-xs text-muted-foreground">
+                          Meta: {formatPrice(target)} ({Math.round(progress ?? 0)}%)
+                        </p>
+                      </>
+                    )}
+                    {isSelected && (
+                      <div className="flex gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={(e) => { e.stopPropagation(); setMovementType('deposit') }}
+                        >
+                          <ArrowDown className="h-3.5 w-3.5 mr-1" />
+                          Depositar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={(e) => { e.stopPropagation(); setMovementType('withdrawal') }}
+                        >
+                          <ArrowUp className="h-3.5 w-3.5 mr-1" />
+                          Retirar
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Movements list for selected account */}
+        {selectedAccount && (movements as Record<string, unknown>[]).length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              Movimientos — {selectedAccount.name as string}
+            </h3>
             <div className="space-y-1">
+              {(movements as Record<string, unknown>[]).map((m) => (
+                <div key={m.id as string} className="flex items-center justify-between p-2 rounded border bg-card">
+                  <div className="flex items-center gap-2">
+                    {m.type === 'deposit' ? (
+                      <ArrowDown className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <ArrowUp className="h-4 w-4 text-destructive" />
+                    )}
+                    <span className="text-sm">{(m.description as string | null) ?? (m.type === 'deposit' ? 'Depósito' : 'Retiro')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`tabular-nums text-sm font-medium ${m.type === 'deposit' ? 'text-green-600' : 'text-destructive'}`}>
+                      {m.type === 'deposit' ? '+' : '-'}{formatPrice(m.amount as number)}
+                    </span>
+                    <Badge variant="outline" className="text-xs">
+                      {new Date(m.date as string).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Sheet para nueva cuenta */}
+      <Sheet open={showNewAccount} onOpenChange={setShowNewAccount}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <PiggyBank className="h-5 w-5 text-muted-foreground" />
+              Nueva cuenta de ahorro
+            </SheetTitle>
+          </SheetHeader>
+          <form onSubmit={accountForm.handleSubmit(onSubmitAccount)} className="py-4 space-y-6">
+            <div className="space-y-2">
               <Label htmlFor="name">Nombre</Label>
               <Input id="name" {...accountForm.register('name')} placeholder="Ej: Fondo de emergencia" />
               {accountForm.formState.errors.name && (
                 <p className="text-xs text-destructive">{accountForm.formState.errors.name.message}</p>
               )}
             </div>
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label htmlFor="target_pesos">Meta ($) — opcional</Label>
               <Input
                 id="target_pesos"
@@ -217,24 +232,38 @@ export default function SavingsPage() {
                 {...accountForm.register('target_pesos', { valueAsNumber: true })}
               />
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowNewAccount(false)}>Cancelar</Button>
+            <SheetFooter className="gap-2 sm:gap-0">
+              <Button type="button" variant="outline" onClick={() => setShowNewAccount(false)}>
+                Cancelar
+              </Button>
               <Button type="submit" disabled={createAccountMutation.isPending}>
                 {createAccountMutation.isPending ? 'Creando...' : 'Crear'}
               </Button>
-            </DialogFooter>
+            </SheetFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      {/* Movement dialog */}
-      <Dialog open={!!movementType} onOpenChange={(open) => !open && setMovementType(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{movementType === 'deposit' ? 'Depositar' : 'Retirar'}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={movementForm.handleSubmit(onSubmitMovement)} className="space-y-4">
-            <div className="space-y-1">
+      {/* Sheet para movimiento */}
+      <Sheet open={!!movementType} onOpenChange={(open) => !open && setMovementType(null)}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              {movementType === 'deposit' ? (
+                <>
+                  <ArrowDown className="h-5 w-5 text-muted-foreground" />
+                  Depositar
+                </>
+              ) : (
+                <>
+                  <ArrowUp className="h-5 w-5 text-muted-foreground" />
+                  Retirar
+                </>
+              )}
+            </SheetTitle>
+          </SheetHeader>
+          <form onSubmit={movementForm.handleSubmit(onSubmitMovement)} className="py-4 space-y-6">
+            <div className="space-y-2">
               <Label htmlFor="amount_pesos">Monto ($)</Label>
               <Input
                 id="amount_pesos"
@@ -244,19 +273,21 @@ export default function SavingsPage() {
                 {...movementForm.register('amount_pesos', { valueAsNumber: true })}
               />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label htmlFor="mov_desc">Descripción (opcional)</Label>
               <Input id="mov_desc" {...movementForm.register('description')} />
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setMovementType(null)}>Cancelar</Button>
+            <SheetFooter className="gap-2 sm:gap-0">
+              <Button type="button" variant="outline" onClick={() => setMovementType(null)}>
+                Cancelar
+              </Button>
               <Button type="submit" disabled={createMovementMutation.isPending}>
                 {createMovementMutation.isPending ? 'Guardando...' : 'Confirmar'}
               </Button>
-            </DialogFooter>
+            </SheetFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
