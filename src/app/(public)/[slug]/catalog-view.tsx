@@ -8,6 +8,7 @@ import { BannerCarousel } from '@/components/public/banner-carousel'
 import { TrustBadges } from '@/components/public/trust-badges'
 import { CartButton } from '@/components/public/cart-button'
 import { CartDrawer } from '@/components/public/cart-drawer'
+import { ProductDetailDrawer } from '@/components/public/product-detail-drawer'
 import { SearchBar } from '@/components/public/search-bar'
 import { StoreHeader } from '@/components/public/store-header'
 import { useStore } from '@/components/public/store-context'
@@ -48,6 +49,7 @@ export function CatalogView({
   const router = useRouter()
   const setStoreId = useCartStore((s) => s.setStoreId)
   const [cartOpen, setCartOpen] = useState(false)
+  const [detailProductId, setDetailProductId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [displayedProducts, setDisplayedProducts] = useState(initialProducts)
   const [currentPage, setCurrentPage] = useState(1)
@@ -101,10 +103,10 @@ export function CatalogView({
   const handleProductDetail = useCallback(
     (productId: string) => {
       if (hasProductPageModule) {
-        router.push(`/${slug}/p/${productId}`)
+        setDetailProductId(productId)
       }
     },
-    [router, slug, hasProductPageModule],
+    [hasProductPageModule],
   )
 
   return (
@@ -159,6 +161,16 @@ export function CatalogView({
       {/* Cart FAB + Drawer */}
       <CartButton onClick={() => setCartOpen(true)} />
       <CartDrawer open={cartOpen} onOpenChange={setCartOpen} />
+
+      {/* Product detail drawer (instant, no page reload) */}
+      {hasProductPageModule && (
+        <ProductDetailDrawer
+          productId={detailProductId}
+          open={!!detailProductId}
+          onOpenChange={(o) => !o && setDetailProductId(null)}
+          onAdded={() => setCartOpen(true)}
+        />
+      )}
     </div>
   )
 }

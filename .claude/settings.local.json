@@ -39,7 +39,8 @@
       "Bash(npx tsc *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(pnpm run *)"
+      "Bash(pnpm run *)",
+      "Bash(echo \"exit=$?\")"
     ]
   }
 }
