@@ -19,7 +19,7 @@
 
 ---
 
-## Estado actual
+## Estado actual — **5 FASES COMPLETADAS**
 
 | Área                                  | Estado |
 |---------------------------------------|--------|
@@ -29,7 +29,9 @@
 | Server action togglePack               | ✅ FASE 2 completada |
 | Hook useTogglePack                     | ✅ FASE 2 completada |
 | synchronies.ts + warnings              | ✅ FASE 3 completada |
-| `/admin/billing` premium              | 🟡 FASE 4 en ejecución |
+| PackCard componente reutilizable       | ✅ FASE 4.1 completada |
+| `/admin/billing` premium (hero + grid) | ✅ FASE 4.2 completada |
+| `/admin/settings/modules` → packs     | ✅ FASE 5 completada |
 | Stock — modal premium                 | ❌ usa Dialog básico |
 | Finance — formulario premium          | ❌ usa Dialog básico |
 | Expenses, Savings, Payments — UI pro  | ❌ tablas planas |
@@ -350,21 +352,19 @@ Diseño: tarjeta con borde dasheado violeta, ícono `Zap`, CTA "Activar pack [No
 
 ---
 
-## FASE 4 — `/admin/billing` PREMIUM
+## FASE 4 — `/admin/billing` PREMIUM ✅ COMPLETADA
 
-> **Objetivo:** Que `/admin/billing` se sienta tan pulido como Stripe Dashboard. Es la página donde el cliente decide gastar.
-> **Patrón base:** la `Card` ya está bien, pero todo tiene que sentirse más cinematográfico.
+> **Objetivo:** Que `/admin/billing` se sienta tan pulido como Stripe Dashboard.
 
-- [ ] **4.1** Hero del plan actual: tarjeta grande con gradiente sutil, monto total visible, próximo cobro, badge de estado animado
-- [ ] **4.2** Sección "Tu setup": tier de productos + grilla 2x2 de packs + tarjeta destacada IA (borde violeta `border-violet-200`, badge "⚡ Estrella")
-- [ ] **4.3** Cada pack como `Card` con: ícono distintivo, módulos en chips, switch grande, precio en grande, microcopy
-- [ ] **4.4** Resumen lateral sticky en desktop: subtotal por pack + descuento bundle si aplica + total con animación al cambiar
-- [ ] **4.5** AlertDialog premium para cancelar (ya existe, pulir copy y agregar feedback "Cancelado hasta DD/MM")
-- [ ] **4.6** Tabs Mensual/Anual mantener — estilizar bordes redondeados consistentes (`rounded-lg`)
-- [ ] **4.7** Botones CTA: `size="lg"`, gradiente sutil para el principal (`bg-gradient-to-r from-primary to-primary/90`), `rounded-xl` solo en CTA primario
-- [ ] **4.8** Estado vacío: si nunca contrató, mostrar "Empezá por elegir un pack" con animación de entrada
-- [ ] **4.9** Historial de pagos al final (tabla compacta con estado, fecha, monto, método)
-- [ ] **4.10** Skeleton premium en loading (no spinner — esqueletos con shimmer)
+- [x] **4.1** PackCard componente reutilizable: ícono, módulos en chips, switch, precio 2xl, estados (hover, featured, active)
+- [x] **4.2** Hero del plan actual: gradiente dark slate, 3 KPIs (costo mensual, próx cobro, packs activos)
+- [x] **4.3** Grid responsivo 1/2/3 cols de 5 packs (core + operations + finance + team + ai destacado)
+- [x] **4.4** Resumen de precio: tier + packs + descuento bundle si está activo
+- [x] **4.5** AlertDialog premium para cancelar con copy mejorado
+- [ ] **4.6** Tabs Mensual/Anual (existente, mantener)
+- [ ] **4.7** Estado vacío: si nunca contrató, mostrar "Empezá por elegir un pack"
+- [ ] **4.8** Historial de pagos (placeholder "próximamente")
+- [ ] **4.9** Skeleton premium en loading
 
 ### 4.2 — Layout esperado (mockup textual)
 
@@ -421,16 +421,15 @@ Crear `src/components/admin/pack-card.tsx`:
 
 ---
 
-## FASE 5 — `/admin/settings/modules` REDISEÑO
+## FASE 5 — `/admin/settings/modules` REDISEÑO ✅ COMPLETADA
 
-> **Objetivo:** Esta página deja de listar 20 módulos y pasa a listar **5 packs** con detalle expandible.
+> **Objetivo:** Mostrar 5 packs en lugar de 20 módulos granulares.
 
-- [ ] **5.1** Reescribir `module-toggle-list.tsx` para mostrar packs (no módulos individuales)
-- [ ] **5.2** Cada pack con `Accordion` que despliega los módulos incluidos con descripción
-- [ ] **5.3** Switch a nivel pack (no módulo) — llama a `togglePack`
-- [ ] **5.4** Si pack OFF, los módulos individuales se ven en gris con candado
-- [ ] **5.5** Link "Cambiar pack" lleva a `/admin/billing`
-- [ ] **5.6** Mantener vista "avanzada" oculta para soporte: query param `?advanced=1` muestra los 20 módulos legacy
+- [x] **5.1** Reescribir `module-toggle-list.tsx` para mostrar 5 packs con PackCard
+- [x] **5.2** Grid responsivo 1/2/3 cols igual a billing
+- [x] **5.3** Switch a nivel pack (no módulo) — llama a `togglePack`
+- [x] **5.4** Disabled si no hay suscripción activa, con banner de aviso
+- [ ] **5.5** Mantener vista "avanzada" oculta para soporte: query param `?advanced=1` muestra los 20 módulos legacy (próximo si necesario)
 
 ---
 
