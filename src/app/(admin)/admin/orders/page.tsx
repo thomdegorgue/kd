@@ -71,20 +71,11 @@ export default function OrdersPage() {
 
   const urlEdit = searchParams.get('edit')
   const urlNew = searchParams.get('new')
-  const urlKey = useMemo(() => `${urlEdit ?? ''}|${urlNew ?? ''}`, [urlEdit, urlNew])
 
-  useEffect(() => {
-    if (sheetOpen) return
-    if (urlEdit) {
-      setSelectedOrderId(urlEdit)
-      setSheetOpen(true)
-      return
-    }
-    if (urlNew === '1') {
-      setSelectedOrderId(null)
-      setSheetOpen(true)
-    }
-  }, [urlKey, urlEdit, urlNew, sheetOpen])
+  // Abrir el sheet desde la URL sin setState dentro de useEffect.
+  // Si hay parámetros `?edit=` o `?new=1`, el estado se deriva en el render.
+  const requestedSheetOpen = Boolean(urlEdit) || urlNew === '1'
+  const requestedOrderId = urlEdit ?? null
 
   return (
     <div className="p-4 sm:p-6 space-y-4">
@@ -252,10 +243,10 @@ export default function OrdersPage() {
       )}
 
       <OrderSheet
-        id={selectedOrderId}
-        open={sheetOpen}
+        id={requestedSheetOpen ? requestedOrderId : selectedOrderId}
+        open={requestedSheetOpen ? true : sheetOpen}
         onOpenChange={(open) => {
-          setSheetOpen(open)
+          if (!requestedSheetOpen) setSheetOpen(open)
           if (!open) {
             const sp = new URLSearchParams(searchParams.toString())
             sp.delete('edit')

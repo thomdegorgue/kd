@@ -172,9 +172,9 @@ export default async function HomePage() {
               <div>
                 <p className="text-xs font-semibold text-[#1b1b1b] mb-3 uppercase tracking-wide">Producto</p>
                 <ul className="space-y-2 text-xs text-[#6e6e73]">
-                  <li><a href="/auth/signup" className="hover:text-[#1b1b1b] transition-colors">Crear catálogo</a></li>
-                  <li><a href="/#modulos" className="hover:text-[#1b1b1b] transition-colors">Módulos</a></li>
-                  <li><a href="/auth/login" className="hover:text-[#1b1b1b] transition-colors">Login</a></li>
+                  <li><Link href="/auth/signup" className="hover:text-[#1b1b1b] transition-colors">Crear catálogo</Link></li>
+                  <li><Link href="/#modulos" className="hover:text-[#1b1b1b] transition-colors">Módulos</Link></li>
+                  <li><Link href="/auth/login" className="hover:text-[#1b1b1b] transition-colors">Login</Link></li>
                 </ul>
               </div>
 

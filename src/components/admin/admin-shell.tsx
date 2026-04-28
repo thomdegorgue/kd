@@ -1,6 +1,4 @@
 'use client'
-
-import { useEffect, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
@@ -276,21 +274,13 @@ function BillingBanner() {
   }
 
   if (status === 'demo' && billing.trial_ends_at) {
-    const daysLeft = Math.max(
-      0,
-      Math.ceil(
-        (new Date(billing.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-      ),
-    )
     return (
       <Link
         href="/admin/billing"
         className="flex items-center justify-center gap-2 bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 font-medium hover:bg-amber-100 transition-colors"
       >
         <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-        {daysLeft <= 3
-          ? `Tu prueba gratis vence en ${daysLeft} ${daysLeft === 1 ? 'día' : 'días'}. Activá tu suscripción →`
-          : `Estás en el período de prueba (${daysLeft} días restantes). Activá tu plan para seguir vendiendo →`}
+        Estás en el período de prueba. Activá tu plan para seguir vendiendo →
       </Link>
     )
   }

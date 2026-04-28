@@ -76,19 +76,10 @@ export default function ProductsPage() {
 
   const urlNew = searchParams.get('new')
   const urlEdit = searchParams.get('edit')
-  const urlKey = useMemo(() => `${urlNew ?? ''}:${urlEdit ?? ''}`, [urlNew, urlEdit])
 
-  useEffect(() => {
-    if (!urlNew && !urlEdit) return
-    if (sheetOpen) return
-
-    if (urlEdit) {
-      setEditingId(urlEdit)
-    } else {
-      setEditingId(undefined)
-    }
-    setSheetOpen(true)
-  }, [urlKey, urlNew, urlEdit, sheetOpen])
+  // Derivar sheet open desde la URL para evitar setState en effects.
+  const requestedSheetOpen = Boolean(urlEdit) || urlNew === '1'
+  const requestedEditingId = urlEdit ?? undefined
 
   function openCreate() {
     setEditingId(undefined)
@@ -362,10 +353,10 @@ export default function ProductsPage() {
       )}
 
       <ProductSheet
-        id={editingId}
-        open={sheetOpen}
+        id={requestedSheetOpen ? requestedEditingId : editingId}
+        open={requestedSheetOpen ? true : sheetOpen}
         onOpenChange={(open) => {
-          setSheetOpen(open)
+          if (!requestedSheetOpen) setSheetOpen(open)
           if (!open) {
             const sp = new URLSearchParams(searchParams.toString())
             sp.delete('new')

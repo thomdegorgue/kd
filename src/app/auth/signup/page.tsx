@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useEffect, useState } from 'react'
+import { useActionState, useState } from 'react'
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -16,12 +16,7 @@ export default function SignupPage() {
   const [storeName, setStoreName] = useState('')
   const [slug, setSlug] = useState('')
   const [slugEdited, setSlugEdited] = useState(false)
-
-  useEffect(() => {
-    if (!slugEdited && storeName) {
-      setSlug(slugify(storeName))
-    }
-  }, [storeName, slugEdited])
+  const computedSlug = slugEdited ? slug : (storeName ? slugify(storeName) : '')
 
   const fieldError = (field: string) =>
     state && !state.success && state.error.field === field ? state.error.message : null
@@ -113,7 +108,7 @@ export default function SignupPage() {
                 id="store_slug"
                 name="store_slug"
                 placeholder="mi-tienda"
-                value={slug}
+                value={computedSlug}
                 onChange={(e) => {
                   setSlugEdited(true)
                   setSlug(e.target.value)

@@ -114,8 +114,8 @@ export function packsToModules(packIds: PackId[]): Record<ModuleName, boolean> {
   const result: Record<string, boolean> = {}
   const allPacks = packIds.map(id => getPack(id))
   for (const pack of allPacks) {
-    for (const module of pack.modules) {
-      result[module] = true
+    for (const moduleName of pack.modules) {
+      result[moduleName] = true
     }
   }
   return result as Record<ModuleName, boolean>

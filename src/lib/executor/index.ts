@@ -66,7 +66,7 @@ export async function executor<T = unknown>(
 
   // Si tenemos contexto pre-resuelto (lo más común desde middleware), lo usamos.
   // Si no, necesitaríamos cargarlo desde DB — para F0 asumimos que siempre hay contexto.
-  let storeContext: StoreContext | null = context ?? null
+  const storeContext: StoreContext | null = context ?? null
 
   if (store_id && !storeContext) {
     // En fases futuras: cargar store desde DB con service role

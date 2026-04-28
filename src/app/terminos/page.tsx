@@ -34,7 +34,7 @@ export default function TerminosPage() {
 
           <h2>1. Aceptación de los Términos</h2>
           <p>
-            Al acceder y usar KitDigital.ar ("Plataforma"), aceptás estos Términos y Condiciones. Si no estás de acuerdo con algún término, no debes usar la Plataforma.
+            Al acceder y usar KitDigital.ar (&quot;Plataforma&quot;), aceptás estos Términos y Condiciones. Si no estás de acuerdo con algún término, no debes usar la Plataforma.
           </p>
 
           <h2>2. Descripción del Servicio</h2>
@@ -92,12 +92,12 @@ export default function TerminosPage() {
 
           <h2>8. Trial Gratuito</h2>
           <p>
-            Si accedés a un período de prueba gratuito, el acceso es limitado a las funcionalidades del plan de prueba. Al vencer el período de prueba, tu tienda pasará a estado "past_due" y las operaciones será limitadas hasta que actives una suscripción paga.
+            Si accedés a un período de prueba gratuito, el acceso es limitado a las funcionalidades del plan de prueba. Al vencer el período de prueba, tu tienda pasará a estado &quot;past_due&quot; y las operaciones será limitadas hasta que actives una suscripción paga.
           </p>
 
           <h2>9. Limitación de Responsabilidad</h2>
           <p>
-            KitDigital.ar se proporciona "tal como está". En la máxima medida permitida por ley:
+            KitDigital.ar se proporciona &quot;tal como está&quot;. En la máxima medida permitida por ley:
           </p>
           <ul>
             <li>No garantizamos disponibilidad continua del servicio</li>

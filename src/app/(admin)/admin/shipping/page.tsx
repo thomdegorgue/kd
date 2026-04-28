@@ -245,7 +245,37 @@ export default function ShippingPage() {
                 No hay métodos de envío configurados.
               </div>
             ) : (
-              <div className="border rounded-lg overflow-x-auto">
+              <>
+                {/* Mobile: cards */}
+                <div className="sm:hidden space-y-2">
+                  {(methods as Record<string, unknown>[]).map((m) => (
+                    <div
+                      key={m.id as string}
+                      className="flex items-center gap-3 rounded-lg border bg-card p-3 cursor-pointer hover:bg-muted/30"
+                      onClick={() => openEdit(m)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{m.name as string}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {(m.price as number) === 0 ? 'Gratis' : formatPrice(m.price as number)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Switch
+                          checked={m.is_active as boolean}
+                          onCheckedChange={(checked) =>
+                            updateMethodMutation.mutate({ id: m.id as string, is_active: checked })
+                          }
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <Pencil className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop: tabla */}
+                <div className="hidden sm:block border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
@@ -290,7 +320,8 @@ export default function ShippingPage() {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
+                </div>
+              </>
             )}
           </div>
         )}

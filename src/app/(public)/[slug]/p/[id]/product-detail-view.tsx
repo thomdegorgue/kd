@@ -75,29 +75,28 @@ export function ProductDetailView({ product, slug }: ProductDetailViewProps) {
   const longDesc = hasProductPage ? pageMeta?.long_description : undefined
   const specs = hasProductPage ? (pageMeta?.specs ?? []) : []
 
-  // Inicializar selección (primer valor por atributo, si existe)
-  useEffect(() => {
-    if (!hasVariants) return
-    setSelected((prev) => {
-      if (Object.keys(prev).length > 0) return prev
-      const initial: Record<string, string> = {}
-      for (const a of product.variant_attributes!) {
-        const values = Array.from(
-          new Set(product.variants!.map((v) => v.values[a.id]).filter(Boolean)),
-        ) as string[]
-        if (values.length) initial[a.id] = values[0]
-      }
-      return initial
-    })
+  const initialSelected = useMemo(() => {
+    if (!hasVariants) return {}
+    const initial: Record<string, string> = {}
+    for (const a of product.variant_attributes!) {
+      const values = Array.from(
+        new Set(product.variants!.map((v) => v.values[a.id]).filter(Boolean)),
+      ) as string[]
+      if (values.length) initial[a.id] = values[0]
+    }
+    return initial
   }, [hasVariants, product.variant_attributes, product.variants])
+
+  // Evitamos setState dentro de effects: si el user aún no eligió, usamos el default calculado.
+  const effectiveSelected = Object.keys(selected).length > 0 ? selected : initialSelected
 
   const selectedVariant = useMemo(() => {
     if (!hasVariants) return null
-    return product.variants!.find((v) => matchesVariant(v, selected)) ?? null
-  }, [hasVariants, product.variants, selected])
+    return product.variants!.find((v) => matchesVariant(v, effectiveSelected)) ?? null
+  }, [hasVariants, product.variants, effectiveSelected])
 
   const unitPrice = selectedVariant?.price ?? product.price
-  const variantLabel = hasVariants && product.variant_attributes ? buildVariantLabel(product.variant_attributes, selected) : undefined
+  const variantLabel = hasVariants && product.variant_attributes ? buildVariantLabel(product.variant_attributes, effectiveSelected) : undefined
 
   const jsonLd = {
     '@context': 'https://schema.org',

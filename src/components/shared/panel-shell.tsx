@@ -26,52 +26,26 @@ type SidebarRenderProps = {
   closeMobile: () => void
 }
 
-export function PanelShell(props: {
+function PanelSidebar({
+  variant,
+  nav,
+  activeKey,
+  topOffsetClassName,
+  renderSidebarHeader,
+  renderSidebarFooter,
+  closeMobile,
+  handleItem,
+}: {
+  variant: 'desktop' | 'mobile'
   nav: PanelNavGroup[]
   activeKey?: string
-  className?: string
-  topOffsetClassName?: string
-  /** Header del sidebar (logo/store name/etc.) */
+  topOffsetClassName: string
   renderSidebarHeader?: (p: SidebarRenderProps) => React.ReactNode
-  /** Footer del sidebar (opcional) */
   renderSidebarFooter?: () => React.ReactNode
-  /** Contenido del topbar sticky */
-  renderTopbar?: (p: { openMobile: () => void }) => React.ReactNode
-  /** Si querés reemplazar el contenedor/scroll por uno propio */
-  renderMain?: (children: React.ReactNode) => React.ReactNode
-  children: React.ReactNode
+  closeMobile: () => void
+  handleItem: (item: PanelNavItem) => void
 }) {
-  const {
-    nav,
-    activeKey,
-    className,
-    topOffsetClassName = 'top-0',
-    renderSidebarHeader,
-    renderSidebarFooter,
-    renderTopbar,
-    renderMain,
-    children,
-  } = props
-
-  const [mobileOpen, setMobileOpen] = useState(false)
-
-  const flatItems = useMemo(() => nav.flatMap((g) => g.items), [nav])
-  const active = useMemo(() => (activeKey ? flatItems.find((i) => i.key === activeKey) : null), [activeKey, flatItems])
-
-  function closeMobile() {
-    setMobileOpen(false)
-  }
-
-  function openMobile() {
-    setMobileOpen(true)
-  }
-
-  function handleItem(item: PanelNavItem) {
-    item.onSelect?.()
-    closeMobile()
-  }
-
-  const Sidebar = ({ variant }: { variant: 'desktop' | 'mobile' }) => (
+  return (
     <div className="flex flex-col h-full min-h-0 bg-sidebar text-sidebar-foreground">
       {renderSidebarHeader ? (
         <div className="sticky top-0 z-10">{renderSidebarHeader({ closeMobile })}</div>
@@ -164,8 +138,18 @@ export function PanelShell(props: {
       {renderSidebarFooter ? <div className="border-t border-sidebar-border">{renderSidebarFooter()}</div> : null}
     </div>
   )
+}
 
-  const DefaultTopbar = () => (
+function DefaultPanelTopbar({
+  openMobile,
+  title,
+  topOffsetClassName,
+}: {
+  openMobile: () => void
+  title: string
+  topOffsetClassName: string
+}) {
+  return (
     <div className={cn('h-12 bg-background border-b border-border flex items-center px-4 sm:px-5 gap-3 shrink-0 sticky z-40', topOffsetClassName)}>
       <button
         type="button"
@@ -175,32 +159,122 @@ export function PanelShell(props: {
       >
         <Menu className="h-4 w-4" />
       </button>
-      <h1 className="text-sm font-semibold flex-1">{active?.label ?? 'Panel'}</h1>
+      <h1 className="text-sm font-semibold flex-1">{title}</h1>
     </div>
   )
+}
 
-  const Main = () => (
+function PanelMain({
+  children,
+  openMobile,
+  topOffsetClassName,
+  title,
+  renderTopbar,
+  renderMain,
+}: {
+  children: React.ReactNode
+  openMobile: () => void
+  topOffsetClassName: string
+  title: string
+  renderTopbar?: (p: { openMobile: () => void }) => React.ReactNode
+  renderMain?: (children: React.ReactNode) => React.ReactNode
+}) {
+  return (
     <div className="flex-1 min-w-0 flex flex-col">
-      {renderTopbar ? renderTopbar({ openMobile }) : <DefaultTopbar />}
+      {renderTopbar ? renderTopbar({ openMobile }) : (
+        <DefaultPanelTopbar openMobile={openMobile} title={title} topOffsetClassName={topOffsetClassName} />
+      )}
       {renderMain ? renderMain(children) : <ScrollArea className="flex-1">{children}</ScrollArea>}
     </div>
   )
+}
+
+export function PanelShell(props: {
+  nav: PanelNavGroup[]
+  activeKey?: string
+  className?: string
+  topOffsetClassName?: string
+  /** Header del sidebar (logo/store name/etc.) */
+  renderSidebarHeader?: (p: SidebarRenderProps) => React.ReactNode
+  /** Footer del sidebar (opcional) */
+  renderSidebarFooter?: () => React.ReactNode
+  /** Contenido del topbar sticky */
+  renderTopbar?: (p: { openMobile: () => void }) => React.ReactNode
+  /** Si querés reemplazar el contenedor/scroll por uno propio */
+  renderMain?: (children: React.ReactNode) => React.ReactNode
+  children: React.ReactNode
+}) {
+  const {
+    nav,
+    activeKey,
+    className,
+    topOffsetClassName = 'top-0',
+    renderSidebarHeader,
+    renderSidebarFooter,
+    renderTopbar,
+    renderMain,
+    children,
+  } = props
+
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  const flatItems = useMemo(() => nav.flatMap((g) => g.items), [nav])
+  const active = useMemo(() => (activeKey ? flatItems.find((i) => i.key === activeKey) : null), [activeKey, flatItems])
+
+  function closeMobile() {
+    setMobileOpen(false)
+  }
+
+  function openMobile() {
+    setMobileOpen(true)
+  }
+
+  function handleItem(item: PanelNavItem) {
+    item.onSelect?.()
+    closeMobile()
+  }
 
   return (
     <div className={cn('min-h-dvh flex', className)}>
       <aside className={cn('hidden lg:flex flex-col w-52 shrink-0 sticky self-start h-dvh', topOffsetClassName)}>
-        <Sidebar variant="desktop" />
+        <PanelSidebar
+          variant="desktop"
+          nav={nav}
+          activeKey={activeKey}
+          topOffsetClassName={topOffsetClassName}
+          renderSidebarHeader={renderSidebarHeader}
+          renderSidebarFooter={renderSidebarFooter}
+          closeMobile={closeMobile}
+          handleItem={handleItem}
+        />
       </aside>
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-52 p-0">
           <div className="pt-10 h-full">
-            <Sidebar variant="mobile" />
+            <PanelSidebar
+              variant="mobile"
+              nav={nav}
+              activeKey={activeKey}
+              topOffsetClassName={topOffsetClassName}
+              renderSidebarHeader={renderSidebarHeader}
+              renderSidebarFooter={renderSidebarFooter}
+              closeMobile={closeMobile}
+              handleItem={handleItem}
+            />
           </div>
         </SheetContent>
       </Sheet>
 
-      <Main />
+      <PanelMain
+        title={active?.label ?? 'Panel'}
+        topOffsetClassName={topOffsetClassName}
+        openMobile={openMobile}
+        renderTopbar={renderTopbar}
+        renderMain={renderMain}
+      >
+        {children}
+      </PanelMain>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Search, MoreHorizontal, FileDown, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -93,19 +93,17 @@ export function EntityToolbar({
     appliedFilters?.tareasStatus ?? 'todas'
   )
 
-  useEffect(() => {
-    if (!filterOpen) return
+  function syncFromApplied() {
     setDateFrom(appliedFilters?.dateFrom ?? defaults.dateFrom)
     setDateTo(appliedFilters?.dateTo ?? defaults.dateTo)
     if (appliedFilters?.categories) setSelectedCategories(appliedFilters.categories)
     if (appliedFilters?.paymentMethod) setPaymentMethod(appliedFilters.paymentMethod)
     if (appliedFilters?.shipmentStatus) setShipmentStatus(appliedFilters.shipmentStatus)
     if (appliedFilters?.movementType) setMovementType(appliedFilters.movementType)
-    if (appliedFilters?.bannersActiveOnly !== undefined)
-      setBannersActiveOnly(appliedFilters.bannersActiveOnly)
+    if (appliedFilters?.bannersActiveOnly !== undefined) setBannersActiveOnly(appliedFilters.bannersActiveOnly)
     if (appliedFilters?.pedidosStatus !== undefined) setPedidosStatus(appliedFilters.pedidosStatus)
     if (appliedFilters?.tareasStatus) setTareasStatus(appliedFilters.tareasStatus)
-  }, [filterOpen, appliedFilters, defaults.dateFrom, defaults.dateTo])
+  }
 
   const showFilterButton = filterPreset !== 'generic'
 
@@ -176,7 +174,10 @@ export function EntityToolbar({
               size="icon"
               className="h-10 w-10 sm:h-9 sm:w-9 rounded-lg shrink-0"
               aria-label="Filtros"
-              onClick={() => setFilterOpen(true)}
+              onClick={() => {
+                syncFromApplied()
+                setFilterOpen(true)
+              }}
             >
               <Filter className="h-3.5 w-3.5" />
             </Button>
@@ -218,7 +219,13 @@ export function EntityToolbar({
         </div>
       </div>
 
-      <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
+      <Sheet
+        open={filterOpen}
+        onOpenChange={(open) => {
+          if (open) syncFromApplied()
+          setFilterOpen(open)
+        }}
+      >
         <SheetContent side="right" className="w-full sm:max-w-md flex flex-col p-0">
           <SheetHeader className="px-5 py-4 border-b border-border shrink-0">
             <SheetTitle className="text-sm font-semibold">Filtros</SheetTitle>

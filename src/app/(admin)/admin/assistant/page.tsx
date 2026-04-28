@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Send, Bot, User, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -229,15 +229,11 @@ function AssistantChatContent() {
   const [ignoredActions, setIgnoredActions] = useState<Set<string>>(new Set())
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // Sincronizar mensajes del servidor con estado local
-  useEffect(() => {
-    if (serverMessages.length > 0) {
-      const mapped: LocalMessage[] = serverMessages.map((m) => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      }))
-      setLocalMessages(mapped)
-    }
+  const mappedServerMessages: LocalMessage[] = useMemo(() => {
+    return serverMessages.map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    }))
   }, [serverMessages])
 
   // Scroll al fondo cuando llegan mensajes
@@ -285,7 +281,8 @@ function AssistantChatContent() {
     setIgnoredActions((prev) => new Set([...prev, `${action.name}-${JSON.stringify(action.input)}`]))
   }
 
-  const displayMessages: LocalMessage[] = localMessages.map((m) => {
+  const baseMessages = localMessages.length ? localMessages : mappedServerMessages
+  const displayMessages: LocalMessage[] = baseMessages.map((m) => {
     if (m.role === 'assistant' && !m.isOptimistic) {
       const parsed = parseAssistantMessage(m.content)
       const filteredActions = (parsed.proposed_actions ?? []).filter(

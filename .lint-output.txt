@@ -1,0 +1,264 @@
+﻿
+> kitdigital@0.1.0 lint C:\Users\thom\Herd\kd
+> eslint
+
+
+C:\Users\thom\Herd\kd\src\app\(admin)\admin\banners\page.tsx
+  121:33  warning  'v' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\app\(admin)\admin\expenses\page.tsx
+   10:10  warning  'Badge' is defined but never used                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  239:9   warning  The 'expenses' logical expression could make the dependencies of useMemo Hook (at line 249) change on every render. Move it inside the useMemo callback. Alternatively, wrap the initialization of 'expenses' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+C:\Users\thom\Herd\kd\src\app\(admin)\admin\finance\page.tsx
+  142:9   warning  The 'entries' logical expression could make the dependencies of useMemo Hook (at line 152) change on every render. Move it inside the useMemo callback. Alternatively, wrap the initialization of 'entries' in its own useMemo() Hook                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react-hooks/exhaustive-deps
+  513:24  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\thom\Herd\kd\src\app\(admin)\admin\finance\page.tsx:513:24
+  511 |               <Label>Tipo</Label>
+  512 |               <Select
+> 513 |                 value={form.watch('type')}
+      |                        ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  514 |                 onValueChange={(v) => form.setValue('type', v as 'income' | 'expense')}
+  515 |               >
+  516 |                 <SelectTrigger>  react-hooks/incompatible-library
+
+C:\Users\thom\Herd\kd\src\app\(admin)\admin\orders\page.tsx
+  3:21  warning  'useMemo' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\app\(admin)\admin\page.tsx
+  6:10  warning  'Button' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\app\(admin)\admin\payments\page.tsx
+    5:10  warning  'zodResolver' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   52:8   warning  'CreatePaymentInput' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+   84:7   warning  'createManualPaymentSchema' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+  107:9   warning  The 'payments' logical expression could make the dependencies of useMemo Hook (at line 119) change on every render. Move it inside the useMemo callback. Alternatively, wrap the initialization of 'payments' in its own useMemo() Hook                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         react-hooks/exhaustive-deps
+  420:24  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\thom\Herd\kd\src\app\(admin)\admin\payments\page.tsx:420:24
+  418 |               <Label>M├®todo de pago</Label>
+  419 |               <Select
+> 420 |                 value={form.watch('method')}
+      |                        ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  421 |                 onValueChange={(v) => form.setValue('method', v as PaymentMethod)}
+  422 |               >
+  423 |                 <SelectTrigger>  react-hooks/incompatible-library
+
+C:\Users\thom\Herd\kd\src\app\(admin)\admin\products\page.tsx
+  3:10  warning  'useEffect' is defined but never used  @typescript-eslint/no-unused-vars
+  3:21  warning  'useMemo' is defined but never used    @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\app\(admin)\admin\savings\page.tsx
+  10:10  warning  'Badge' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\app\(admin)\admin\settings\team\page.tsx
+  174:24  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\thom\Herd\kd\src\app\(admin)\admin\settings\team\page.tsx:174:24
+  172 |               <Label>Rol</Label>
+  173 |               <Select
+> 174 |                 value={form.watch('role')}
+      |                        ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  175 |                 onValueChange={(v) => form.setValue('role', v as 'admin' | 'collaborator')}
+  176 |               >
+  177 |                 <SelectTrigger>  react-hooks/incompatible-library
+
+C:\Users\thom\Herd\kd\src\app\(admin)\admin\shipping\page.tsx
+  145:9   warning  The 'shipments' logical expression could make the dependencies of useMemo Hook (at line 157) change on every render. Move it inside the useMemo callback. Alternatively, wrap the initialization of 'shipments' in its own useMemo() Hook                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react-hooks/exhaustive-deps
+  533:26  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\thom\Herd\kd\src\app\(admin)\admin\shipping\page.tsx:533:26
+  531 |               <Switch
+  532 |                 id="is_active"
+> 533 |                 checked={form.watch('is_active') ?? true}
+      |                          ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  534 |                 onCheckedChange={(v) => form.setValue('is_active', v)}
+  535 |               />
+  536 |               <Label htmlFor="is_active">Activo</Label>  react-hooks/incompatible-library
+
+C:\Users\thom\Herd\kd\src\app\(admin)\admin\tasks\page.tsx
+   12:3  warning  'XCircle' is defined but never used                                                                                                                                                         @typescript-eslint/no-unused-vars
+  215:9  warning  The 'tasks' logical expression could make the dependencies of useMemo Hook (at line 224) change on every render. To fix this, wrap the initialization of 'tasks' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+C:\Users\thom\Herd\kd\src\app\(public)\[slug]\p\[id]\product-detail-view.tsx
+   14:15  warning  'Product' is defined but never used                                                 @typescript-eslint/no-unused-vars
+  154:9   warning  Unused eslint-disable directive (no problems were reported from 'react/no-danger')
+
+C:\Users\thom\Herd\kd\src\app\invite\[token]\page.tsx
+  79:9  warning  'storeName' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  80:9  warning  'roleLabel' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\app\onboarding\modules\modules-step-client.tsx
+  38:12  warning  '_storeId' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\components\admin\admin-layout.tsx
+  17:10  warning  'Separator' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\components\admin\admin-shell.tsx
+  261:31  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\thom\Herd\kd\src\components\admin\admin-shell.tsx:261:31
+  259 |   const { data } = useBilling()
+  260 |   // Mantener el valor estable por mount.
+> 261 |   const nowMs = useMemo(() => Date.now(), [])
+      |                               ^^^^^^^^^^ Cannot call impure function
+  262 |
+  263 |   if (!data) return null
+  264 |  react-hooks/purity
+
+C:\Users\thom\Herd\kd\src\components\admin\billing-panel.tsx
+   7:52  warning  'CardDescription' is defined but never used              @typescript-eslint/no-unused-vars
+  26:3   warning  'useCreateSubscription' is defined but never used        @typescript-eslint/no-unused-vars
+  28:3   warning  'useChangeTier' is defined but never used                @typescript-eslint/no-unused-vars
+  29:3   warning  'useCreateAnnualSubscription' is defined but never used  @typescript-eslint/no-unused-vars
+  32:15  warning  'Plan' is defined but never used                         @typescript-eslint/no-unused-vars
+  67:10  warning  'selectedTier' is assigned a value but never used        @typescript-eslint/no-unused-vars
+  67:24  warning  'setSelectedTier' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  87:11  warning  'plan' is assigned a value but never used                @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\components\admin\module-toggle-list.tsx
+  5:10  warning  'Switch' is defined but never used       @typescript-eslint/no-unused-vars
+  6:10  warning  'Badge' is defined but never used        @typescript-eslint/no-unused-vars
+  7:10  warning  'Card' is defined but never used         @typescript-eslint/no-unused-vars
+  7:16  warning  'CardContent' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\components\admin\order-sheet.tsx
+   12:10  warning  'Badge' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-unused-vars
+  103:24  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\thom\Herd\kd\src\components\admin\order-sheet.tsx:103:24
+  101 |   })
+  102 |   const { fields, append, remove } = useFieldArray({ control: form.control, name: 'items' })
+> 103 |   const watchedItems = form.watch('items')
+      |                        ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  104 |   useUnsavedChanges(!id && form.formState.isDirty)
+  105 |   const totalCreate = watchedItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
+  106 |  react-hooks/incompatible-library
+
+C:\Users\thom\Herd\kd\src\components\admin\product-form.tsx
+  55:31  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\thom\Herd\kd\src\components\admin\product-form.tsx:55:31
+  53 |   })
+  54 |
+> 55 |   const selectedCategoryIds = form.watch('category_ids') ?? []
+     |                               ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  56 |
+  57 |   const handleSubmit = form.handleSubmit((data) => {
+  58 |     // Convertir precio a centavos  react-hooks/incompatible-library
+
+C:\Users\thom\Herd\kd\src\components\admin\product-sheet.tsx
+  147:31  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\thom\Herd\kd\src\components\admin\product-sheet.tsx:147:31
+  145 |   }, [open, id, product, form])
+  146 |
+> 147 |   const selectedCategoryIds = form.watch('category_ids') ?? []
+      |                               ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  148 |
+  149 |   function toggleCategory(catId: string) {
+  150 |     const current = form.getValues('category_ids') ?? []  react-hooks/incompatible-library
+
+C:\Users\thom\Herd\kd\src\components\admin\store-settings-form.tsx
+  144:27  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\thom\Herd\kd\src\components\admin\store-settings-form.tsx:144:27
+  142 |             folder="logos"
+  143 |             maxFiles={1}
+> 144 |             existingUrls={form.watch('logo_url') ? [form.watch('logo_url')!] : []}
+      |                           ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  145 |             onUpload={(urls) => form.setValue('logo_url', urls[0] ?? undefined, { shouldDirty: true })}
+  146 |           />
+  147 |         </div>  react-hooks/incompatible-library
+
+C:\Users\thom\Herd\kd\src\components\design\admin-preview.tsx
+    7:18  warning  'buttonVariants' is defined but never used        @typescript-eslint/no-unused-vars
+   21:41  warning  'Activity' is defined but never used              @typescript-eslint/no-unused-vars
+   22:23  warning  'Lock' is defined but never used                  @typescript-eslint/no-unused-vars
+  434:7   warning  'TIER_BADGE' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  439:7   warning  'PRO_MODULES' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\components\design\vitrine-preview.tsx
+   7:10  warning  'Badge' is defined but never used    @typescript-eslint/no-unused-vars
+  11:17  warning  'Package' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\components\shared\data-table.tsx
+  78:17  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\thom\Herd\kd\src\components\shared\data-table.tsx:78:17
+  76 |   }
+  77 |
+> 78 |   const table = useReactTable({
+     |                 ^^^^^^^^^^^^^ TanStack Table's `useReactTable()` API returns functions that cannot be memoized safely
+  79 |     data,
+  80 |     columns,
+  81 |     getCoreRowModel: getCoreRowModel(),  react-hooks/incompatible-library
+
+C:\Users\thom\Herd\kd\src\components\shared\image-uploader.tsx
+  5:10  warning  'Button' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\components\shared\panel-shell.tsx
+  33:3  warning  'topOffsetClassName' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\components\shared\store-theme-provider.tsx
+  17:10  warning  'hexToRgb' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\components\superadmin\plan-pricing-form.tsx
+  88:31  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\thom\Herd\kd\src\components\superadmin\plan-pricing-form.tsx:88:31
+  86 |   })
+  87 |
+> 88 |   const selectedBaseModules = watch('base_modules')
+     |                               ^^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  89 |
+  90 |   const onSubmit = (values: FormValues) => {
+  91 |     startTransition(async () => {  react-hooks/incompatible-library
+
+C:\Users\thom\Herd\kd\src\components\superadmin\store-detail-panel.tsx
+  28:7  warning  'CORE_MODULES' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\lib\actions\billing.ts
+  13:19  warning  'packsToModules' is defined but never used  @typescript-eslint/no-unused-vars
+  13:35  warning  'modulesToPacks' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\lib\billing\synchronies.ts
+   1:10  warning  'PACKS' is defined but never used               @typescript-eslint/no-unused-vars
+  45:9   warning  'depLabels' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\lib\executor\index.ts
+  20:7  warning  'WRITE_ALLOWED' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\lib\hooks\use-assistant.ts
+  82:17  warning  'sessionData' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\thom\Herd\kd\src\lib\utils\currency.ts
+  19:44  warning  '_currency' is defined but never used  @typescript-eslint/no-unused-vars
+
+Ô£û 64 problems (1 error, 63 warnings)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+
+ÔÇëELIFECYCLEÔÇë Command failed with exit code 1.

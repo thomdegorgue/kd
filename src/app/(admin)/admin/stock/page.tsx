@@ -3,7 +3,16 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Package, Boxes, Edit2, AlertCircle } from 'lucide-react'
+import {
+  Package,
+  Boxes,
+  Edit2,
+  AlertCircle,
+  Upload,
+  ChevronRight,
+  Minus,
+  Plus,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -25,16 +34,40 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { EntityToolbar } from '@/components/shared/entity-toolbar'
+import { EmptyState } from '@/components/shared/empty-state'
+import { PackInactiveWarning } from '@/components/shared/pack-inactive-warning'
 import { useStock, useUpdateStock } from '@/lib/hooks/use-stock'
+import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import { updateStockSchema, type UpdateStockInput } from '@/lib/validations/stock'
 import type { StockItem } from '@/lib/actions/stock'
+import type { ModuleName } from '@/lib/types'
+
+type StockFilter = 'all' | 'low' | 'out' | 'tracked'
+
+function StockBadge({ item }: { item: StockItem }) {
+  if (!item.track_stock) return <span className="text-muted-foreground text-xs">—</span>
+  if (item.quantity === 0) {
+    return (
+      <Badge variant="destructive" className="gap-1 text-xs animate-pulse">
+        <AlertCircle className="h-3 w-3" />
+        Sin stock
+      </Badge>
+    )
+  }
+  if (item.quantity <= 5) {
+    return <Badge variant="secondary" className="text-xs text-amber-600">Bajo</Badge>
+  }
+  return <Badge variant="secondary" className="text-xs">OK</Badge>
+}
 
 export default function StockPage() {
   const [search, setSearch] = useState('')
-  const [lowOnly, setLowOnly] = useState(false)
+  const [filter, setFilter] = useState<StockFilter>('all')
   const [editing, setEditing] = useState<StockItem | null>(null)
+  const [csvOpen, setCsvOpen] = useState(false)
 
-  const { data: items = [], isLoading } = useStock({ low_stock_only: lowOnly })
+  const { modules } = useAdminContext()
+  const { data: items = [], isLoading } = useStock()
   const updateMutation = useUpdateStock()
 
   const form = useForm<UpdateStockInput>({
@@ -52,41 +85,102 @@ export default function StockPage() {
     form.reset()
   }
 
+  async function quickAdjust(item: StockItem, delta: number) {
+    const next = Math.max(0, item.quantity + delta)
+    await updateMutation.mutateAsync({ product_id: item.id, quantity: next })
+  }
+
+  const filtered = items.filter((i) => {
+    const matchesSearch = i.name.toLowerCase().includes(search.toLowerCase())
+    if (!matchesSearch) return false
+    if (filter === 'low') return i.track_stock && i.quantity > 0 && i.quantity <= 5
+    if (filter === 'out') return i.track_stock && i.quantity === 0
+    if (filter === 'tracked') return i.track_stock
+    return true
+  })
+
   const lowStockCount = items.filter((i) => i.track_stock && i.quantity <= 5).length
   const outOfStockCount = items.filter((i) => i.track_stock && i.quantity === 0).length
+
+  const filterChips: { id: StockFilter; label: string; count?: number }[] = [
+    { id: 'all', label: 'Todos' },
+    { id: 'low', label: 'Bajo stock', count: lowStockCount },
+    { id: 'out', label: 'Sin stock', count: outOfStockCount },
+    { id: 'tracked', label: 'Con seguimiento' },
+  ]
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="px-4 sm:px-6 pt-4">
-        <div className="flex items-center gap-3 mb-4">
-          <Boxes className="h-5 w-5 text-muted-foreground" />
-          <div>
-            <h2 className="text-lg font-semibold leading-none">Stock</h2>
-            <p className="text-xs text-muted-foreground mt-1">
-              {items.length} productos
-              {lowStockCount > 0 && (
-                <span className="text-amber-600 font-medium ml-2">
-                  {lowStockCount} bajo stock
-                </span>
-              )}
-              {outOfStockCount > 0 && (
-                <span className="text-destructive font-medium ml-2">
-                  {outOfStockCount} sin stock
-                </span>
-              )}
-            </p>
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3">
+            <Boxes className="h-5 w-5 text-muted-foreground shrink-0" />
+            <div>
+              <h2 className="text-lg font-semibold leading-none">Stock</h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                {items.length} productos
+                {lowStockCount > 0 && (
+                  <span className="text-amber-600 font-medium ml-2">
+                    {lowStockCount} bajo stock
+                  </span>
+                )}
+                {outOfStockCount > 0 && (
+                  <span className="text-destructive font-medium ml-2">
+                    {outOfStockCount} sin stock
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 shrink-0"
+            onClick={() => setCsvOpen(true)}
+          >
+            <Upload className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Importar CSV</span>
+            <span className="sm:hidden">CSV</span>
+          </Button>
         </div>
+
+        <PackInactiveWarning
+          requiredModule={'stock' as ModuleName}
+          activeModules={modules as Record<ModuleName, boolean>}
+        />
       </div>
 
-      <div className="px-4 sm:px-6">
+      {/* Toolbar + chips */}
+      <div className="px-4 sm:px-6 space-y-3">
         <EntityToolbar
           placeholder="Buscar productos..."
           searchValue={search}
           onSearchChange={setSearch}
           filterPreset="stock"
         />
+        <div className="flex gap-2 flex-wrap">
+          {filterChips.map((chip) => (
+            <button
+              key={chip.id}
+              onClick={() => setFilter(chip.id)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                filter === chip.id
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'text-muted-foreground border-border bg-background hover:bg-muted'
+              }`}
+            >
+              {chip.label}
+              {chip.count !== undefined && chip.count > 0 && (
+                <span className={`rounded-full px-1.5 py-0.5 text-2xs font-bold ${
+                  filter === chip.id ? 'bg-primary-foreground/20' : 'bg-muted'
+                }`}>
+                  {chip.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Content */}
@@ -94,102 +188,177 @@ export default function StockPage() {
         {isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full rounded-lg" />
+              <Skeleton key={i} className="h-16 w-full rounded-lg" />
             ))}
           </div>
-        ) : items.length === 0 ? (
-          <div className="text-center py-12">
-            <Package className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="text-muted-foreground text-sm">
-              {lowOnly ? 'No hay productos con bajo stock.' : 'No hay productos.'}
-            </p>
-          </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={<Package className="h-12 w-12" />}
+            title="Sin productos"
+            description={filter !== 'all' ? 'No hay productos con ese filtro.' : 'Todavía no tenés productos con stock asignado.'}
+          />
         ) : (
-          <div className="border rounded-lg overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Producto</TableHead>
-                  <TableHead className="text-center">Stock</TableHead>
-                  <TableHead className="text-center">Seguimiento</TableHead>
-                  <TableHead className="w-10" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => {
-                  const isOutOfStock = item.track_stock && item.quantity === 0
-                  const isLowStock = item.track_stock && item.quantity > 0 && item.quantity <= 5
+          <>
+            {/* Mobile: cards */}
+            <div className="sm:hidden space-y-2">
+              {filtered.map((item) => {
+                const isOutOfStock = item.track_stock && item.quantity === 0
+                const isLowStock = item.track_stock && item.quantity > 0 && item.quantity <= 5
+                return (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-3 rounded-lg border bg-card p-3"
+                  >
+                    {item.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="h-10 w-10 rounded object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0">
+                        <Package className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{item.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={`font-mono font-bold text-sm ${
+                          isOutOfStock ? 'text-destructive' : isLowStock ? 'text-amber-600' : ''
+                        }`}>
+                          {item.quantity}
+                        </span>
+                        <StockBadge item={item} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        disabled={item.quantity === 0 || updateMutation.isPending}
+                        onClick={() => quickAdjust(item, -1)}
+                        aria-label="Reducir 1"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        disabled={updateMutation.isPending}
+                        onClick={() => quickAdjust(item, 1)}
+                        aria-label="Aumentar 1"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => openEdit(item)}
+                        aria-label="Editar stock"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
 
-                  return (
-                    <TableRow key={item.id} className="hover:bg-muted/50">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          {item.image_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={item.image_url}
-                              alt={item.name}
-                              className="h-8 w-8 rounded object-cover"
-                            />
-                          ) : (
-                            <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
-                              <Package className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                          )}
-                          <span className="text-sm font-medium">{item.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <span
-                            className={`font-mono font-bold text-base ${
-                              isOutOfStock ? 'text-destructive' : isLowStock ? 'text-amber-600' : ''
-                            }`}
-                          >
+            {/* Desktop: tabla */}
+            <div className="hidden sm:block border rounded-lg overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Producto</TableHead>
+                    <TableHead className="text-center">Stock</TableHead>
+                    <TableHead className="text-center hidden md:table-cell">Estado</TableHead>
+                    <TableHead className="text-center hidden md:table-cell">Seguimiento</TableHead>
+                    <TableHead className="w-16" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((item) => {
+                    const isOutOfStock = item.track_stock && item.quantity === 0
+                    const isLowStock = item.track_stock && item.quantity > 0 && item.quantity <= 5
+
+                    return (
+                      <TableRow key={item.id} className="hover:bg-muted/50">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            {item.image_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={item.image_url}
+                                alt={item.name}
+                                className="h-8 w-8 rounded object-cover"
+                              />
+                            ) : (
+                              <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
+                                <Package className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            )}
+                            <span className="text-sm font-medium">{item.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className={`font-mono font-bold text-base ${
+                            isOutOfStock ? 'text-destructive' : isLowStock ? 'text-amber-600' : ''
+                          }`}>
                             {item.quantity}
                           </span>
-                          {isOutOfStock && (
-                            <Badge variant="destructive" className="gap-1 text-xs">
-                              <AlertCircle className="h-3 w-3" />
-                              Sin stock
-                            </Badge>
+                        </TableCell>
+                        <TableCell className="text-center hidden md:table-cell">
+                          <StockBadge item={item} />
+                        </TableCell>
+                        <TableCell className="text-center hidden md:table-cell">
+                          {item.track_stock ? (
+                            <Badge variant="secondary" className="text-xs">Activo</Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
                           )}
-                          {isLowStock && (
-                            <Badge variant="secondary" className="text-xs">
-                              Bajo
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {item.track_stock ? (
-                          <Badge variant="secondary" className="text-xs">
-                            Activo
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => openEdit(item)}
-                          aria-label={`Editar stock de ${item.name}`}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="outline"
+                              size="icon-sm"
+                              disabled={item.quantity === 0 || updateMutation.isPending}
+                              onClick={() => quickAdjust(item, -1)}
+                              aria-label="Reducir 1"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon-sm"
+                              disabled={updateMutation.isPending}
+                              onClick={() => quickAdjust(item, 1)}
+                              aria-label="Aumentar 1"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => openEdit(item)}
+                              aria-label={`Editar stock de ${item.name}`}
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </div>
 
-      {/* Sheet para editar */}
+      {/* Sheet ajustar stock */}
       <Sheet open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
         <SheetContent>
           <SheetHeader>
@@ -201,7 +370,6 @@ export default function StockPage() {
 
           {editing && (
             <div className="py-4 space-y-6">
-              {/* Producto actual */}
               <div className="rounded-lg border bg-muted/30 p-3">
                 <p className="text-xs text-muted-foreground font-medium mb-2">Producto</p>
                 <div className="flex items-center gap-3">
@@ -224,7 +392,6 @@ export default function StockPage() {
                 </div>
               </div>
 
-              {/* Form */}
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="quantity">Nueva cantidad</Label>
@@ -242,15 +409,20 @@ export default function StockPage() {
                     </p>
                   )}
                 </div>
-
+                <div className="space-y-2">
+                  <Label htmlFor="reason">Motivo del ajuste <span className="text-muted-foreground">(opcional)</span></Label>
+                  <Input
+                    id="reason"
+                    className="h-10"
+                    placeholder="Ej: recepción de mercadería, corrección..."
+                    {...form.register('reason')}
+                  />
+                </div>
                 <SheetFooter className="gap-2 sm:gap-0">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
-                      setEditing(null)
-                      form.reset()
-                    }}
+                    onClick={() => { setEditing(null); form.reset() }}
                   >
                     Cancelar
                   </Button>
@@ -261,6 +433,26 @@ export default function StockPage() {
               </form>
             </div>
           )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet importar CSV */}
+      <Sheet open={csvOpen} onOpenChange={setCsvOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5 text-muted-foreground" />
+              Importar stock desde CSV
+            </SheetTitle>
+          </SheetHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              El CSV debe tener las columnas: <code className="text-xs bg-muted px-1 rounded">product_id</code> y <code className="text-xs bg-muted px-1 rounded">quantity</code>.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Funcionalidad de importación disponible próximamente.
+            </p>
+          </div>
         </SheetContent>
       </Sheet>
     </div>

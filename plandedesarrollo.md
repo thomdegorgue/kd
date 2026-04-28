@@ -154,10 +154,10 @@ if (isError) return (
 
 ### 0.6 Verificación post-deploy
 
-- [ ] Crear un producto en producción → sin error
-- [ ] Editar un producto en producción → sin error
-- [ ] Completar onboarding sin pagar → redirige a pago, no al admin
-- [ ] Billing page → muestra datos del plan
+- [x] Crear un producto en producción → sin error
+- [x] Editar un producto en producción → sin error
+- [x] Completar onboarding sin pagar → redirige a pago, no al admin
+- [x] Billing page → muestra datos del plan
 
 ---
 
@@ -296,7 +296,7 @@ const { data } = await fetch(`/api/stores/capacity`)
 - [x] **3.1** Fix: búsqueda de pedidos — `orders.ts` + handler + page wired con debounce
 - [x] **3.2** Fix: CategoryCatalogView — `setStoreId` + `stockModuleActive` propagados
 - [x] **3.3** Fix: bug en `changeTier` — ahora lee `count` correctamente en `billing.ts`
-- [ ] **3.4** Fix: RLS faltantes — SQL a ejecutar en Supabase (ver script en sección 3.4)
+- [x] **3.4** Fix: RLS faltantes — SQL a ejecutar en Supabase (ver script en sección 3.4)
 - [x] **3.5** Fix: confirmaciones — AlertDialog en cancelar pedido y ban usuario
 - [x] **3.6** Fix: `StoreDetailPanel` — `current_period_start` correcto + tipo actualizado
 - [x] **3.7** Fix: query keys — `useStock` y `useAssistantSession` incluyen filtros en la key
@@ -531,7 +531,7 @@ const OrderSheet = dynamic(() => import('@/components/admin/order-sheet'), { ssr
 
 ---
 
-### Script completo — pegar todo en Supabase SQL Editor
+### Script completo — pegar todo en Supabase SQL Editor (hecho)
 
 ```sql
 -- ============================================================
@@ -639,17 +639,17 @@ ALTER TABLE products
 
 ### Variables de entorno
 
-- [ ] `SUPABASE_SERVICE_ROLE_KEY` configurado
-- [ ] `CRON_SECRET` configurado
-- [ ] `RESEND_API_KEY` configurado
-- [ ] `MP_ACCESS_TOKEN` configurado
-- [ ] `MP_PUBLIC_KEY` configurado
-- [ ] `UPSTASH_REDIS_REST_URL` configurado
-- [ ] `UPSTASH_REDIS_REST_TOKEN` configurado
+- [x] `SUPABASE_SERVICE_ROLE_KEY` configurado
+- [x] `CRON_SECRET` configurado
+- [x] `RESEND_API_KEY` configurado
+- [x] `MP_ACCESS_TOKEN` configurado
+- [x] `MP_PUBLIC_KEY` configurado
+- [x] `UPSTASH_REDIS_REST_URL` configurado
+- [x] `UPSTASH_REDIS_REST_TOKEN` configurado
 
 ### Infraestructura
 
-- [ ] Webhooks de Mercado Pago apuntando a URL de producción correcta
+- [x] Webhooks de Mercado Pago apuntando a URL de producción correcta
 - [ ] Cron jobs configurados en el hosting (Vercel Cron o similar)
 - [ ] Dominio principal con SSL
 - [ ] DNS wildcard para subdominios `*.kitdigital.ar`
@@ -657,9 +657,9 @@ ALTER TABLE products
 ### Funcional — smoke test
 
 - [ ] Crear tienda de test → completar onboarding → pagar → entrar al admin
-- [ ] Crear producto → sin error
+- [x] Crear producto → sin error
 - [ ] Editar producto → sin error
-- [ ] Crear pedido → funciona
+- [x] Crear pedido → funciona
 - [ ] Catálogo público → visible en `nombre.kitdigital.ar`
 - [ ] WhatsApp de pedido → llega con link correcto
 - [ ] Cancelar suscripción → acceso continúa hasta fin de período

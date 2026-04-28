@@ -31,6 +31,10 @@ import {
   type CreateSavingsMovementInput,
 } from '@/lib/validations/savings'
 import { useCurrency } from '@/lib/hooks/use-currency'
+import { EmptyState } from '@/components/shared/empty-state'
+import { PackInactiveWarning } from '@/components/shared/pack-inactive-warning'
+import { useAdminContext } from '@/lib/hooks/use-admin-context'
+import type { ModuleName } from '@/lib/types'
 
 export default function SavingsPage() {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
@@ -42,8 +46,12 @@ export default function SavingsPage() {
   const createAccountMutation = useCreateSavingsAccount()
   const createMovementMutation = useCreateSavingsMovement()
   const { formatPrice } = useCurrency()
+  const { modules } = useAdminContext()
 
-  const selectedAccount = (accounts as Record<string, unknown>[]).find(
+  const accountsTyped = accounts as Record<string, unknown>[]
+  const totalBalance = accountsTyped.reduce((sum, a) => sum + (a.balance as number), 0)
+
+  const selectedAccount = accountsTyped.find(
     (a) => a.id === selectedAccountId
   )
 
@@ -96,7 +104,7 @@ export default function SavingsPage() {
             <PiggyBank className="h-5 w-5 text-muted-foreground" />
             <div>
               <h2 className="text-lg font-semibold leading-none">Cuentas de ahorro</h2>
-              <p className="text-xs text-muted-foreground mt-1">{(accounts as Record<string, unknown>[]).length} cuentas</p>
+              <p className="text-xs text-muted-foreground mt-1">{accountsTyped.length} cuentas</p>
             </div>
           </div>
           <Button size="sm" onClick={() => setShowNewAccount(true)}>
@@ -104,6 +112,24 @@ export default function SavingsPage() {
             Nueva cuenta
           </Button>
         </div>
+
+        <PackInactiveWarning
+          requiredModule={'savings_account' as ModuleName}
+          activeModules={modules as Record<ModuleName, boolean>}
+        />
+
+        {/* Total general */}
+        {accountsTyped.length > 1 && (
+          <Card>
+            <CardContent className="p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <PiggyBank className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium">Total en todas las cuentas</p>
+              </div>
+              <p className="text-xl font-bold tabular-nums">{formatPrice(totalBalance)}</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <div className="px-4 sm:px-6 space-y-6">
@@ -112,14 +138,21 @@ export default function SavingsPage() {
           <div className="grid sm:grid-cols-2 gap-3">
             {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-lg" />)}
           </div>
-        ) : (accounts as Record<string, unknown>[]).length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground text-sm">
-            <PiggyBank className="h-8 w-8 mx-auto mb-2 opacity-30" />
-            No hay cuentas de ahorro.
-          </div>
+        ) : accountsTyped.length === 0 ? (
+          <EmptyState
+            icon={<PiggyBank className="h-12 w-12" />}
+            title="Sin cuentas de ahorro"
+            description="Creá una cuenta para empezar a separar dinero para tus objetivos."
+            action={
+              <Button size="sm" onClick={() => setShowNewAccount(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nueva cuenta
+              </Button>
+            }
+          />
         ) : (
           <div className="grid sm:grid-cols-2 gap-3">
-            {(accounts as Record<string, unknown>[]).map((account) => {
+            {accountsTyped.map((account) => {
               const balance = account.balance as number
               const target = account.target_amount as number | null
               const progress = target ? Math.min(100, (balance / target) * 100) : null
@@ -178,25 +211,35 @@ export default function SavingsPage() {
             <h3 className="text-sm font-medium text-muted-foreground">
               Movimientos — {selectedAccount.name as string}
             </h3>
-            <div className="space-y-1">
+            <div className="divide-y divide-border/60 rounded-xl border overflow-hidden bg-card">
               {(movements as Record<string, unknown>[]).map((m) => (
-                <div key={m.id as string} className="flex items-center justify-between p-2 rounded border bg-card">
+                <div key={m.id as string} className="flex items-center justify-between p-3">
                   <div className="flex items-center gap-2">
                     {m.type === 'deposit' ? (
-                      <ArrowDown className="h-4 w-4 text-green-600" />
+                      <div className="h-7 w-7 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                        <ArrowDown className="h-3.5 w-3.5 text-emerald-600" />
+                      </div>
                     ) : (
-                      <ArrowUp className="h-4 w-4 text-destructive" />
+                      <div className="h-7 w-7 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                        <ArrowUp className="h-3.5 w-3.5 text-destructive" />
+                      </div>
                     )}
-                    <span className="text-sm">{(m.description as string | null) ?? (m.type === 'deposit' ? 'Depósito' : 'Retiro')}</span>
+                    <div>
+                      <p className="text-sm font-medium">
+                        {(m.description as string | null) ?? (m.type === 'deposit' ? 'Depósito' : 'Retiro')}
+                      </p>
+                      {Boolean(m.created_at) && (
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(m.created_at as string).toLocaleDateString('es-AR', {
+                            day: '2-digit', month: '2-digit', year: 'numeric',
+                          })}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`tabular-nums text-sm font-medium ${m.type === 'deposit' ? 'text-green-600' : 'text-destructive'}`}>
-                      {m.type === 'deposit' ? '+' : '-'}{formatPrice(m.amount as number)}
-                    </span>
-                    <Badge variant="outline" className="text-xs">
-                      {new Date(m.date as string).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
-                    </Badge>
-                  </div>
+                  <span className={`tabular-nums text-sm font-semibold ${m.type === 'deposit' ? 'text-emerald-600' : 'text-destructive'}`}>
+                    {m.type === 'deposit' ? '+' : '-'}{formatPrice(m.amount as number)}
+                  </span>
                 </div>
               ))}
             </div>

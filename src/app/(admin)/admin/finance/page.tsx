@@ -3,7 +3,16 @@
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Trash2, BarChart3 } from 'lucide-react'
+import {
+  Plus,
+  Trash2,
+  BarChart3,
+  TrendingUp,
+  TrendingDown,
+  Scale,
+  ChevronRight,
+  FileDown,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,16 +41,30 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { EntityToolbar } from '@/components/shared/entity-toolbar'
+import { EmptyState } from '@/components/shared/empty-state'
+import { PackInactiveWarning } from '@/components/shared/pack-inactive-warning'
 import {
   useFinanceEntries,
   useFinanceSummary,
   useCreateFinanceEntry,
   useDeleteFinanceEntry,
 } from '@/lib/hooks/use-finance'
+import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import { z } from 'zod'
 import { FINANCE_TYPE_LABELS } from '@/lib/validations/finance'
 import { useCurrency } from '@/lib/hooks/use-currency'
+import type { ModuleName } from '@/lib/types'
 
 const financeFormSchema = z.object({
   type: z.enum(['income', 'expense']),
@@ -52,17 +75,60 @@ const financeFormSchema = z.object({
 })
 type FinanceFormInput = z.infer<typeof financeFormSchema>
 
-const today = new Date()
-const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10)
-const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10)
+type PeriodPreset = 'today' | '7d' | '30d' | 'month' | 'year'
+
+function getDateRange(preset: PeriodPreset): { from: string; to: string } {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  const today = fmt(now)
+
+  switch (preset) {
+    case 'today':
+      return { from: today, to: today }
+    case '7d': {
+      const d = new Date(now); d.setDate(d.getDate() - 7)
+      return { from: fmt(d), to: today }
+    }
+    case '30d': {
+      const d = new Date(now); d.setDate(d.getDate() - 30)
+      return { from: fmt(d), to: today }
+    }
+    case 'month':
+      return {
+        from: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`,
+        to: fmt(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+      }
+    case 'year':
+      return { from: `${now.getFullYear()}-01-01`, to: `${now.getFullYear()}-12-31` }
+  }
+}
+
+const PERIOD_LABELS: Record<PeriodPreset, string> = {
+  today: 'Hoy',
+  '7d': '7 días',
+  '30d': '30 días',
+  month: 'Este mes',
+  year: 'Este año',
+}
 
 export default function FinancePage() {
+  const today = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const firstOfMonth = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-01`
+  const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+    .toISOString().slice(0, 10)
+
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<'income' | 'expense' | ''>('')
   const [showCreate, setShowCreate] = useState(false)
   const [dateFrom, setDateFrom] = useState(firstOfMonth)
   const [dateTo, setDateTo] = useState(lastOfMonth)
+  const [activePeriod, setActivePeriod] = useState<PeriodPreset | null>('month')
+  const [selectedEntry, setSelectedEntry] = useState<Record<string, unknown> | null>(null)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
+  const { modules } = useAdminContext()
   const { data, isLoading } = useFinanceEntries({
     type: typeFilter || undefined,
     date_from: dateFrom,
@@ -74,7 +140,6 @@ export default function FinancePage() {
   const { formatPrice } = useCurrency()
 
   const entries = data?.items ?? []
-  const total = data?.total ?? 0
 
   const filtered = useMemo(() => {
     if (!search.trim()) return entries
@@ -94,6 +159,13 @@ export default function FinancePage() {
       date: today.toISOString().slice(0, 10),
     },
   })
+
+  function applyPreset(preset: PeriodPreset) {
+    const { from, to } = getDateRange(preset)
+    setDateFrom(from)
+    setDateTo(to)
+    setActivePeriod(preset)
+  }
 
   async function onSubmit(data: FinanceFormInput) {
     await createMutation.mutateAsync({
@@ -116,14 +188,28 @@ export default function FinancePage() {
             <BarChart3 className="h-5 w-5 text-muted-foreground" />
             <div>
               <h2 className="text-lg font-semibold leading-none">Finanzas</h2>
-              <p className="text-xs text-muted-foreground mt-1">{entries.length} entradas</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {filtered.length} {filtered.length === 1 ? 'entrada' : 'entradas'}
+              </p>
             </div>
           </div>
-          <Button size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Nueva entrada
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="gap-2 hidden sm:flex">
+              <FileDown className="h-3.5 w-3.5" />
+              Exportar
+            </Button>
+            <Button size="sm" className="gap-2" onClick={() => setShowCreate(true)}>
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Nueva entrada</span>
+              <span className="sm:hidden">Nueva</span>
+            </Button>
+          </div>
         </div>
+
+        <PackInactiveWarning
+          requiredModule={'finance' as ModuleName}
+          activeModules={modules as Record<ModuleName, boolean>}
+        />
       </div>
 
       <div className="px-4 sm:px-6">
@@ -135,38 +221,74 @@ export default function FinancePage() {
         />
       </div>
 
-      <div className="px-4 sm:px-6 space-y-6">
-        {/* Date range filter */}
-        <div className="flex gap-2 flex-wrap items-end">
-          <div className="space-y-1">
-            <Label className="text-xs">Desde</Label>
-            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36 h-8 text-xs" />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Hasta</Label>
-            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36 h-8 text-xs" />
+      <div className="px-4 sm:px-6 space-y-4">
+        {/* Period presets */}
+        <div className="flex gap-1.5 flex-wrap">
+          {(Object.keys(PERIOD_LABELS) as PeriodPreset[]).map((preset) => (
+            <button
+              key={preset}
+              onClick={() => applyPreset(preset)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                activePeriod === preset
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'text-muted-foreground border-border bg-background hover:bg-muted'
+              }`}
+            >
+              {PERIOD_LABELS[preset]}
+            </button>
+          ))}
+          {/* Custom range */}
+          <div className="flex items-center gap-1.5 ml-1">
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => { setDateFrom(e.target.value); setActivePeriod(null) }}
+              className="w-32 h-7 text-xs"
+            />
+            <span className="text-xs text-muted-foreground">—</span>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => { setDateTo(e.target.value); setActivePeriod(null) }}
+              className="w-32 h-7 text-xs"
+            />
           </div>
         </div>
 
-        {/* Summary cards */}
+        {/* KPI cards */}
         {summary && (
           <div className="grid grid-cols-3 gap-3">
             <Card>
               <CardContent className="p-3">
-                <p className="text-xs text-muted-foreground">Ingresos</p>
-                <p className="text-lg font-bold text-green-600 tabular-nums">{formatPrice(summary.total_income)}</p>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+                  <p className="text-xs text-muted-foreground">Ingresos</p>
+                </div>
+                <p className="text-base sm:text-lg font-bold text-emerald-600 tabular-nums truncate">
+                  {formatPrice(summary.total_income)}
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-3">
-                <p className="text-xs text-muted-foreground">Egresos</p>
-                <p className="text-lg font-bold text-destructive tabular-nums">{formatPrice(summary.total_expense)}</p>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <TrendingDown className="h-3.5 w-3.5 text-destructive" />
+                  <p className="text-xs text-muted-foreground">Egresos</p>
+                </div>
+                <p className="text-base sm:text-lg font-bold text-destructive tabular-nums truncate">
+                  {formatPrice(summary.total_expense)}
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-3">
-                <p className="text-xs text-muted-foreground">Neto</p>
-                <p className={`text-lg font-bold tabular-nums ${summary.net >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Scale className="h-3.5 w-3.5 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">Neto</p>
+                </div>
+                <p className={`text-base sm:text-lg font-bold tabular-nums truncate ${
+                  summary.net >= 0 ? 'text-emerald-600' : 'text-destructive'
+                }`}>
                   {formatPrice(summary.net)}
                 </p>
               </CardContent>
@@ -174,17 +296,20 @@ export default function FinancePage() {
           </div>
         )}
 
-        {/* Type filter */}
-        <div className="flex gap-1">
+        {/* Type filter chips */}
+        <div className="flex gap-1.5 flex-wrap">
           {(['', 'income', 'expense'] as const).map((t) => (
-            <Button
+            <button
               key={t}
-              variant={typeFilter === t ? 'default' : 'outline'}
-              size="sm"
               onClick={() => setTypeFilter(t)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                typeFilter === t
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'text-muted-foreground border-border bg-background hover:bg-muted'
+              }`}
             >
               {t === '' ? 'Todas' : FINANCE_TYPE_LABELS[t]}
-            </Button>
+            </button>
           ))}
         </div>
       </div>
@@ -193,48 +318,61 @@ export default function FinancePage() {
       <div className="px-4 sm:px-6">
         {isLoading ? (
           <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full rounded-lg" />
+            ))}
           </div>
-        ) : entries.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground text-sm">
-            No hay entradas para el período seleccionado.
-          </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={<BarChart3 className="h-12 w-12" />}
+            title="Sin entradas"
+            description="No hay movimientos para el período seleccionado."
+            action={
+              <Button size="sm" onClick={() => setShowCreate(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nueva entrada
+              </Button>
+            }
+          />
         ) : (
           <>
             {/* Mobile: cards */}
             <div className="sm:hidden divide-y divide-border/60 rounded-xl border overflow-hidden bg-card">
               {(filtered as Record<string, unknown>[]).map((e) => (
-                <div key={e.id as string} className="p-4 flex items-start gap-3">
+                <button
+                  key={e.id as string}
+                  className="p-4 flex items-start gap-3 w-full text-left hover:bg-muted/30 transition-colors"
+                  onClick={() => setSelectedEntry(e)}
+                >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium truncate">{e.description as string}</p>
-                      <Badge variant={e.type === 'income' ? 'default' : 'secondary'} className="text-[10px]">
+                      <Badge
+                        variant={e.type === 'income' ? 'default' : 'secondary'}
+                        className="text-[10px] shrink-0"
+                      >
                         {FINANCE_TYPE_LABELS[e.type as string] ?? (e.type as string)}
                       </Badge>
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {new Date(e.date as string).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {new Date(e.date as string).toLocaleDateString('es-AR', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                      })}
                     </p>
                   </div>
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    <p className={`text-sm tabular-nums font-semibold ${e.type === 'income' ? 'text-green-600' : 'text-destructive'}`}>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <p className={`text-sm tabular-nums font-semibold ${
+                      e.type === 'income' ? 'text-emerald-600' : 'text-destructive'
+                    }`}>
                       {e.type === 'income' ? '+' : '-'}{formatPrice(e.amount as number)}
                     </p>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      disabled={deleteMutation.isPending}
-                      onClick={() => deleteMutation.mutate(e.id as string)}
-                      aria-label={`Eliminar entrada ${e.description}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </div>
-                </div>
+                </button>
               ))}
             </div>
 
-            {/* Desktop/tablet: table */}
+            {/* Desktop: table */}
             <div className="hidden sm:block border rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -248,7 +386,11 @@ export default function FinancePage() {
                 </TableHeader>
                 <TableBody>
                   {(filtered as Record<string, unknown>[]).map((e) => (
-                    <TableRow key={e.id as string} className="hover:bg-muted/50">
+                    <TableRow
+                      key={e.id as string}
+                      className="hover:bg-muted/50 cursor-pointer"
+                      onClick={() => setSelectedEntry(e)}
+                    >
                       <TableCell className="text-sm">{e.description as string}</TableCell>
                       <TableCell>
                         <Badge variant={e.type === 'income' ? 'default' : 'secondary'}>
@@ -256,20 +398,23 @@ export default function FinancePage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {new Date(e.date as string).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        {new Date(e.date as string).toLocaleDateString('es-AR', {
+                          day: '2-digit', month: '2-digit', year: 'numeric',
+                        })}
                       </TableCell>
-                      <TableCell className={`text-right tabular-nums font-medium ${e.type === 'income' ? 'text-green-600' : 'text-destructive'}`}>
+                      <TableCell className={`text-right tabular-nums font-medium ${
+                        e.type === 'income' ? 'text-emerald-600' : 'text-destructive'
+                      }`}>
                         {e.type === 'income' ? '+' : '-'}{formatPrice(e.amount as number)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right" onClick={(ev) => ev.stopPropagation()}>
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          disabled={deleteMutation.isPending}
-                          onClick={() => deleteMutation.mutate(e.id as string)}
-                          aria-label={`Eliminar entrada ${e.description}`}
+                          onClick={() => setDeleteId(e.id as string)}
+                          aria-label="Eliminar"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -281,7 +426,78 @@ export default function FinancePage() {
         )}
       </div>
 
-      {/* Sheet para crear entrada */}
+      {/* Sheet detalle entrada */}
+      <Sheet open={!!selectedEntry} onOpenChange={(open) => !open && setSelectedEntry(null)}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-muted-foreground" />
+              Detalle
+            </SheetTitle>
+          </SheetHeader>
+          {selectedEntry && (
+            <div className="py-4 space-y-4">
+              <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Descripción</p>
+                  <p className="text-sm font-medium mt-0.5">{selectedEntry.description as string}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Tipo</p>
+                    <Badge variant={selectedEntry.type === 'income' ? 'default' : 'secondary'} className="mt-1">
+                      {FINANCE_TYPE_LABELS[selectedEntry.type as string] ?? selectedEntry.type as string}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Fecha</p>
+                    <p className="text-sm font-medium mt-0.5">
+                      {new Date(selectedEntry.date as string).toLocaleDateString('es-AR', {
+                        day: '2-digit', month: 'long', year: 'numeric',
+                      })}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Monto</p>
+                  <p className={`text-2xl font-bold tabular-nums mt-0.5 ${
+                    selectedEntry.type === 'income' ? 'text-emerald-600' : 'text-destructive'
+                  }`}>
+                    {selectedEntry.type === 'income' ? '+' : '-'}{formatPrice(selectedEntry.amount as number)}
+                  </p>
+                </div>
+                {Boolean(selectedEntry.category) && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Categoría</p>
+                    <p className="text-sm mt-0.5">{selectedEntry.category as string}</p>
+                  </div>
+                )}
+                {Boolean(selectedEntry.order_id) && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Origen</p>
+                    <Badge variant="outline" className="mt-1 text-xs">Pedido</Badge>
+                  </div>
+                )}
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="w-full"
+                disabled={deleteMutation.isPending}
+                onClick={() => {
+                  setDeleteId(selectedEntry.id as string)
+                  setSelectedEntry(null)
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Eliminar entrada
+              </Button>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet crear */}
       <Sheet open={showCreate} onOpenChange={setShowCreate}>
         <SheetContent>
           <SheetHeader>
@@ -290,8 +506,7 @@ export default function FinancePage() {
               Nueva entrada
             </SheetTitle>
           </SheetHeader>
-
-          <form onSubmit={form.handleSubmit(onSubmit)} className="py-4 space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="py-4 space-y-5">
             <div className="space-y-2">
               <Label>Tipo</Label>
               <Select
@@ -328,7 +543,6 @@ export default function FinancePage() {
               <Label htmlFor="date">Fecha</Label>
               <Input id="date" type="date" {...form.register('date')} />
             </div>
-
             <SheetFooter className="gap-2 sm:gap-0">
               <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
                 Cancelar
@@ -340,6 +554,30 @@ export default function FinancePage() {
           </form>
         </SheetContent>
       </Sheet>
+
+      {/* AlertDialog eliminar */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar entrada?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteId) deleteMutation.mutate(deleteId)
+                setDeleteId(null)
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

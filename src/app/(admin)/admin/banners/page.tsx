@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { ImageUploader } from '@/components/shared/image-uploader'
 import { EntityToolbar } from '@/components/shared/entity-toolbar'
+import { EmptyState } from '@/components/shared/empty-state'
 import { useBanners, useCreateBanner, useUpdateBanner, useDeleteBanner, useReorderBanners } from '@/lib/hooks/use-banners'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import type { Banner } from '@/lib/types'
@@ -260,9 +261,17 @@ export default function BannersPage() {
             ))}
           </div>
         ) : items.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground text-sm">
-            Aún no tenés banners. Agregá imágenes para mostrar en tu catálogo.
-          </div>
+          <EmptyState
+            icon={<LayoutGrid className="h-12 w-12" />}
+            title="Sin banners"
+            description="Agregá imágenes para mostrar en tu catálogo."
+            action={
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nuevo banner
+              </Button>
+            }
+          />
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={items.map((b) => b.id)} strategy={rectSortingStrategy}>
@@ -298,10 +307,33 @@ export default function BannersPage() {
                   storeId={store_id}
                   folder="banners"
                   maxFiles={1}
+                  existingUrls={imageUrl ? [imageUrl] : []}
                   onUpload={(urls) => setImageUrl(urls[0] ?? null)}
                 />
               )}
             </div>
+
+            {/* Preview live */}
+            {imageUrl && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Vista previa</Label>
+                <div className="relative rounded-lg overflow-hidden aspect-video border bg-muted">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={imageUrl} alt="Preview" className="h-full w-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/0 to-black/0" />
+                  {(formData.title || formData.subtitle) && (
+                    <div className="absolute bottom-3 left-3 right-3 text-white">
+                      {formData.title && (
+                        <p className="text-sm font-bold leading-tight drop-shadow">{formData.title}</p>
+                      )}
+                      {formData.subtitle && (
+                        <p className="text-xs opacity-90 mt-0.5 drop-shadow">{formData.subtitle}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="title">Título (opcional)</Label>
