@@ -21,6 +21,7 @@ import {
 } from '@/lib/validations/billing'
 import type { ActionResult, ModuleName, Plan } from '@/lib/types'
 import type { BillingInfo } from '@/lib/db/queries/billing'
+import { ensureActionResultSerializable } from '@/lib/serialization/ensure-action-result'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
@@ -67,11 +68,11 @@ export async function getActivePlan(): Promise<ActionResult<BillingPageData>> {
       billing.modules as Partial<Record<ModuleName, boolean>>,
     )
 
-    return { success: true, data: { plan, billing, monthly_total } }
+    return ensureActionResultSerializable({ success: true, data: { plan, billing, monthly_total } })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error al cargar la información de suscripción'
     console.error('[billing] getActivePlan error:', err)
-    return { success: false, error: { code: 'SYSTEM_ERROR', message } }
+    return ensureActionResultSerializable({ success: false, error: { code: 'SYSTEM_ERROR', message } })
   }
 }
 

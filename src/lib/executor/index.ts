@@ -1,5 +1,6 @@
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
 import type { ActionResult, ActorType, StoreContext, StoreStatus, StoreUserRole } from '@/lib/types'
+import { ensureActionResultSerializable } from '@/lib/serialization/ensure-action-result'
 import { getHandler } from './registry'
 
 // ============================================================
@@ -225,5 +226,5 @@ export async function executor<T = unknown>(
   // PASO 10 — Retornar resultado
   // ──────────────────────────────────────────────
 
-  return { success: true, data: result as T }
+  return ensureActionResultSerializable({ success: true, data: result as T })
 }

@@ -2,6 +2,7 @@
 
 import { getStoreContext } from '@/lib/auth/store-context'
 import { executor } from '@/lib/executor'
+import { ensureActionResultSerializable } from '@/lib/serialization/ensure-action-result'
 import type { ActionResult } from '@/lib/types'
 
 /**
@@ -14,7 +15,8 @@ export async function executeAction<T = unknown>(
 ): Promise<ActionResult<T>> {
   try {
     const ctx = await getStoreContext()
-    return executor<T>({
+    // executor ya asegura que `data` sea JSON-serializable
+    return await executor<T>({
       name,
       store_id: ctx.store_id,
       actor: { type: 'user', id: ctx.user_id },
@@ -23,6 +25,8 @@ export async function executeAction<T = unknown>(
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error interno del servidor'
-    return { success: false, error: { code: 'SYSTEM_ERROR', message } } as ActionResult<T>
+    return ensureActionResultSerializable(
+      { success: false, error: { code: 'SYSTEM_ERROR', message } } as ActionResult<T>,
+    )
   }
 }

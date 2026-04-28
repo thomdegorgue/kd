@@ -5,6 +5,7 @@ import { getStoreContext } from '@/lib/auth/store-context'
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
 import type { CreateSaleInput } from '@/lib/validations/sale'
 import type { ActionResult } from '@/lib/types'
+import { ensureActionResultSerializable } from '@/lib/serialization/ensure-action-result'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
@@ -76,7 +77,7 @@ export async function getDailySalesSummary(isoDate?: string): Promise<ActionResu
       .lte('created_at', to)
 
     if (oErr) {
-      return { success: false, error: { code: 'SYSTEM_ERROR', message: oErr.message } }
+      return ensureActionResultSerializable({ success: false, error: { code: 'SYSTEM_ERROR', message: oErr.message } })
     }
 
     const rows = (orders as { id: string; total: number; metadata: Record<string, unknown> }[]) ?? []
@@ -99,7 +100,7 @@ export async function getDailySalesSummary(isoDate?: string): Promise<ActionResu
         .eq('store_id', ctx.store_id)
 
       if (itemsErr) {
-        return { success: false, error: { code: 'SYSTEM_ERROR', message: itemsErr.message } }
+        return ensureActionResultSerializable({ success: false, error: { code: 'SYSTEM_ERROR', message: itemsErr.message } })
       }
 
       const agg = new Map<string, { name: string; quantity: number; total: number }>()
@@ -114,7 +115,7 @@ export async function getDailySalesSummary(isoDate?: string): Promise<ActionResu
         .slice(0, 5)
     }
 
-    return {
+    return ensureActionResultSerializable({
       success: true,
       data: {
         total_sales,
@@ -122,10 +123,10 @@ export async function getDailySalesSummary(isoDate?: string): Promise<ActionResu
         by_method,
         top_products,
       },
-    }
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error al cargar el resumen de ventas'
-    return { success: false, error: { code: 'SYSTEM_ERROR', message } }
+    return ensureActionResultSerializable({ success: false, error: { code: 'SYSTEM_ERROR', message } })
   }
 }
 
@@ -155,12 +156,15 @@ export async function getSalesHistory(filters: SalesHistoryFilters = {}): Promis
 
     const { data, error, count } = await query
     if (error) {
-      return { success: false, error: { code: 'SYSTEM_ERROR', message: error.message } }
+      return ensureActionResultSerializable({ success: false, error: { code: 'SYSTEM_ERROR', message: error.message } })
     }
 
-    return { success: true, data: { items: (data ?? []) as SaleRow[], total: count ?? 0 } }
+    return ensureActionResultSerializable({
+      success: true,
+      data: { items: (data ?? []) as SaleRow[], total: count ?? 0 },
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error al cargar el historial de ventas'
-    return { success: false, error: { code: 'SYSTEM_ERROR', message } }
+    return ensureActionResultSerializable({ success: false, error: { code: 'SYSTEM_ERROR', message } })
   }
 }

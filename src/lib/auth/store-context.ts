@@ -7,14 +7,24 @@ import type { StoreContext } from '@/lib/types'
  * Lanza si no hay contexto (ruta no protegida o sin tienda).
  */
 export async function getStoreContext(): Promise<StoreContext> {
-  const headerStore = await headers()
+  let headerStore: Awaited<ReturnType<typeof headers>>
+  try {
+    headerStore = await headers()
+  } catch (err) {
+    const m = err instanceof Error ? err.message : 'Error leyendo headers'
+    throw new Error(`StoreContext no disponible (${m})`)
+  }
 
   const raw = headerStore.get('x-store-context')
   if (!raw) {
     throw new Error('StoreContext no disponible. ¿Estás en una ruta /admin/* autenticada?')
   }
 
-  return JSON.parse(raw) as StoreContext
+  try {
+    return JSON.parse(raw) as StoreContext
+  } catch {
+    throw new Error('StoreContext inválido: el header x-store-context no es JSON válido')
+  }
 }
 
 /**
