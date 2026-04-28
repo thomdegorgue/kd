@@ -45,9 +45,14 @@ export type Database = {
           name: string
           price_per_100_products: number
           pro_module_price: number
+          pack_price: number
+          bundle_3packs_price: number
           base_modules: Json
           trial_days: number
           trial_max_products: number
+          annual_discount_months: number
+          max_stores_total: number | null
+          ai_tokens_monthly: number
           is_active: boolean
           created_at: string
           updated_at: string
@@ -57,9 +62,14 @@ export type Database = {
           name: string
           price_per_100_products?: number
           pro_module_price?: number
+          pack_price?: number
+          bundle_3packs_price?: number
           base_modules?: Json
           trial_days?: number
           trial_max_products?: number
+          annual_discount_months?: number
+          max_stores_total?: number | null
+          ai_tokens_monthly?: number
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -69,9 +79,14 @@ export type Database = {
           name?: string
           price_per_100_products?: number
           pro_module_price?: number
+          pack_price?: number
+          bundle_3packs_price?: number
           base_modules?: Json
           trial_days?: number
           trial_max_products?: number
+          annual_discount_months?: number
+          max_stores_total?: number | null
+          ai_tokens_monthly?: number
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -90,7 +105,7 @@ export type Database = {
           custom_domain: string | null
           custom_domain_verified: boolean
           custom_domain_verified_at: string | null
-          custom_domain_verification_token: string | null
+          custom_domain_txt_token: string | null
           logo_url: string | null
           cover_url: string | null
           whatsapp: string | null
@@ -100,9 +115,12 @@ export type Database = {
           billing_cycle_anchor: number | null
           current_period_start: string | null
           current_period_end: string | null
+          billing_period: 'monthly' | 'annual'
+          annual_paid_until: string | null
           mp_subscription_id: string | null
           mp_customer_id: string | null
           ai_tokens_used: number
+          ai_tokens_reset_at: string | null
           cancelled_at: string | null
           last_billing_failure_at: string | null
           created_at: string
@@ -120,7 +138,7 @@ export type Database = {
           custom_domain?: string | null
           custom_domain_verified?: boolean
           custom_domain_verified_at?: string | null
-          custom_domain_verification_token?: string | null
+          custom_domain_txt_token?: string | null
           logo_url?: string | null
           cover_url?: string | null
           whatsapp?: string | null
@@ -130,9 +148,12 @@ export type Database = {
           billing_cycle_anchor?: number | null
           current_period_start?: string | null
           current_period_end?: string | null
+          billing_period?: 'monthly' | 'annual'
+          annual_paid_until?: string | null
           mp_subscription_id?: string | null
           mp_customer_id?: string | null
           ai_tokens_used?: number
+          ai_tokens_reset_at?: string | null
           cancelled_at?: string | null
           last_billing_failure_at?: string | null
           created_at?: string
@@ -507,6 +528,7 @@ export type Database = {
           store_id: string
           customer_id: string | null
           status: 'pending' | 'confirmed' | 'preparing' | 'delivered' | 'cancelled'
+          source: 'admin' | 'whatsapp' | 'mp_checkout'
           total: number
           notes: string | null
           metadata: Json
@@ -518,6 +540,7 @@ export type Database = {
           store_id: string
           customer_id?: string | null
           status?: 'pending' | 'confirmed' | 'preparing' | 'delivered' | 'cancelled'
+          source?: 'admin' | 'whatsapp' | 'mp_checkout'
           total: number
           notes?: string | null
           metadata?: Json

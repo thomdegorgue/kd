@@ -10,7 +10,7 @@ import {
   isProModule,
   type AnnualPlanPricing,
 } from '@/lib/billing/calculator'
-import { getPack, packsToModules, modulesToPacks } from '@/lib/billing/packs'
+import { getPack } from '@/lib/billing/packs'
 import type { PackId } from '@/lib/billing/packs'
 import { getPlan, getBillingInfo, getStoreOwnerEmail } from '@/lib/db/queries/billing'
 import {

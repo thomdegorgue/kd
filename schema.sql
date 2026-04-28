@@ -7,6 +7,12 @@
 BEGIN;
 
 -- ============================================================
+-- EXTENSIONES (necesarias para gen_random_uuid)
+-- ============================================================
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- ============================================================
 -- FUNCIONES (CREATE OR REPLACE — siempre idempotente)
 -- ============================================================
 
@@ -54,6 +60,8 @@ CREATE TABLE IF NOT EXISTS plans (
   name TEXT NOT NULL,
   price_per_100_products INTEGER NOT NULL DEFAULT 0,
   pro_module_price INTEGER NOT NULL DEFAULT 0,
+  pack_price INTEGER NOT NULL DEFAULT 1000000,
+  bundle_3packs_price INTEGER NOT NULL DEFAULT 2500000,
   base_modules JSONB NOT NULL DEFAULT '[]',
   trial_days INTEGER NOT NULL DEFAULT 14,
   trial_max_products INTEGER NOT NULL DEFAULT 100,
@@ -253,7 +261,7 @@ CREATE TABLE IF NOT EXISTS wholesale_prices (
   min_quantity INTEGER NOT NULL DEFAULT 1,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE(store_id, product_id, variant_id)
+  UNIQUE(store_id, product_id, variant_id, min_quantity)
 );
 
 CREATE TABLE IF NOT EXISTS shipping_methods (
@@ -510,6 +518,14 @@ BEGIN
     WHERE table_name = 'plans' AND column_name = 'max_stores_total') THEN
     ALTER TABLE plans ADD COLUMN max_stores_total INTEGER;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'plans' AND column_name = 'pack_price') THEN
+    ALTER TABLE plans ADD COLUMN pack_price INTEGER NOT NULL DEFAULT 1000000;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'plans' AND column_name = 'bundle_3packs_price') THEN
+    ALTER TABLE plans ADD COLUMN bundle_3packs_price INTEGER NOT NULL DEFAULT 2500000;
+  END IF;
 
   -- billing_webhook_log: columna result (puede ser nueva)
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
@@ -580,14 +596,19 @@ CREATE INDEX IF NOT EXISTS idx_payments_store_created ON payments(store_id, crea
 CREATE INDEX IF NOT EXISTS idx_finance_entries_store ON finance_entries(store_id);
 CREATE INDEX IF NOT EXISTS idx_finance_entries_store_type ON finance_entries(store_id, type);
 CREATE INDEX IF NOT EXISTS idx_finance_entries_store_date ON finance_entries(store_id, date);
+CREATE INDEX IF NOT EXISTS idx_finance_entries_order_id ON finance_entries(order_id);
+CREATE INDEX IF NOT EXISTS idx_finance_entries_payment_id ON finance_entries(payment_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_store ON expenses(store_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_store_category ON expenses(store_id, category);
 CREATE INDEX IF NOT EXISTS idx_expenses_store_date ON expenses(store_id, date);
+CREATE INDEX IF NOT EXISTS idx_expenses_finance_entry_id ON expenses(finance_entry_id);
 CREATE INDEX IF NOT EXISTS idx_savings_accounts_store ON savings_accounts(store_id);
 CREATE INDEX IF NOT EXISTS idx_savings_movements_store_account ON savings_movements(store_id, savings_account_id);
+CREATE INDEX IF NOT EXISTS idx_savings_movements_finance_entry_id ON savings_movements(finance_entry_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_store ON tasks(store_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_store_status ON tasks(store_id, status);
 CREATE INDEX IF NOT EXISTS idx_tasks_store_assigned ON tasks(store_id, assigned_to);
+CREATE INDEX IF NOT EXISTS idx_tasks_order_id ON tasks(order_id);
 CREATE INDEX IF NOT EXISTS idx_assistant_sessions_store_user ON assistant_sessions(store_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_assistant_sessions_expires ON assistant_sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_assistant_messages_session ON assistant_messages(session_id, created_at);
@@ -598,6 +619,15 @@ CREATE INDEX IF NOT EXISTS idx_events_store_created ON events(store_id, created_
 CREATE INDEX IF NOT EXISTS idx_events_type_created ON events(type, created_at);
 CREATE INDEX IF NOT EXISTS idx_products_store_out_of_stock ON products(store_id) WHERE stock = 0;
 CREATE INDEX IF NOT EXISTS idx_events_store_type_created ON events(store_id, type, created_at DESC);
+
+-- UNIQUE parciales para evitar duplicados lógicos cuando variant_id IS NULL
+CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_items_no_variant_unique
+  ON stock_items(store_id, product_id) WHERE variant_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_wholesale_prices_no_variant_unique
+  ON wholesale_prices(store_id, product_id, min_quantity) WHERE variant_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_mp_payment_id_unique
+  ON payments(mp_payment_id) WHERE mp_payment_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_store_invitations_expires_at ON store_invitations(expires_at);
 
 -- ============================================================
 -- TRIGGERS (drop + recreate — idempotente)
@@ -740,6 +770,18 @@ CREATE POLICY store_users_select ON store_users FOR SELECT
 CREATE POLICY store_users_insert ON store_users FOR INSERT
   WITH CHECK (store_id IN (SELECT su.store_id FROM store_users su WHERE su.user_id = auth.uid() AND su.role IN ('owner', 'admin')));
 
+-- Permite gestionar membresías (cambiar rol / aceptar / remover) a dueños/admins
+CREATE POLICY store_users_update ON store_users FOR UPDATE
+  USING (store_id IN (
+    SELECT su.store_id FROM store_users su
+    WHERE su.user_id = auth.uid() AND su.role IN ('owner', 'admin')
+  ));
+CREATE POLICY store_users_delete ON store_users FOR DELETE
+  USING (store_id IN (
+    SELECT su.store_id FROM store_users su
+    WHERE su.user_id = auth.uid() AND su.role IN ('owner', 'admin')
+  ));
+
 -- Store invitations
 CREATE POLICY store_invitations_select ON store_invitations FOR SELECT
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin')));
@@ -820,6 +862,9 @@ CREATE POLICY variant_attributes_select ON variant_attributes FOR SELECT
 CREATE POLICY variant_attributes_insert ON variant_attributes FOR INSERT
   WITH CHECK (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
     AND store_allows_writes(store_id));
+CREATE POLICY variant_attributes_update ON variant_attributes FOR UPDATE
+  USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
+    AND store_allows_writes(store_id));
 CREATE POLICY variant_attributes_delete ON variant_attributes FOR DELETE
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
     AND store_allows_writes(store_id));
@@ -829,6 +874,9 @@ CREATE POLICY variant_values_select ON variant_values FOR SELECT
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid()));
 CREATE POLICY variant_values_insert ON variant_values FOR INSERT
   WITH CHECK (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
+    AND store_allows_writes(store_id));
+CREATE POLICY variant_values_update ON variant_values FOR UPDATE
+  USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
     AND store_allows_writes(store_id));
 CREATE POLICY variant_values_delete ON variant_values FOR DELETE
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
@@ -997,6 +1045,9 @@ CREATE POLICY assistant_sessions_select ON assistant_sessions FOR SELECT
 CREATE POLICY assistant_sessions_insert ON assistant_sessions FOR INSERT
   WITH CHECK (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid())
     AND store_allows_writes(store_id));
+CREATE POLICY assistant_sessions_update ON assistant_sessions FOR UPDATE
+  USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid())
+    AND store_allows_writes(store_id));
 CREATE POLICY assistant_sessions_delete ON assistant_sessions FOR DELETE
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
     AND store_allows_writes(store_id));
@@ -1068,6 +1119,22 @@ BEGIN
   END IF;
 END $$;
 
+-- store_id FKs faltantes en tablas donde hoy depende 100% de la app
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'order_items_store_fk') THEN
+    ALTER TABLE order_items
+      ADD CONSTRAINT order_items_store_fk FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'assistant_messages_store_fk') THEN
+    ALTER TABLE assistant_messages
+      ADD CONSTRAINT assistant_messages_store_fk FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'savings_movements_store_fk') THEN
+    ALTER TABLE savings_movements
+      ADD CONSTRAINT savings_movements_store_fk FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
 -- ============================================================
 -- CONSTRAINTS DE CALIDAD
 -- ============================================================
@@ -1077,6 +1144,15 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'products_stock_nonneg') THEN
     ALTER TABLE products
       ADD CONSTRAINT products_stock_nonneg CHECK (stock IS NULL OR stock >= 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'products_compare_price_gt_price') THEN
+    ALTER TABLE products
+      ADD CONSTRAINT products_compare_price_gt_price CHECK (compare_price IS NULL OR compare_price > price);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'expenses_recurring_requires_period') THEN
+    ALTER TABLE expenses
+      ADD CONSTRAINT expenses_recurring_requires_period
+      CHECK (is_recurring = false OR recurrence_period IS NOT NULL);
   END IF;
 END $$;
 

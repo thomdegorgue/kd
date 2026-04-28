@@ -56,6 +56,12 @@ $RECYCLE.BIN/
 ### Cursor
 .cursor/
 
+### Claude (local)
+.claude/settings.local.json
+
+### Local artifacts
+.lint-output.txt
+
 ### Misc
 *.swp
 *.swo

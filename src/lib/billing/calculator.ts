@@ -33,11 +33,6 @@ export type AnnualPlanPricing = PlanPricing & {
   annual_discount_months: number // meses que el dueño NO paga (ej: 2 → paga 10, recibe 12)
 }
 
-export type PackPlanPricing = {
-  pack_price: number        // precio de cada pack pago (ej: $10.000 = 1.000.000 centavos)
-  bundle_3packs_price: number // si los 3 operacionales están activos (ej: $25.000 = 2.500.000)
-}
-
 // ============================================================
 // CALCULADORA
 // ============================================================
@@ -125,38 +120,4 @@ export function formatARS(centavos: number): string {
 /** Convierte centavos ARS a pesos ARS (número) para MP API */
 export function centavosToARS(centavos: number): number {
   return centavos / 100
-}
-
-// ============================================================
-// CALCULADORA DE PACKS (nuevo modelo)
-// ============================================================
-
-/**
- * Calcula precio total de packs activos.
- * Aplica descuento si están los 3 packs operacionales (operations, finance, team).
- */
-export function computePackTotal(
-  activePackIds: string[],
-  planPricing: PackPlanPricing,
-): {
-  subtotal: number
-  bundleDiscount: number
-  total: number
-  hasBundle: boolean
-} {
-  const { pack_price, bundle_3packs_price } = planPricing
-  const OPERATIONAL_IDS = ['operations', 'finance', 'team']
-
-  const paidPacksCount = activePackIds.filter(id => id !== 'core').length
-  const subtotal = paidPacksCount * pack_price
-
-  const has3Operational = OPERATIONAL_IDS.every(id => activePackIds.includes(id))
-  const bundleDiscount = has3Operational ? Math.max(0, subtotal - bundle_3packs_price) : 0
-
-  return {
-    subtotal,
-    bundleDiscount,
-    total: subtotal - bundleDiscount,
-    hasBundle: has3Operational,
-  }
 }

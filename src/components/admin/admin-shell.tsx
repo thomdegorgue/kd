@@ -2,6 +2,7 @@
 import { usePathname } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
+import { useEffect, useMemo } from 'react'
 import {
   LayoutDashboard,
   Package,
@@ -34,7 +35,7 @@ import { useBilling } from '@/lib/hooks/use-billing'
 import { useStoreConfig } from '@/lib/hooks/use-store-config'
 import { signOut } from '@/lib/actions/auth'
 
-import { PanelShell, type PanelNavGroup } from '@/components/shared/panel-shell'
+import { PanelShell, type PanelNavGroup, type PanelNavItem } from '@/components/shared/panel-shell'
 import { AdminContext } from '@/lib/hooks/use-admin-context'
 import { queryKeys } from '@/lib/hooks/query-keys'
 import { createClient } from '@/lib/supabase/client'
@@ -344,7 +345,10 @@ export function AdminShell({
   const nav = useMemo(() => buildNav(storeContext.modules), [storeContext.modules])
 
   const activeLabel = useMemo(
-    () => nav.flatMap((g) => g.items).find((i) => i.key === activeKey)?.label ?? 'Panel',
+    () =>
+      nav
+        .flatMap((g: PanelNavGroup) => g.items)
+        .find((i: PanelNavItem) => i.key === activeKey)?.label ?? 'Panel',
     [nav, activeKey],
   )
 

@@ -3,40 +3,30 @@
 SaaS multitenant modular para catálogos digitales + carrito WhatsApp, mobile-first, para emprendedores y PyMEs de Argentina y Latinoamérica.
 
 ## Stack Tecnológico
-
-| Capa | Tecnología |
-|------|------------|
-| Runtime | Node 22 + pnpm (lockfile: `pnpm-lock.yaml`, siempre commitear) |
-| Framework | Next.js 15 (App Router), TypeScript estricto |
-| UI | Tailwind CSS v3, shadcn/ui, next-themes |
-| Data fetching | TanStack Query v5 |
-| Estado UI | Zustand |
-| Formularios | React Hook Form + Zod |
-| Íconos | Lucide React |
-| Base de datos | Supabase (PostgreSQL + Auth + RLS + Realtime) |
-| Caché | Upstash Redis |
-| Imágenes | Cloudinary (upload unsigned) |
-| Billing SaaS | Mercado Pago Suscripciones |
-| Deploy | Vercel (wildcard subdomains) |
+- Runtime: Node 22 + pnpm (lockfile: `pnpm-lock.yaml`)
+- Framework: Next.js (App Router) + TypeScript estricto
+- UI: Tailwind CSS v3 + componentes UI internos
+- Data fetching: TanStack Query v5
+- Estado UI: Zustand
+- Formularios: React Hook Form + Zod
+- Base de datos: Supabase (PostgreSQL + Auth + RLS + Realtime)
+- Caché: Upstash Redis
+- Imágenes: Cloudinary
+- Billing: Mercado Pago
+- Deploy: Vercel
 
 ## Navegación del Repo
+- Guía de saneamiento y pasos por fases: `fixes.md`
+- Schema idempotente para Supabase SQL Editor: `schema.sql`
 
-| Si necesitás... | Leé... |
-|----------------|--------|
-| Empezar a trabajar como agente IA | `START.md` |
-| Saber en qué fase/paso estamos | `ESTADO.md` |
-| Entender qué construir y en qué orden | `PLAN.md` |
-| Configurar servicios externos manualmente | `PASOS-MANUALES.md` |
-| Ejecutar el SQL en Supabase | `schema.sql` |
-| Entender el dominio, reglas y naming | `system/domain.md` |
-| Ver los 20 módulos del sistema | `system/modules.md` |
-| Ver herramientas reutilizables | `system/tools.md` |
-| Entender la reactividad y caché | `system/realtime.md` |
-| Entender el executor (motor central) | `system/executor.md` |
-| Reglas de frontend y estructura | `system/frontend.md` |
-| Billing, planes y Mercado Pago | `system/billing.md` |
-| Roles, permisos y autenticación | `system/auth.md` |
-| Panel de superadmin | `system/superadmin.md` |
+## Comandos útiles
+
+```bash
+pnpm install
+pnpm dev
+pnpm tsc --noEmit
+pnpm lint
+```
 
 ## Variables de Entorno
 
@@ -67,8 +57,7 @@ SaaS multitenant modular para catálogos digitales + carrito WhatsApp, mobile-fi
 - **Panel de gestión**: Panel
 
 ## Estado Actual
-
-Ver `ESTADO.md` para el estado actualizado del proyecto.
+Ver `fixes.md` para el plan de trabajo actualizado.
 
 ## Licencia
 
