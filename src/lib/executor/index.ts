@@ -1,6 +1,7 @@
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
 import type { ActionResult, ActorType, StoreContext, StoreStatus, StoreUserRole } from '@/lib/types'
 import { ensureActionResultSerializable } from '@/lib/serialization/ensure-action-result'
+import './handlers'
 import { getHandler } from './registry'
 
 // ============================================================

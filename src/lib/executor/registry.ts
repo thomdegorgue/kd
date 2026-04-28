@@ -42,27 +42,3 @@ export function getHandler(name: string): ActionHandler | undefined {
 export function listHandlers(): string[] {
   return [...registry.keys()]
 }
-
-// ============================================================
-// IMPORTAR HANDLERS — side-effect imports que registran al cargarse
-// ============================================================
-
-import './handlers/catalog'
-import './handlers/products'
-import './handlers/categories'
-import './handlers/orders'
-import './handlers/dashboard'
-import './handlers/customers'
-import './handlers/payments'
-import './handlers/stock'
-import './handlers/shipping'
-import './handlers/banners'
-import './handlers/variants'
-import './handlers/wholesale'
-import './handlers/finance'
-import './handlers/expenses'
-import './handlers/savings'
-import './handlers/tasks'
-import './handlers/multiuser'
-import './handlers/custom-domain'
-import './handlers/assistant'
