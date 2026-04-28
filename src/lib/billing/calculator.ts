@@ -1,33 +1,19 @@
 import type { ModuleName } from '@/lib/types'
+import { PACKS } from '@/lib/billing/packs'
 
 // ============================================================
-// CONSTANTES
+// CONSTANTES — derivadas de packs.ts para mantener sincronización
 // ============================================================
 
+// PRO_MODULES: todos los módulos en packs pagos (operations, finance, team, ai)
 export const PRO_MODULES: readonly ModuleName[] = [
-  'variants',
-  'wholesale',
-  'finance',
-  'expenses',
-  'savings_account',
-  'multiuser',
-  'tasks',
-  'assistant',
+  ...PACKS.filter(p => p.is_paid && p.id !== 'core')
+    .flatMap(p => [...p.modules])
 ] as const
 
+// BASE_MODULES: todos los módulos en el pack core
 export const BASE_MODULES: readonly ModuleName[] = [
-  'catalog',
-  'products',
-  'categories',
-  'cart',
-  'orders',
-  'stock',
-  'payments',
-  'banners',
-  'social',
-  'product_page',
-  'shipping',
-  'custom_domain',
+  ...PACKS.find(p => p.id === 'core')?.modules ?? []
 ] as const
 
 export function isProModule(module: string): module is ModuleName {
@@ -45,6 +31,11 @@ export type PlanPricing = {
 
 export type AnnualPlanPricing = PlanPricing & {
   annual_discount_months: number // meses que el dueño NO paga (ej: 2 → paga 10, recibe 12)
+}
+
+export type PackPlanPricing = {
+  pack_price: number        // precio de cada pack pago (ej: $10.000 = 1.000.000 centavos)
+  bundle_3packs_price: number // si los 3 operacionales están activos (ej: $25.000 = 2.500.000)
 }
 
 // ============================================================
@@ -134,4 +125,38 @@ export function formatARS(centavos: number): string {
 /** Convierte centavos ARS a pesos ARS (número) para MP API */
 export function centavosToARS(centavos: number): number {
   return centavos / 100
+}
+
+// ============================================================
+// CALCULADORA DE PACKS (nuevo modelo)
+// ============================================================
+
+/**
+ * Calcula precio total de packs activos.
+ * Aplica descuento si están los 3 packs operacionales (operations, finance, team).
+ */
+export function computePackTotal(
+  activePackIds: string[],
+  planPricing: PackPlanPricing,
+): {
+  subtotal: number
+  bundleDiscount: number
+  total: number
+  hasBundle: boolean
+} {
+  const { pack_price, bundle_3packs_price } = planPricing
+  const OPERATIONAL_IDS = ['operations', 'finance', 'team']
+
+  const paidPacksCount = activePackIds.filter(id => id !== 'core').length
+  const subtotal = paidPacksCount * pack_price
+
+  const has3Operational = OPERATIONAL_IDS.every(id => activePackIds.includes(id))
+  const bundleDiscount = has3Operational ? Math.max(0, subtotal - bundle_3packs_price) : 0
+
+  return {
+    subtotal,
+    bundleDiscount,
+    total: subtotal - bundleDiscount,
+    hasBundle: has3Operational,
+  }
 }
