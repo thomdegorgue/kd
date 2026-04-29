@@ -11,10 +11,7 @@ import {
   Minus,
   Package,
   Plus,
-  RotateCcw,
-  Shield,
   Sparkles,
-  Truck,
 } from 'lucide-react'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -258,18 +255,6 @@ function DrawerBody({ productId, onClose, onAdded }: DrawerBodyProps) {
     })
     window.open(whatsappUrl, '_blank')
   }, [product, store.whatsapp, store.name, qty, unitPrice, variantLabel])
-
-  const trustItems = useMemo(() => {
-    const configured = store.config?.trust_badges ?? null
-    const fallback = ['Envío en 24–48hs', 'Compra segura', 'Cambio sin costo']
-    const labels = Array.isArray(configured) && configured.length > 0
-      ? configured.filter((b) => typeof b === 'string' && b.trim()).slice(0, 3)
-      : fallback
-    return labels.map((label, i) => ({
-      label,
-      Icon: i === 0 ? Truck : i === 1 ? Shield : RotateCcw,
-    }))
-  }, [store.config?.trust_badges])
 
   if (loading || !product) {
     return (
@@ -539,20 +524,6 @@ function DrawerBody({ productId, onClose, onAdded }: DrawerBodyProps) {
               </div>
             </div>
           )}
-
-          <div className="grid grid-cols-3 gap-2">
-            {trustItems.map(({ Icon, label }) => (
-              <div
-                key={label}
-                className="flex flex-col items-center gap-1 rounded-xl bg-muted p-3 text-center"
-              >
-                <Icon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-[10px] leading-tight text-muted-foreground">
-                  {label}
-                </span>
-              </div>
-            ))}
-          </div>
         </div>
       </ScrollArea>
 

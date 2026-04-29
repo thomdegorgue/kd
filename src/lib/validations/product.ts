@@ -3,7 +3,7 @@ import { z } from 'zod'
 export const createProductSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio').max(200),
   price: z.number().int().min(0, 'El precio debe ser mayor o igual a 0'),
-  compare_price: z.number().int().min(0).optional().nullable(),
+  compare_price: z.number().int().min(0).nullable().optional(),
   description: z.string().max(2000).optional(),
   image_url: z.string().url().optional(),
   is_active: z.boolean().optional(),

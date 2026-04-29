@@ -6,7 +6,6 @@ import { Tag } from 'lucide-react'
 import { ProductGrid } from '@/components/public/product-grid'
 import { CategoryFilter } from '@/components/public/category-filter'
 import { BannerCarousel } from '@/components/public/banner-carousel'
-import { TrustBadges } from '@/components/public/trust-badges'
 import { CartDrawer } from '@/components/public/cart-drawer'
 import { ProductDetailDrawer } from '@/components/public/product-detail-drawer'
 import { CatalogHeader } from '@/components/public/catalog-header'
@@ -29,7 +28,6 @@ interface CatalogViewProps {
   hasBannersModule: boolean
   hasCategoriesModule: boolean
   hasProductPageModule: boolean
-  hasShippingModule: boolean
   hasStockModule: boolean
   selectedCategoryId: string | null
   slug: string
@@ -44,7 +42,6 @@ export function CatalogView({
   hasBannersModule,
   hasCategoriesModule,
   hasProductPageModule,
-  hasShippingModule,
   hasStockModule,
   selectedCategoryId,
   slug,
@@ -145,13 +142,6 @@ export function CatalogView({
               productCounts={categoryCounts}
               totalCount={Object.values(categoryCounts).reduce((s, n) => s + n, 0) || initialTotal}
             />
-          </div>
-        )}
-
-        {/* Trust Badges */}
-        {hasShippingModule && (
-          <div className="pb-4">
-            <TrustBadges />
           </div>
         )}
 

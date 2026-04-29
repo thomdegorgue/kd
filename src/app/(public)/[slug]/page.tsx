@@ -74,7 +74,6 @@ export default async function StorePage({
       hasBannersModule={!!store.modules.banners}
       hasCategoriesModule={!!store.modules.categories}
       hasProductPageModule={!!store.modules.product_page}
-      hasShippingModule={!!store.modules.shipping}
       hasStockModule={!!store.modules.stock}
       selectedCategoryId={categoryId ?? null}
       slug={slug}

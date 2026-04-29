@@ -30,8 +30,20 @@ import { useUnsavedChanges } from '@/lib/hooks/use-unsaved-changes'
 
 // ── Form schema ──────────────────────────────────────────────
 
+/** Precio tachado: con `valueAsNumber`, el input vacío llega como NaN — debe ser opcional. */
+const optionalComparePricePesos = z.custom<number | undefined>(
+  (val) =>
+    val === '' ||
+    val === undefined ||
+    val === null ||
+    (typeof val === 'number' && Number.isNaN(val)) ||
+    (typeof val === 'number' && val >= 0),
+  { message: 'El precio anterior debe ser mayor o igual a 0' },
+)
+
 const formSchema = createProductSchema.extend({
   price: z.number().min(0, 'El precio debe ser mayor o igual a 0'),
+  compare_price: optionalComparePricePesos,
 })
 type FormValues = z.infer<typeof formSchema>
 
@@ -158,7 +170,12 @@ export function ProductSheet({ id, open, onOpenChange }: ProductSheetProps) {
     const payload = {
       ...data,
       price: Math.round(data.price * 100),
-      compare_price: data.compare_price ? Math.round(data.compare_price * 100) : null,
+      compare_price:
+        typeof data.compare_price === 'number' &&
+        Number.isFinite(data.compare_price) &&
+        data.compare_price > 0
+          ? Math.round(data.compare_price * 100)
+          : null,
       stock: data.stock ?? null,
     }
     if (id) {
