@@ -5,12 +5,31 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
 import { createStore } from '@/lib/executor/handlers/stores'
 import { loginSchema, signupSchema } from '@/lib/validations/auth'
-import type { ActionResult } from '@/lib/types'
+import type { ActionResult, ErrorCode } from '@/lib/types'
 import { Ratelimit } from '@upstash/ratelimit'
 import { redis } from '@/lib/redis'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
+
+/** Upstash: intentos de “olvidé mi contraseña” por email y hora (el registro usa el límite de Supabase, no este valor). */
+const PASSWORD_RESET_PER_EMAIL_PER_HOUR = 5
+
+function mapSupabaseAuthEmailRateMessage(raw: string): string {
+  const m = raw.toLowerCase()
+  if (
+    m.includes('email rate limit') ||
+    m.includes('rate limit exceeded') ||
+    m.includes('too many emails')
+  ) {
+    return (
+      'Se alcanzó el límite de envío de correos de verificación (lo define tu proyecto en Supabase, no esta app). ' +
+      'Opciones: esperar un rato; en Supabase ir a Authentication → Rate Limits y, si usás SMTP propio, subir “emails enviados”; ' +
+      'o en desarrollo desactivar “Confirm email” en Authentication → Providers → Email para no depender del correo.'
+    )
+  }
+  return raw
+}
 
 // ── sendPasswordReset ────────────────────────────────────────
 
@@ -25,7 +44,7 @@ export async function sendPasswordReset(
 
   const limiter = new Ratelimit({
     redis,
-    limiter: Ratelimit.slidingWindow(3, '1 h'),
+    limiter: Ratelimit.slidingWindow(PASSWORD_RESET_PER_EMAIL_PER_HOUR, '1 h'),
     prefix: 'kd:pwreset',
   })
   const { success } = await limiter.limit(email.toLowerCase())
@@ -161,11 +180,16 @@ export async function signUp(
   })
 
   if (authError || !authData.user) {
-    const message =
-      authError?.message === 'User already registered'
-        ? 'Ya existe una cuenta con ese email'
-        : (authError?.message ?? 'Error al crear la cuenta')
-    return { success: false, error: { code: 'CONFLICT', message } }
+    if (authError?.message === 'User already registered') {
+      return {
+        success: false,
+        error: { code: 'CONFLICT', message: 'Ya existe una cuenta con ese email' },
+      }
+    }
+    const raw = authError?.message ?? 'Error al crear la cuenta'
+    const message = mapSupabaseAuthEmailRateMessage(raw)
+    const code: ErrorCode = message !== raw ? 'LIMIT_EXCEEDED' : 'CONFLICT'
+    return { success: false, error: { code, message } }
   }
 
   const userId = authData.user.id
