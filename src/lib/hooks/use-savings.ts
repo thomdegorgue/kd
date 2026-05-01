@@ -27,13 +27,13 @@ export function useSavingsAccounts() {
   })
 }
 
-export function useSavingsMovements(account_id: string) {
+export function useSavingsMovements(account_id: string | undefined) {
   const { store_id } = useAdminContext()
 
   return useQuery({
     queryKey: ['savings-movements', store_id, account_id],
     queryFn: async () => {
-      const result = await listSavingsMovements(account_id)
+      const result = await listSavingsMovements(account_id!)
       if (!result.success) throw new Error(result.error.message)
       return result.data
     },

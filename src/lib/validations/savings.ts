@@ -4,6 +4,7 @@ export const createSavingsAccountSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio').max(100),
   description: z.string().max(300).optional(),
   target_amount: z.number().int().min(1).optional(),
+  customer_id: z.string().uuid().optional(),
 })
 
 export type CreateSavingsAccountInput = z.infer<typeof createSavingsAccountSchema>

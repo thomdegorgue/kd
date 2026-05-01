@@ -44,9 +44,25 @@ registerHandler({
       balanceMap.set(m.account_id, m.type === 'deposit' ? current + m.amount : current - m.amount)
     }
 
-    return (accounts as { id: string }[]).map((a) => ({
+    const customerIds = (accounts as { customer_id: string | null }[])
+      .map((a) => a.customer_id)
+      .filter(Boolean) as string[]
+
+    const customerNameMap = new Map<string, string>()
+    if (customerIds.length > 0) {
+      const { data: customers } = await db
+        .from('customers')
+        .select('id, name')
+        .in('id', customerIds)
+      for (const c of (customers as { id: string; name: string | null }[] ?? [])) {
+        if (c.name) customerNameMap.set(c.id, c.name)
+      }
+    }
+
+    return (accounts as { id: string; customer_id: string | null }[]).map((a) => ({
       ...a,
-      balance: balanceMap.get((a as { id: string }).id) ?? 0,
+      balance: balanceMap.get(a.id) ?? 0,
+      customer_name: a.customer_id ? (customerNameMap.get(a.customer_id) ?? null) : null,
     }))
   },
 })

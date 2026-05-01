@@ -25,7 +25,7 @@ registerHandler({
 
     let query = db
       .from('customers')
-      .select('*', { count: 'exact' })
+      .select('*, savings_accounts(id, name)', { count: 'exact' })
       .eq('store_id', context.store_id)
       .order('created_at', { ascending: false })
       .range(from, to)
@@ -66,7 +66,6 @@ registerHandler({
 
     if (error || !customer) throw new Error('Cliente no encontrado')
 
-    // Cargar pedidos del cliente
     const { data: orders } = await db
       .from('orders')
       .select('id, status, total, created_at')
@@ -75,6 +74,44 @@ registerHandler({
       .order('created_at', { ascending: false })
       .limit(20)
 
-    return { ...customer, orders: orders ?? [] }
+    const { data: savingsAccount } = await db
+      .from('savings_accounts')
+      .select('id, name')
+      .eq('store_id', context.store_id)
+      .eq('customer_id', id)
+      .limit(1)
+      .maybeSingle()
+
+    return { ...customer, orders: orders ?? [], savings_account: savingsAccount ?? null }
+  },
+})
+
+// ── update_customer ─────────────────────────────────────────
+
+registerHandler({
+  name: 'update_customer',
+  requires: [],
+  permissions: ['owner', 'admin'],
+  event_type: null,
+  invalidates: ['customers:{store_id}'],
+  validate: (input) => {
+    const { id } = input as { id?: string }
+    if (!id) return { valid: false, code: 'INVALID_INPUT', message: 'id es requerido' }
+    return { valid: true }
+  },
+  execute: async (input, context) => {
+    const { id, ...fields } = input as { id: string; notes?: string | null }
+
+    const { data, error } = await db
+      .from('customers')
+      .update(fields)
+      .eq('id', id)
+      .eq('store_id', context.store_id)
+      .select()
+      .single()
+
+    if (error) throw new Error(error.message)
+    if (!data) throw new Error('Cliente no encontrado')
+    return data
   },
 })

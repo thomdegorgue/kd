@@ -1,7 +1,8 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
-import { listCustomers, getCustomer, type CustomerFilters } from '@/lib/actions/customers'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { listCustomers, getCustomer, updateCustomer, type CustomerFilters } from '@/lib/actions/customers'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import { queryKeys, staleTimes, gcTimes } from '@/lib/hooks/query-keys'
 
@@ -33,5 +34,24 @@ export function useCustomer(id: string) {
     staleTime: staleTimes.customers,
     gcTime: gcTimes.customers,
     enabled: !!id,
+  })
+}
+
+export function useUpdateCustomer() {
+  const queryClient = useQueryClient()
+  const { store_id } = useAdminContext()
+
+  return useMutation({
+    mutationFn: async (input: Parameters<typeof updateCustomer>[0]) => {
+      const result = await updateCustomer(input)
+      if (!result.success) throw new Error(result.error.message)
+      return result.data
+    },
+    onSuccess: (_data, input) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.customers(store_id) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.customer(store_id, input.id) })
+      toast.success('Cliente actualizado')
+    },
+    onError: (error) => toast.error(error.message),
   })
 }
