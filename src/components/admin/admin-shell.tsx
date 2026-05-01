@@ -10,7 +10,6 @@ import {
   ShoppingCart,
   Users,
   Settings,
-  Blocks,
   Image,
   BarChart3,
   Wallet,
@@ -35,7 +34,7 @@ import { useBilling } from '@/lib/hooks/use-billing'
 import { useStoreConfig } from '@/lib/hooks/use-store-config'
 import { signOut } from '@/lib/actions/auth'
 
-import { PanelShell, type PanelNavGroup, type PanelNavItem } from '@/components/shared/panel-shell'
+import { PanelShell, type PanelNavGroup } from '@/components/shared/panel-shell'
 import { AdminContext } from '@/lib/hooks/use-admin-context'
 import { queryKeys } from '@/lib/hooks/query-keys'
 import { createClient } from '@/lib/supabase/client'
@@ -122,7 +121,7 @@ function buildNav(modules: Partial<Record<ModuleName, boolean>>): PanelNavGroup[
           ? [{ key: 'shipping', label: 'Envíos', icon: Truck, href: '/admin/shipping' }]
           : []),
         ...(mod('payments')
-          ? [{ key: 'payments', label: 'Pagos', icon: CreditCard, href: '/admin/payments' }]
+          ? [{ key: 'payments', label: 'Métodos de pago', icon: CreditCard, href: '/admin/payments' }]
           : []),
         ...(mod('tasks')
           ? [{ key: 'tasks', label: 'Tareas', icon: CheckSquare, href: '/admin/tasks' }]
@@ -139,7 +138,7 @@ function buildNav(modules: Partial<Record<ModuleName, boolean>>): PanelNavGroup[
           ? [{ key: 'expenses', label: 'Gastos', icon: Receipt, href: '/admin/expenses' }]
           : []),
         ...(mod('savings_account')
-          ? [{ key: 'savings', label: 'Ahorros', icon: PiggyBank, href: '/admin/savings' }]
+          ? [{ key: 'savings', label: 'Cuentas', icon: PiggyBank, href: '/admin/savings' }]
           : []),
       ],
     },
@@ -147,7 +146,6 @@ function buildNav(modules: Partial<Record<ModuleName, boolean>>): PanelNavGroup[
       label: 'CONFIGURACIÓN',
       items: [
         { key: 'settings', label: 'Configuración', icon: Settings, href: '/admin/settings' },
-        { key: 'modules', label: 'Módulos', icon: Blocks, href: '/admin/settings/modules' },
         ...(mod('multiuser')
           ? [{ key: 'multiuser', label: 'Equipo', icon: UsersRound, href: '/admin/settings/team' }]
           : []),
@@ -172,7 +170,7 @@ function buildNav(modules: Partial<Record<ModuleName, boolean>>): PanelNavGroup[
     {
       label: 'SUSCRIPCIÓN',
       items: [
-        { key: 'billing', label: 'Billing', icon: Zap, href: '/admin/billing' },
+        { key: 'billing', label: 'Suscripción', icon: Zap, href: '/admin/billing' },
       ],
     },
   ].filter((group) => group.items.length > 0)
@@ -291,35 +289,35 @@ function BillingBanner() {
 
 function AdminTopbar({
   openMobile,
-  activeLabel,
   slug,
 }: {
   openMobile: () => void
-  activeLabel: string
   slug: string
 }) {
   const catalogUrl = getCatalogUrl(slug)
+  const { data: store } = useStoreConfig()
+  const storeName = store?.name ?? 'Mi tienda'
 
   return (
     <div className="shrink-0">
-      <div className="h-11 bg-background border-b border-border flex items-center px-4 gap-3 sticky top-0 z-40">
+      <div className="lg:hidden h-11 bg-background border-b border-border flex items-center px-4 gap-3 sticky top-0 z-40">
         <button
           type="button"
           onClick={openMobile}
-          className="lg:hidden text-muted-foreground hover:text-foreground transition-colors"
+          className="text-muted-foreground hover:text-foreground transition-colors"
           aria-label="Abrir menú"
         >
           <Menu className="h-4 w-4" />
         </button>
-        <h1 className="text-sm font-semibold flex-1 truncate">{activeLabel}</h1>
+        <h1 className="text-sm font-semibold flex-1 truncate">{storeName}</h1>
         <a
           href={catalogUrl}
           target="_blank"
           rel="noreferrer"
-          className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Ver catálogo"
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          Ver catálogo
         </a>
       </div>
       <BillingBanner />
@@ -343,14 +341,6 @@ export function AdminShell({
   const storeId = storeContext.store_id
 
   const nav = useMemo(() => buildNav(storeContext.modules), [storeContext.modules])
-
-  const activeLabel = useMemo(
-    () =>
-      nav
-        .flatMap((g: PanelNavGroup) => g.items)
-        .find((i: PanelNavItem) => i.key === activeKey)?.label ?? 'Panel',
-    [nav, activeKey],
-  )
 
   // Supabase Realtime — 1 canal unificado para orders, payments y stock
   useEffect(() => {
@@ -402,7 +392,6 @@ export function AdminShell({
         renderTopbar={({ openMobile }) => (
           <AdminTopbar
             openMobile={openMobile}
-            activeLabel={activeLabel}
             slug={storeContext.slug}
           />
         )}

@@ -63,7 +63,7 @@ registerHandler({
 
     const { data, error } = await db
       .from('tasks')
-      .insert({ ...validated, store_id: context.store_id, status: 'pending' })
+      .insert({ ...validated, store_id: context.store_id, status: 'pending', created_by: context.user_id })
       .select()
       .single()
 
