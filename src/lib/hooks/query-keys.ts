@@ -68,6 +68,9 @@ export const queryKeys = {
   // Savings
   savings: (storeId: string) => ['savings', storeId] as const,
 
+  // Payment methods (checkout configurator)
+  paymentMethods: (storeId: string) => ['payment-methods', storeId] as const,
+
   // Variants
   variantAttributes: (storeId: string, productId: string) =>
     ['variant-attributes', storeId, productId] as const,

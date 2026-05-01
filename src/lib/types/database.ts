@@ -748,6 +748,33 @@ export type Database = {
         }
         Update: Partial<Database['public']['Tables']['savings_movements']['Insert']>
       }
+      payment_methods: {
+        Row: {
+          id: string
+          store_id: string
+          type: 'transfer' | 'mp'
+          name: string
+          instructions: string | null
+          config: Record<string, unknown>
+          is_active: boolean
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          type: 'transfer' | 'mp'
+          name?: string
+          instructions?: string | null
+          config?: Record<string, unknown>
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['payment_methods']['Insert']>
+      }
       tasks: {
         Row: {
           id: string

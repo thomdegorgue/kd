@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import {
   ChevronLeft,
+  CreditCard,
   MessageCircle,
   Minus,
   Package,
@@ -43,6 +45,7 @@ interface CartDrawerProps {
 
 export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const store = useStore()
+  const router = useRouter()
   const brand = store.config?.primary_color ?? '#0f0f0f'
   const brandSoft = store.config?.secondary_color ?? '#f5f5f5'
 
@@ -57,6 +60,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const [showPreview, setShowPreview] = useState(false)
 
   const hasShipping = !!store.modules.shipping
+  const hasOnlineCheckout = !!(store.modules as Record<string, boolean>).checkout
   const cartCount = items.reduce((s, i) => s + i.quantity, 0)
 
   const resetAndClose = (open: boolean) => {
@@ -236,14 +240,39 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                 <span className="text-sm font-medium">Subtotal</span>
                 <span className="text-lg font-bold">{formatPriceShort(total)}</span>
               </div>
-              <button
-                type="button"
-                onClick={() => setStep('checkout')}
-                className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                style={{ background: brand }}
-              >
-                Continuar al pedido
-              </button>
+              {hasOnlineCheckout ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenChange(false)
+                      router.push(`/${store.slug}/checkout`)
+                    }}
+                    className="w-full py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-opacity hover:opacity-90"
+                    style={{ background: brand }}
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Pagar online
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStep('checkout')}
+                    className="w-full py-2.5 rounded-xl text-sm font-medium border border-border bg-background hover:bg-muted/40 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <MessageCircle className="h-4 w-4 text-green-600" />
+                    Pedir por WhatsApp
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setStep('checkout')}
+                  className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                  style={{ background: brand }}
+                >
+                  Continuar al pedido
+                </button>
+              )}
               <button
                 type="button"
                 onClick={clearCart}

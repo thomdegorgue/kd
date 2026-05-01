@@ -28,10 +28,32 @@ export type CheckoutOrderInput = {
   client_ip?: string | null
 }
 
+export type TransferInfo = {
+  cbu: string
+  alias: string | null
+  holder: string
+  bank: string | null
+  instructions: string | null
+}
+
 export type CheckoutOrderResult =
-  | { ok: true; method: 'transfer'; order_id: string }
+  | { ok: true; method: 'transfer'; order_id: string; transfer_info: TransferInfo }
   | { ok: true; method: 'mp'; order_id: string; mp_init_point: string }
   | { ok: false; message: string }
+
+export type PublicPaymentMethod = {
+  id: string
+  type: 'transfer' | 'mp'
+  name: string
+}
+
+export type CheckoutSuccessData = {
+  order_id: string
+  total: number
+  store_name: string
+  method: 'transfer' | 'mp'
+  transfer_info: TransferInfo | null
+}
 
 function normalizePhone(raw: string): string {
   return raw.replace(/\D/g, '')
@@ -202,7 +224,19 @@ export async function createCheckoutOrder(input: CheckoutOrderInput): Promise<Ch
 
   // 9) Resultado según método
   if (paymentMethodType === 'transfer') {
-    return { ok: true, method: 'transfer', order_id: orderId }
+    const transferConfig = (methodRow.config as Record<string, string | null>) ?? {}
+    return {
+      ok: true,
+      method: 'transfer',
+      order_id: orderId,
+      transfer_info: {
+        cbu: transferConfig.cbu ?? '',
+        alias: transferConfig.alias ?? null,
+        holder: transferConfig.holder ?? '',
+        bank: transferConfig.bank ?? null,
+        instructions: (methodRow.instructions as string | null) ?? null,
+      },
+    }
   }
 
   // Mercado Pago por tienda: create preference con notification_url apuntando a endpoint de orders.
@@ -230,5 +264,78 @@ export async function createCheckoutOrder(input: CheckoutOrderInput): Promise<Ch
 
   // Nota: mp_payment_id se setea en webhook cuando llega el pago.
   return { ok: true, method: 'mp', order_id: orderId, mp_init_point: mp.init_point }
+}
+
+export async function getPublicPaymentMethods(slug: string): Promise<PublicPaymentMethod[]> {
+  const { data: store } = await db
+    .from('stores')
+    .select('id, modules')
+    .eq('slug', slug)
+    .single()
+
+  if (!store) return []
+  const modules = (store.modules as Record<string, boolean>) ?? {}
+  if (!modules.checkout) return []
+
+  const { data } = await db
+    .from('payment_methods')
+    .select('id, type, name')
+    .eq('store_id', store.id)
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+
+  return (data ?? []) as PublicPaymentMethod[]
+}
+
+export async function getCheckoutSuccessData(
+  order_id: string,
+  method: string,
+): Promise<CheckoutSuccessData | null> {
+  const { data: order } = await db
+    .from('orders')
+    .select('id, total, store_id, metadata')
+    .eq('id', order_id)
+    .single()
+
+  if (!order) return null
+
+  const { data: store } = await db
+    .from('stores')
+    .select('name')
+    .eq('id', order.store_id)
+    .single()
+
+  let transferInfo: TransferInfo | null = null
+  if (method === 'transfer') {
+    const metadata = (order.metadata as Record<string, unknown>) ?? {}
+    const pmId = metadata.payment_method_id as string | undefined
+    if (pmId) {
+      const { data: pm } = await db
+        .from('payment_methods')
+        .select('config, instructions')
+        .eq('id', pmId)
+        .eq('store_id', order.store_id)
+        .single()
+
+      if (pm) {
+        const cfg = (pm.config as Record<string, string | null>) ?? {}
+        transferInfo = {
+          cbu: cfg.cbu ?? '',
+          alias: cfg.alias ?? null,
+          holder: cfg.holder ?? '',
+          bank: cfg.bank ?? null,
+          instructions: (pm.instructions as string | null) ?? null,
+        }
+      }
+    }
+  }
+
+  return {
+    order_id,
+    total: order.total as number,
+    store_name: (store?.name as string) ?? '',
+    method: method === 'transfer' ? 'transfer' : 'mp',
+    transfer_info: transferInfo,
+  }
 }
 
