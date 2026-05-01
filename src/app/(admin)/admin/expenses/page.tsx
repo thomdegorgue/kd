@@ -7,7 +7,6 @@ import { Plus, Trash2, Receipt, ChevronRight, Repeat2, RefreshCw } from 'lucide-
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -236,9 +235,8 @@ export default function ExpensesPage() {
   const deleteMutation = useDeleteExpense()
   const { formatPrice } = useCurrency()
 
-  const expenses = data?.items ?? []
-
   const filtered = useMemo(() => {
+    const expenses = data?.items ?? []
     if (!search.trim()) return expenses
     const q = search.toLowerCase()
     return (expenses as Record<string, unknown>[]).filter((e) => {
@@ -246,7 +244,7 @@ export default function ExpensesPage() {
       const cat = String(e.category ?? '').toLowerCase()
       return desc.includes(q) || cat.includes(q)
     })
-  }, [expenses, search])
+  }, [data?.items, search])
 
   const createForm = useForm<ExpenseFormInput>({
     resolver: zodResolver(expenseFormSchema),

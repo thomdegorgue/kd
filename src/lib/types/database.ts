@@ -1,6 +1,6 @@
-// Generado manualmente desde schema.sql — KitDigital.ar
-// Reemplazar con: pnpm dlx supabase gen types typescript --project-id vqkvqowvmdwabelpiiil
-// si se requiere regenerar tras cambios en el schema.
+// Generado con Supabase CLI — KitDigital.ar
+// Comando: pnpm types:db
+// Requiere SUPABASE_ACCESS_TOKEN (o estar logueado con 'supabase login').
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 

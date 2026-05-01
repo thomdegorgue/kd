@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Plus, ShoppingCart } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'

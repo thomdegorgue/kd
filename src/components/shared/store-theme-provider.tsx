@@ -14,14 +14,6 @@ interface StoreThemeProviderProps {
   className?: string
 }
 
-function hexToRgb(hex: string): string {
-  const clean = hex.replace('#', '')
-  const r = parseInt(clean.slice(0, 2), 16)
-  const g = parseInt(clean.slice(2, 4), 16)
-  const b = parseInt(clean.slice(4, 6), 16)
-  return `${r} ${g} ${b}`
-}
-
 /** Decide si el texto encima de un color debe ser blanco o negro */
 function getForeground(hex: string): string {
   const clean = hex.replace('#', '')

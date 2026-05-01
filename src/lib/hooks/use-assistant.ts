@@ -79,7 +79,7 @@ export function useExecuteAssistantAction() {
 
 export function useAssistantTokens() {
   const { limits } = useAdminContext()
-  const { data: sessionData } = useAssistantSession()
+  useAssistantSession()
 
   // Los tokens usados vienen del store context limits, pero necesitamos el actual de la sesión
   // Por ahora devolvemos los del context que se actualizan con cada server action

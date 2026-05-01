@@ -25,8 +25,6 @@ import {
   extendTrial,
 } from '@/lib/actions/superadmin'
 
-const CORE_MODULES: readonly ModuleName[] = [] as const
-
 const MODULE_LABELS: Record<ModuleName, string> = {
   catalog: 'Catálogo',
   products: 'Productos',

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Package, ShoppingCart, Users, DollarSign, ArrowRight, Share2, Settings, Plus, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { OrderStatusBadge } from '@/components/admin/order-status-badge'
 import { useDashboardStats } from '@/lib/hooks/use-dashboard'

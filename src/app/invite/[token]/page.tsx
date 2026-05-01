@@ -10,12 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
 
-const ROLE_LABELS: Record<string, string> = {
-  owner: 'Propietario',
-  admin: 'Administrador',
-  collaborator: 'Colaborador',
-}
-
 export default async function InvitePage({
   params,
 }: {
@@ -75,9 +69,6 @@ export default async function InvitePage({
       </InviteCard>
     )
   }
-
-  const storeName = (invitation.store as { name?: string } | null)?.name ?? 'la tienda'
-  const roleLabel = ROLE_LABELS[invitation.role] ?? invitation.role
 
   // Verificar si el usuario está logueado
   const supabase = await createClient()

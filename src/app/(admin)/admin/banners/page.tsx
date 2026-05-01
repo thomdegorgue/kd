@@ -118,7 +118,7 @@ function SortableItem({
           <div className="flex items-center gap-2">
             <Switch
               checked={banner.is_active}
-              onCheckedChange={(v) => onEdit() /* abre sheet para editar; toggle vive ahí */}
+              onCheckedChange={() => onEdit() /* abre sheet para editar; toggle vive ahí */}
               aria-label="Editar estado"
               className="opacity-0 pointer-events-none"
             />

@@ -3,6 +3,7 @@ import { supabaseServiceRole } from '@/lib/supabase/service-role'
 import { verifyWebhookSignature } from '@/lib/billing/verify-signature'
 import { getPreapproval, getPayment } from '@/lib/billing/mercadopago'
 import { ANNUAL_INCLUDED_PRO_MODULES } from '@/lib/billing/calculator'
+import { packsToModules, type PackId } from '@/lib/billing/packs'
 import { sendEmail } from '@/lib/email/resend'
 import { WelcomeEmail } from '@/lib/email/templates/welcome'
 
@@ -392,12 +393,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             .select('config, modules')
             .eq('id', storeId)
             .single()
-          const pendingModules = (storeData?.config as Record<string, unknown>)?.pending_pro_modules as string[] ?? []
+
+          const config = (storeData?.config as Record<string, unknown>) ?? {}
+          const pendingLegacyModules = (config.pending_pro_modules as string[]) ?? []
+          const pendingPacks = (config.pending_packs as PackId[]) ?? []
+
+          const pendingPackModules = pendingPacks.length > 0 ? packsToModules(pendingPacks) : {}
+          const pendingModules = [
+            ...pendingLegacyModules,
+            ...Object.keys(pendingPackModules),
+          ]
+
           const currentModules = (storeData?.modules as Record<string, boolean>) ?? {}
           for (const m of pendingModules) {
             currentModules[m] = true
           }
-          const updatedConfig = { ...(storeData?.config as Record<string, unknown> ?? {}), pending_pro_modules: [] }
+          const updatedConfig = {
+            ...config,
+            pending_pro_modules: [],
+            pending_packs: [],
+          }
 
           await db.from('stores').update({
             billing_status: 'active',
@@ -411,6 +426,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           await emitEvent(storeId, 'subscription_activated', {
             subscription_id: subscription.id,
             activated_modules: pendingModules,
+            activated_packs: pendingPacks,
           })
           // Por las dudas, si el primer cobro se registró antes que el preapproval authorized.
           await sendWelcomeEmailIfFirstPayment(storeId)

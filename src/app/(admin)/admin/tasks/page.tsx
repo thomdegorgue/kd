@@ -9,7 +9,6 @@ import {
   Calendar,
   PlayCircle,
   CheckCircle2,
-  XCircle,
   ListTodo,
   Circle,
   LayoutGrid,
@@ -212,16 +211,15 @@ export default function TasksPage() {
   const updateMutation = useUpdateTask()
   const deleteMutation = useDeleteTask()
 
-  const tasks = (data?.items ?? []) as unknown as TaskShape[]
-
   const filtered = useMemo(() => {
+    const tasks = (data?.items ?? []) as unknown as TaskShape[]
     if (!search.trim()) return tasks
     const q = search.toLowerCase()
     return tasks.filter((t) =>
       t.title.toLowerCase().includes(q) ||
       (t.description ?? '').toLowerCase().includes(q)
     )
-  }, [tasks, search])
+  }, [data?.items, search])
 
   const byStatus = useMemo(() => {
     const map: Record<TaskStatus, TaskShape[]> = {
@@ -275,6 +273,8 @@ export default function TasksPage() {
   function openDetail(task: TaskShape) {
     setSelectedTask(task)
   }
+
+  const tasks = (data?.items ?? []) as unknown as TaskShape[]
 
   return (
     <div className="space-y-6">

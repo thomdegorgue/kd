@@ -139,9 +139,8 @@ export default function FinancePage() {
   const deleteMutation = useDeleteFinanceEntry()
   const { formatPrice } = useCurrency()
 
-  const entries = data?.items ?? []
-
   const filtered = useMemo(() => {
+    const entries = data?.items ?? []
     if (!search.trim()) return entries
     const q = search.toLowerCase()
     return (entries as Record<string, unknown>[]).filter((e) => {
@@ -149,7 +148,7 @@ export default function FinancePage() {
       const cat = String(e.category ?? '').toLowerCase()
       return desc.includes(q) || cat.includes(q)
     })
-  }, [entries, search])
+  }, [data?.items, search])
 
   const form = useForm<FinanceFormInput>({
     resolver: zodResolver(financeFormSchema),

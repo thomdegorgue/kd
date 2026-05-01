@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import {
   CreditCard,
   Plus,
@@ -48,8 +47,6 @@ import { useCurrency } from '@/lib/hooks/use-currency'
 import {
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
-  createPaymentSchema,
-  type CreatePaymentInput,
 } from '@/lib/validations/payment'
 import type { PaymentMethod, PaymentStatus, ModuleName } from '@/lib/types'
 
@@ -81,10 +78,6 @@ type PaymentShape = {
 
 type MethodFilter = PaymentMethod | 'all'
 
-const createManualPaymentSchema = createPaymentSchema.extend({
-  amount_pesos: createPaymentSchema.shape.amount.min(0.01).optional(),
-}).omit({ amount: true })
-
 type ManualPaymentInput = {
   order_id: string
   amount_pesos: number
@@ -104,11 +97,11 @@ export default function PaymentsPage() {
   const createMutation = useCreatePayment()
   const { formatPrice } = useCurrency()
 
-  const payments = (data?.items ?? []) as unknown as PaymentShape[]
   const total = data?.total ?? 0
   const totalPages = Math.ceil(total / 50)
 
   const filtered = useMemo(() => {
+    const payments = (data?.items ?? []) as unknown as PaymentShape[]
     return payments.filter((p) => {
       const matchesMethod = methodFilter === 'all' || p.method === methodFilter
       const matchesSearch = search.trim() === '' ||
@@ -116,7 +109,7 @@ export default function PaymentsPage() {
         (p.notes ?? '').toLowerCase().includes(search.toLowerCase())
       return matchesMethod && matchesSearch
     })
-  }, [payments, methodFilter, search])
+  }, [data?.items, methodFilter, search])
 
   const form = useForm<ManualPaymentInput>({
     defaultValues: { method: 'cash' },

@@ -11,7 +11,6 @@ import { useCartStore } from '@/lib/stores/cart-store'
 import { useStore } from '@/components/public/store-context'
 import { formatPriceShort } from '@/lib/utils/currency'
 import { buildWhatsAppMessage } from '@/lib/utils/whatsapp'
-import type { Product } from '@/lib/types'
 import type { PublicProductDetail, PublicProductVariant, ProductPageMeta } from '@/lib/db/queries/products'
 
 interface ProductDetailViewProps {
@@ -151,7 +150,6 @@ export function ProductDetailView({ product, slug }: ProductDetailViewProps) {
     <div className="container mx-auto px-4 py-6">
       <script
         type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       {/* Back */}

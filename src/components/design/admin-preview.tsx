@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, Fragment } from 'react'
 import { useDesignStore } from '@/lib/stores/design-store'
 import { StoreThemeProvider } from '@/components/shared/store-theme-provider'
 import { Badge } from '@/components/ui/badge'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,8 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   LayoutDashboard, Package, Package2, ShoppingBag, Settings, TrendingUp,
   Plus, Search, Edit2, Trash2, MoreHorizontal, ChevronRight, Menu,
-  GripVertical, Tag, Truck, DollarSign, Activity, Layers, Bot, Wallet,
-  CheckSquare, Globe, Lock, BarChart2, Image as ImageIcon,
+  GripVertical, Tag, Truck, DollarSign, Layers, Bot, Wallet,
+  CheckSquare, Globe, BarChart2, Image as ImageIcon,
   Shirt, Footprints, Briefcase, X, Save,
   Receipt, Link2, Check, ArrowUpDown, Copy, AlertTriangle,
   TrendingDown, CreditCard, Banknote, Smartphone,
@@ -431,12 +431,6 @@ const MODULE_CATALOG = [
   { key: 'assistant',     label: 'Asistente IA',       desc: 'Chat con GPT-4o-mini',                tier: 'pro',  icon: Bot         },
 ]
 
-const TIER_BADGE: Record<string, string> = {
-  base: 'bg-muted text-muted-foreground border border-border',
-  pro:  'border border-foreground/20 bg-background text-foreground',
-}
-
-const PRO_MODULES = MODULE_CATALOG.filter(m => m.tier === 'pro')
 const BASE_PRICE  = 20000
 const PRO_PRICE   = 5000
 

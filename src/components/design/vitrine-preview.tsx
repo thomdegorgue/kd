@@ -4,11 +4,10 @@ import { useState, useEffect } from 'react'
 import { useDesignStore } from '@/lib/stores/design-store'
 import { StoreThemeProvider } from '@/components/shared/store-theme-provider'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet'
-import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
-  ShoppingCart, Package, Search, Truck, Shield, RotateCcw,
+  ShoppingCart, Search, Truck, Shield, RotateCcw,
   MapPin, Clock, Plus, Minus, X,
   MessageCircle, ArrowLeft, Shirt, Footprints, Briefcase, Tag, Globe, Camera,
 } from 'lucide-react'

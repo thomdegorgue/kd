@@ -2,7 +2,6 @@
 
 import { useCallback, useRef, useState } from 'react'
 import { ImagePlus, Trash2, AlertCircle, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 interface UploadedImage {

@@ -2,9 +2,6 @@
 
 import Link from 'next/link'
 import { Zap } from 'lucide-react'
-import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import { useTogglePack } from '@/lib/hooks/use-billing'
 import { PACKS } from '@/lib/billing/packs'

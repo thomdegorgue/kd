@@ -1,10 +1,9 @@
 'use client'
 
-import { useState } from 'react'
 import { Zap, CheckCircle, AlertTriangle, Clock, Loader2, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import {
   AlertDialog,
@@ -23,13 +22,9 @@ import { PACKS, computePackTotal } from '@/lib/billing/packs'
 import { formatARS } from '@/lib/billing/calculator'
 import {
   useBilling,
-  useCreateSubscription,
   useCancelSubscription,
-  useChangeTier,
-  useCreateAnnualSubscription,
   useTogglePack,
 } from '@/lib/hooks/use-billing'
-import type { Plan } from '@/lib/types'
 import type { PackId } from '@/lib/billing/packs'
 
 function BillingStatusBadge({ status }: { status: string }) {
@@ -64,7 +59,6 @@ export function BillingPanel() {
   const { data, isLoading, isError } = useBilling()
   const togglePackMutation = useTogglePack()
   const cancelSubscriptionMutation = useCancelSubscription()
-  const [selectedTier, setSelectedTier] = useState<number | null>(null)
 
   if (isLoading) {
     return (
@@ -84,7 +78,7 @@ export function BillingPanel() {
 
   if (!data) return null
 
-  const { plan, billing } = data
+  const { billing } = data
   const billingStatus = billing.billing_status
   const currentTier = (billing.limits as Record<string, number>).max_products ?? 100
   const hasMpSubscription = !!billing.mp_subscription_id

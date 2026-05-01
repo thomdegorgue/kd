@@ -30,7 +30,6 @@ function PanelSidebar({
   variant,
   nav,
   activeKey,
-  topOffsetClassName,
   renderSidebarHeader,
   renderSidebarFooter,
   closeMobile,
@@ -39,7 +38,6 @@ function PanelSidebar({
   variant: 'desktop' | 'mobile'
   nav: PanelNavGroup[]
   activeKey?: string
-  topOffsetClassName: string
   renderSidebarHeader?: (p: SidebarRenderProps) => React.ReactNode
   renderSidebarFooter?: () => React.ReactNode
   closeMobile: () => void
@@ -241,7 +239,6 @@ export function PanelShell(props: {
           variant="desktop"
           nav={nav}
           activeKey={activeKey}
-          topOffsetClassName={topOffsetClassName}
           renderSidebarHeader={renderSidebarHeader}
           renderSidebarFooter={renderSidebarFooter}
           closeMobile={closeMobile}
@@ -256,7 +253,6 @@ export function PanelShell(props: {
               variant="mobile"
               nav={nav}
               activeKey={activeKey}
-              topOffsetClassName={topOffsetClassName}
               renderSidebarHeader={renderSidebarHeader}
               renderSidebarFooter={renderSidebarFooter}
               closeMobile={closeMobile}

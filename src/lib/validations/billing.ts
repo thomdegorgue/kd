@@ -13,6 +13,9 @@ export const createSubscriptionSchema = z.object({
   pro_modules: z
     .array(z.enum(PRO_MODULES as unknown as [string, ...string[]]))
     .default([]),
+  packs: z
+    .array(z.enum(PACKS.map(p => p.id) as [PackId, ...PackId[]]))
+    .default([]),
 })
 
 export const cancelSubscriptionSchema = z.object({

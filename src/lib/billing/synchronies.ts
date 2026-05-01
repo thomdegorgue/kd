@@ -1,4 +1,4 @@
-import { PACKS, getPackByModule } from '@/lib/billing/packs'
+import { getPackByModule } from '@/lib/billing/packs'
 import type { ModuleName } from '@/lib/types'
 import type { Pack, PackId } from '@/lib/billing/packs'
 
@@ -41,11 +41,6 @@ export function getModuleSyncWarning(
   missingDeps: ModuleName[],
 ): string | null {
   if (missingDeps.length === 0) return null
-
-  const depLabels = missingDeps.map(m => {
-    const pack = getPackForModule(m)
-    return pack ? `${pack.label}` : m
-  })
 
   switch (module) {
     case 'finance':

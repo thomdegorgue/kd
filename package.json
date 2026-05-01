@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "analyze": "ANALYZE=true pnpm build"
+    "analyze": "ANALYZE=true pnpm build",
+    "types:db": "node scripts/gen-supabase-types.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",

@@ -142,11 +142,11 @@ export default function ShippingPage() {
   const updateStatusMutation = useUpdateShipmentStatus()
   const { formatPrice } = useCurrency()
 
-  const shipments = shipmentsData?.items ?? []
   const shipTotal = shipmentsData?.total ?? 0
   const shipPages = Math.ceil(shipTotal / 50)
 
   const filteredShipments = useMemo(() => {
+    const shipments = shipmentsData?.items ?? []
     if (!search.trim()) return shipments
     const q = search.toLowerCase()
     return (shipments as Record<string, unknown>[]).filter((s) => {
@@ -154,7 +154,7 @@ export default function ShippingPage() {
       const order = String(s.order_id ?? '').toLowerCase()
       return code.includes(q) || order.includes(q)
     })
-  }, [shipments, search])
+  }, [shipmentsData?.items, search])
 
   const form = useForm<MethodForm>({
     resolver: zodResolver(methodFormSchema),

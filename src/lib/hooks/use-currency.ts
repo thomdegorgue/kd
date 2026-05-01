@@ -8,10 +8,7 @@ import { formatPrice, formatPriceShort } from '@/lib/utils/currency'
 export function useCurrency() {
   const currency = 'ARS'
 
-  const format = useCallback(
-    (cents: number) => formatPrice(cents, currency),
-    [currency],
-  )
+  const format = useCallback((cents: number) => formatPrice(cents), [])
 
   const formatShort = useCallback(
     (cents: number) => formatPriceShort(cents),

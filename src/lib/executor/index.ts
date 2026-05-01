@@ -17,7 +17,6 @@ function makeError(
 }
 
 // Statuses que permiten operaciones de escritura
-const WRITE_ALLOWED: StoreStatus[] = ['demo', 'active']
 // Statuses que permiten solo lectura (GET, LIST)
 const READ_ONLY: StoreStatus[] = ['past_due']
 // Nombres de acciones de solo lectura

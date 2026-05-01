@@ -35,7 +35,6 @@ const CORE_MODULES = [
 ]
 
 export function ModulesStepClient({
-  storeId: _storeId,
   initialModules,
 }: {
   storeId: string

@@ -10,7 +10,7 @@ import {
   isProModule,
   type AnnualPlanPricing,
 } from '@/lib/billing/calculator'
-import { getPack } from '@/lib/billing/packs'
+import { getPack, packsToModules, modulesToPacks, computePackTotal } from '@/lib/billing/packs'
 import type { PackId } from '@/lib/billing/packs'
 import { getPlan, getBillingInfo, getStoreOwnerEmail } from '@/lib/db/queries/billing'
 import {
@@ -96,20 +96,37 @@ export async function createSubscription(
       getStoreOwnerEmail(ctx.store_id),
     ])
 
-    // Construir módulos activos a partir del input
-    const activeModules: Partial<Record<ModuleName, boolean>> = {}
+    // Construir módulos activos a partir del input.
+    // Backwards-compatible: soporta pro_modules legacy y packs (modelo nuevo).
+    const fromProModules: Partial<Record<ModuleName, boolean>> = {}
     for (const m of input.pro_modules) {
-      if (isProModule(m)) activeModules[m as ModuleName] = true
+      if (isProModule(m)) fromProModules[m as ModuleName] = true
     }
 
-    const totalCentavos = computeMonthlyTotal(plan, input.tier, activeModules)
+    const fromPacks = input.packs.length > 0 ? packsToModules(input.packs) : {}
+
+    const activeModules: Partial<Record<ModuleName, boolean>> = {
+      ...fromProModules,
+      ...(fromPacks as Partial<Record<ModuleName, boolean>>),
+    }
+
+    // Pricing nuevo: tier base + packs (si el input usa packs). Caso contrario: legacy.
+    const activePackIds = input.packs.length > 0 ? input.packs : modulesToPacks(activeModules as Record<ModuleName, boolean>)
+    const packPricing = computePackTotal(activePackIds, (plan as { bundle_3packs_price?: number }).bundle_3packs_price ?? 2_500_000)
+    const tiers = Math.ceil(input.tier / 100)
+    const baseCentavos = tiers * (plan as { price_per_100_products: number }).price_per_100_products
+    const totalCentavos = input.packs.length > 0 ? baseCentavos + packPricing.total : computeMonthlyTotal(plan, input.tier, activeModules)
     const totalARS = centavosToARS(totalCentavos)
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'
 
+    const paidPacksCount = activePackIds.filter((id) => getPack(id).is_paid).length
     const { id: subscriptionId, init_point } = await createPreapproval({
       payer_email: ownerEmail,
-      reason: `KitDigital — ${input.tier} productos + ${input.pro_modules.length} módulos pro`,
+      reason:
+        input.packs.length > 0
+          ? `KitDigital — ${input.tier} productos + ${paidPacksCount} packs`
+          : `KitDigital — ${input.tier} productos + ${input.pro_modules.length} módulos pro`,
       auto_recurring: {
         frequency: 1,
         frequency_type: 'months',
@@ -118,18 +135,6 @@ export async function createSubscription(
       },
       back_url: `${appUrl}/admin/billing`,
     })
-
-    // Guardar subscription_id en la tienda (se activa cuando llega el webhook)
-    await db
-      .from('stores')
-      .update({
-        mp_subscription_id: subscriptionId,
-        // Guardar el tier elegido en limits para que el executor pueda validar
-        limits: db.rpc
-          ? undefined // no usar rpc, actualizar via jsonb_set si fuera necesario
-          : undefined,
-      })
-      .eq('id', ctx.store_id)
 
     // Actualizar limits.max_products y guardar pending_pro_modules para activar en webhook
     const { data: storeData } = await db
@@ -145,8 +150,12 @@ export async function createSubscription(
       .update({
         mp_subscription_id: subscriptionId,
         limits: { ...currentLimits, max_products: input.tier },
-        // Los módulos pro se activarán en stores.modules cuando llegue el webhook de confirmación
-        config: { ...currentConfig, pending_pro_modules: input.pro_modules },
+        // Los módulos/packs se activarán en stores.modules cuando llegue el webhook de confirmación
+        config: {
+          ...currentConfig,
+          pending_pro_modules: input.pro_modules,
+          pending_packs: input.packs,
+        },
       })
       .eq('id', ctx.store_id)
 
@@ -154,6 +163,7 @@ export async function createSubscription(
       subscription_id: subscriptionId,
       tier: input.tier,
       pro_modules: input.pro_modules,
+      packs: input.packs,
       total_ars: totalARS,
     })
 
@@ -312,14 +322,21 @@ export async function changeTier(rawInput: unknown): Promise<ActionResult<{ init
 
     // Crear nueva suscripción con el nuevo tier
     const activeModules = billing.modules as Partial<Record<ModuleName, boolean>>
-    const totalCentavos = computeMonthlyTotal(plan, input.new_tier, activeModules)
+    const activePackIds = modulesToPacks(activeModules as Record<ModuleName, boolean>)
+    const packPricing = computePackTotal(activePackIds, (plan as { bundle_3packs_price?: number }).bundle_3packs_price ?? 2_500_000)
+    const tiers = Math.ceil(input.new_tier / 100)
+    const baseCentavos = tiers * (plan as { price_per_100_products: number }).price_per_100_products
+    const isPackStore = activePackIds.some((id) => getPack(id).is_paid)
+    const totalCentavos = isPackStore ? baseCentavos + packPricing.total : computeMonthlyTotal(plan, input.new_tier, activeModules)
     const totalARS = centavosToARS(totalCentavos)
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitdigital.ar'
 
     const { id: newSubscriptionId, init_point } = await createPreapproval({
       payer_email: ownerEmail,
-      reason: `KitDigital — ${input.new_tier} productos`,
+      reason: isPackStore
+        ? `KitDigital — ${input.new_tier} productos + packs`
+        : `KitDigital — ${input.new_tier} productos`,
       auto_recurring: {
         frequency: 1,
         frequency_type: 'months',

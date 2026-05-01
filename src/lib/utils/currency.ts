@@ -16,7 +16,7 @@ const ARS_FORMATTER_SHORT = new Intl.NumberFormat('es-AR', {
  * Formatea centavos a moneda legible.
  * @example formatPrice(150000) → "$1.500,00"
  */
-export function formatPrice(cents: number, _currency?: string): string {
+export function formatPrice(cents: number): string {
   return ARS_FORMATTER.format(cents / 100)
 }
 
