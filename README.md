@@ -50,7 +50,7 @@ pnpm lint
 
 ## Nombres Oficiales del Producto
 
-- **Producto**: KitDigital.ar
+- **Producto**: kitdigital.ar
 - **Catálogo público**: Catálogo
 - **Banner principal**: Portada
 - **Módulos activables**: Módulos
