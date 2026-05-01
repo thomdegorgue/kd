@@ -45,7 +45,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetFooter,
 } from '@/components/ui/sheet'
 import {
   AlertDialog,
@@ -454,15 +453,15 @@ export default function TasksPage() {
 
       {/* Sheet detalle de tarea */}
       <Sheet open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle className="flex items-center gap-2">
               <ListTodo className="h-5 w-5 text-muted-foreground" />
               Detalle
             </SheetTitle>
           </SheetHeader>
           {selectedTask && (
-            <div className="py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
                 <div>
                   <p className="text-xs text-muted-foreground">Título</p>
@@ -535,35 +534,37 @@ export default function TasksPage() {
 
       {/* Sheet crear tarea */}
       <Sheet open={showCreate} onOpenChange={setShowCreate}>
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle className="flex items-center gap-2">
               <ListTodo className="h-5 w-5 text-muted-foreground" />
               Nueva tarea
             </SheetTitle>
           </SheetHeader>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="py-4 space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="title">Título</Label>
-              <Input id="title" {...form.register('title')} placeholder="Describí la tarea..." />
-              {form.formState.errors.title && (
-                <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
-              )}
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="title">Título</Label>
+                <Input id="title" className="h-8" {...form.register('title')} placeholder="Describí la tarea..." />
+                {form.formState.errors.title && (
+                  <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="description">Descripción <span className="text-muted-foreground">(opcional)</span></Label>
+                <Textarea id="description" {...form.register('description')} rows={3} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="due_date">Fecha límite <span className="text-muted-foreground">(opcional)</span></Label>
+                <Input id="due_date" type="date" className="h-8" {...form.register('due_date')} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Descripción <span className="text-muted-foreground">(opcional)</span></Label>
-              <Textarea id="description" {...form.register('description')} rows={3} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="due_date">Fecha límite <span className="text-muted-foreground">(opcional)</span></Label>
-              <Input id="due_date" type="date" {...form.register('due_date')} />
-            </div>
-            <SheetFooter className="gap-2 sm:gap-0">
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
-              <Button type="submit" disabled={createMutation.isPending}>
+            <div className="px-6 py-4 border-t shrink-0 flex gap-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setShowCreate(false)}>Cancelar</Button>
+              <Button type="submit" className="flex-1" disabled={createMutation.isPending}>
                 {createMutation.isPending ? 'Creando...' : 'Crear'}
               </Button>
-            </SheetFooter>
+            </div>
           </form>
         </SheetContent>
       </Sheet>

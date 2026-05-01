@@ -17,7 +17,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetFooter,
 } from '@/components/ui/sheet'
 import {
   Table,
@@ -502,48 +501,51 @@ export default function ShippingPage() {
           if (!open) { setShowNewMethod(false); setEditingMethod(null) }
         }}
       >
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle className="flex items-center gap-2">
               <Truck className="h-5 w-5 text-muted-foreground" />
               {editingMethod ? 'Editar método' : 'Nuevo método de envío'}
             </SheetTitle>
           </SheetHeader>
-          <form onSubmit={form.handleSubmit(onSubmitMethod)} className="py-4 space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nombre</Label>
-              <Input id="name" {...form.register('name')} placeholder="Ej: Envío a domicilio" />
-              {form.formState.errors.name && (
-                <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
-              )}
+          <form onSubmit={form.handleSubmit(onSubmitMethod)} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="name">Nombre</Label>
+                <Input id="name" className="h-8" {...form.register('name')} placeholder="Ej: Envío a domicilio" />
+                {form.formState.errors.name && (
+                  <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="price_pesos">Precio ($) — 0 para gratis</Label>
+                <Input
+                  id="price_pesos"
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  className="h-8"
+                  {...form.register('price_pesos', { valueAsNumber: true })}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="is_active"
+                  checked={form.watch('is_active') ?? true}
+                  onCheckedChange={(v) => form.setValue('is_active', v)}
+                />
+                <Label htmlFor="is_active">Activo</Label>
+              </div>
+              <Separator />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="price_pesos">Precio ($) — 0 para gratis</Label>
-              <Input
-                id="price_pesos"
-                type="number"
-                step="0.01"
-                min={0}
-                {...form.register('price_pesos', { valueAsNumber: true })}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="is_active"
-                checked={form.watch('is_active') ?? true}
-                onCheckedChange={(v) => form.setValue('is_active', v)}
-              />
-              <Label htmlFor="is_active">Activo</Label>
-            </div>
-            <Separator />
-            <SheetFooter className="gap-2 sm:gap-0">
-              <Button type="button" variant="outline" onClick={() => { setShowNewMethod(false); setEditingMethod(null) }}>
+            <div className="px-6 py-4 border-t shrink-0 flex gap-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => { setShowNewMethod(false); setEditingMethod(null) }}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={createMethodMutation.isPending || updateMethodMutation.isPending}>
+              <Button type="submit" className="flex-1" disabled={createMethodMutation.isPending || updateMethodMutation.isPending}>
                 {createMethodMutation.isPending || updateMethodMutation.isPending ? 'Guardando...' : 'Guardar'}
               </Button>
-            </SheetFooter>
+            </div>
           </form>
         </SheetContent>
       </Sheet>

@@ -23,7 +23,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetFooter,
 } from '@/components/ui/sheet'
 import {
   Table,
@@ -62,7 +61,7 @@ function StockBadge({ item }: { item: StockItem }) {
 
 export default function StockPage() {
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<StockFilter>('all')
+  const [stockStatus, setStockStatus] = useState<StockFilter>('all')
   const [editing, setEditing] = useState<StockItem | null>(null)
   const [csvOpen, setCsvOpen] = useState(false)
 
@@ -93,21 +92,14 @@ export default function StockPage() {
   const filtered = items.filter((i) => {
     const matchesSearch = i.name.toLowerCase().includes(search.toLowerCase())
     if (!matchesSearch) return false
-    if (filter === 'low') return i.track_stock && i.quantity > 0 && i.quantity <= 5
-    if (filter === 'out') return i.track_stock && i.quantity === 0
-    if (filter === 'tracked') return i.track_stock
+    if (stockStatus === 'low') return i.track_stock && i.quantity > 0 && i.quantity <= 5
+    if (stockStatus === 'out') return i.track_stock && i.quantity === 0
+    if (stockStatus === 'tracked') return i.track_stock
     return true
   })
 
   const lowStockCount = items.filter((i) => i.track_stock && i.quantity <= 5).length
   const outOfStockCount = items.filter((i) => i.track_stock && i.quantity === 0).length
-
-  const filterChips: { id: StockFilter; label: string; count?: number }[] = [
-    { id: 'all', label: 'Todos' },
-    { id: 'low', label: 'Bajo stock', count: lowStockCount },
-    { id: 'out', label: 'Sin stock', count: outOfStockCount },
-    { id: 'tracked', label: 'Con seguimiento' },
-  ]
 
   return (
     <div className="space-y-6">
@@ -151,36 +143,15 @@ export default function StockPage() {
         />
       </div>
 
-      {/* Toolbar + chips */}
-      <div className="px-4 sm:px-6 space-y-3">
+      {/* Toolbar */}
+      <div className="px-4 sm:px-6">
         <EntityToolbar
           placeholder="Buscar productos..."
           searchValue={search}
           onSearchChange={setSearch}
           filterPreset="stock"
+          onApplyFilters={(f) => setStockStatus((f.stockStatus ?? 'all') as StockFilter)}
         />
-        <div className="flex gap-2 flex-wrap">
-          {filterChips.map((chip) => (
-            <button
-              key={chip.id}
-              onClick={() => setFilter(chip.id)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-                filter === chip.id
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'text-muted-foreground border-border bg-background hover:bg-muted'
-              }`}
-            >
-              {chip.label}
-              {chip.count !== undefined && chip.count > 0 && (
-                <span className={`rounded-full px-1.5 py-0.5 text-2xs font-bold ${
-                  filter === chip.id ? 'bg-primary-foreground/20' : 'bg-muted'
-                }`}>
-                  {chip.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Content */}
@@ -195,7 +166,7 @@ export default function StockPage() {
           <EmptyState
             icon={<Package className="h-12 w-12" />}
             title="Sin productos"
-            description={filter !== 'all' ? 'No hay productos con ese filtro.' : 'Todavía no tenés productos con stock asignado.'}
+            description={stockStatus !== 'all' ? 'No hay productos con ese filtro.' : 'Todavía no tenés productos con stock asignado.'}
           />
         ) : (
           <>
@@ -360,8 +331,8 @@ export default function StockPage() {
 
       {/* Sheet ajustar stock */}
       <Sheet open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle className="flex items-center gap-2">
               <Package className="h-5 w-5 text-muted-foreground" />
               Ajustar stock
@@ -369,37 +340,36 @@ export default function StockPage() {
           </SheetHeader>
 
           {editing && (
-            <div className="py-4 space-y-6">
-              <div className="rounded-lg border bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground font-medium mb-2">Producto</p>
-                <div className="flex items-center gap-3">
-                  {editing.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={editing.image_url}
-                      alt={editing.name}
-                      className="h-10 w-10 rounded object-cover"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
-                      <Package className="h-5 w-5 text-muted-foreground" />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground font-medium mb-2">Producto</p>
+                  <div className="flex items-center gap-3">
+                    {editing.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={editing.image_url}
+                        alt={editing.name}
+                        className="h-10 w-10 rounded object-cover"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
+                        <Package className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{editing.name}</p>
+                      <p className="text-xs text-muted-foreground">Stock actual: {editing.quantity}</p>
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{editing.name}</p>
-                    <p className="text-xs text-muted-foreground">Stock actual: {editing.quantity}</p>
                   </div>
                 </div>
-              </div>
-
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="quantity">Nueva cantidad</Label>
                   <Input
                     id="quantity"
                     type="number"
                     min={0}
-                    className="h-10"
+                    className="h-8"
                     placeholder="0"
                     {...form.register('quantity', { valueAsNumber: true })}
                   />
@@ -409,44 +379,45 @@ export default function StockPage() {
                     </p>
                   )}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="reason">Motivo del ajuste <span className="text-muted-foreground">(opcional)</span></Label>
                   <Input
                     id="reason"
-                    className="h-10"
+                    className="h-8"
                     placeholder="Ej: recepción de mercadería, corrección..."
                     {...form.register('reason')}
                   />
                 </div>
-                <SheetFooter className="gap-2 sm:gap-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => { setEditing(null); form.reset() }}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending ? 'Guardando...' : 'Guardar'}
-                  </Button>
-                </SheetFooter>
-              </form>
-            </div>
+              </div>
+              <div className="px-6 py-4 border-t shrink-0 flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => { setEditing(null); form.reset() }}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" className="flex-1" disabled={updateMutation.isPending}>
+                  {updateMutation.isPending ? 'Guardando...' : 'Guardar'}
+                </Button>
+              </div>
+            </form>
           )}
         </SheetContent>
       </Sheet>
 
       {/* Sheet importar CSV */}
       <Sheet open={csvOpen} onOpenChange={setCsvOpen}>
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5 text-muted-foreground" />
               Importar stock desde CSV
             </SheetTitle>
           </SheetHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground mb-4">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
+            <p className="text-sm text-muted-foreground">
               El CSV debe tener las columnas: <code className="text-xs bg-muted px-1 rounded">product_id</code> y <code className="text-xs bg-muted px-1 rounded">quantity</code>.
             </p>
             <p className="text-xs text-muted-foreground">

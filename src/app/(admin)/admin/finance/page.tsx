@@ -24,7 +24,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetFooter,
 } from '@/components/ui/sheet'
 import {
   Select,
@@ -75,43 +74,6 @@ const financeFormSchema = z.object({
 })
 type FinanceFormInput = z.infer<typeof financeFormSchema>
 
-type PeriodPreset = 'today' | '7d' | '30d' | 'month' | 'year'
-
-function getDateRange(preset: PeriodPreset): { from: string; to: string } {
-  const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-  const today = fmt(now)
-
-  switch (preset) {
-    case 'today':
-      return { from: today, to: today }
-    case '7d': {
-      const d = new Date(now); d.setDate(d.getDate() - 7)
-      return { from: fmt(d), to: today }
-    }
-    case '30d': {
-      const d = new Date(now); d.setDate(d.getDate() - 30)
-      return { from: fmt(d), to: today }
-    }
-    case 'month':
-      return {
-        from: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`,
-        to: fmt(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
-      }
-    case 'year':
-      return { from: `${now.getFullYear()}-01-01`, to: `${now.getFullYear()}-12-31` }
-  }
-}
-
-const PERIOD_LABELS: Record<PeriodPreset, string> = {
-  today: 'Hoy',
-  '7d': '7 días',
-  '30d': '30 días',
-  month: 'Este mes',
-  year: 'Este año',
-}
-
 export default function FinancePage() {
   const today = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -124,7 +86,6 @@ export default function FinancePage() {
   const [showCreate, setShowCreate] = useState(false)
   const [dateFrom, setDateFrom] = useState(firstOfMonth)
   const [dateTo, setDateTo] = useState(lastOfMonth)
-  const [activePeriod, setActivePeriod] = useState<PeriodPreset | null>('month')
   const [selectedEntry, setSelectedEntry] = useState<Record<string, unknown> | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
@@ -158,13 +119,6 @@ export default function FinancePage() {
       date: today.toISOString().slice(0, 10),
     },
   })
-
-  function applyPreset(preset: PeriodPreset) {
-    const { from, to } = getDateRange(preset)
-    setDateFrom(from)
-    setDateTo(to)
-    setActivePeriod(preset)
-  }
 
   async function onSubmit(data: FinanceFormInput) {
     await createMutation.mutateAsync({
@@ -217,43 +171,17 @@ export default function FinancePage() {
           searchValue={search}
           onSearchChange={setSearch}
           filterPreset="finanzas"
+          appliedFilters={{ dateFrom, dateTo, movementType: typeFilter === 'income' ? 'ingreso' : typeFilter === 'expense' ? 'egreso' : 'todos' }}
+          onApplyFilters={(f) => {
+            setDateFrom(f.dateFrom)
+            setDateTo(f.dateTo)
+            const map: Record<string, 'income' | 'expense' | ''> = { todos: '', ingreso: 'income', egreso: 'expense' }
+            setTypeFilter(map[f.movementType ?? 'todos'] ?? '')
+          }}
         />
       </div>
 
       <div className="px-4 sm:px-6 space-y-4">
-        {/* Period presets */}
-        <div className="flex gap-1.5 flex-wrap">
-          {(Object.keys(PERIOD_LABELS) as PeriodPreset[]).map((preset) => (
-            <button
-              key={preset}
-              onClick={() => applyPreset(preset)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-                activePeriod === preset
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'text-muted-foreground border-border bg-background hover:bg-muted'
-              }`}
-            >
-              {PERIOD_LABELS[preset]}
-            </button>
-          ))}
-          {/* Custom range */}
-          <div className="flex items-center gap-1.5 ml-1">
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setActivePeriod(null) }}
-              className="w-32 h-7 text-xs"
-            />
-            <span className="text-xs text-muted-foreground">—</span>
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setActivePeriod(null) }}
-              className="w-32 h-7 text-xs"
-            />
-          </div>
-        </div>
-
         {/* KPI cards */}
         {summary && (
           <div className="grid grid-cols-3 gap-3">
@@ -295,22 +223,6 @@ export default function FinancePage() {
           </div>
         )}
 
-        {/* Type filter chips */}
-        <div className="flex gap-1.5 flex-wrap">
-          {(['', 'income', 'expense'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTypeFilter(t)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-                typeFilter === t
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'text-muted-foreground border-border bg-background hover:bg-muted'
-              }`}
-            >
-              {t === '' ? 'Todas' : FINANCE_TYPE_LABELS[t]}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Content */}
@@ -427,15 +339,15 @@ export default function FinancePage() {
 
       {/* Sheet detalle entrada */}
       <Sheet open={!!selectedEntry} onOpenChange={(open) => !open && setSelectedEntry(null)}>
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-muted-foreground" />
               Detalle
             </SheetTitle>
           </SheetHeader>
           {selectedEntry && (
-            <div className="py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
                 <div>
                   <p className="text-xs text-muted-foreground">Descripción</p>
@@ -498,58 +410,61 @@ export default function FinancePage() {
 
       {/* Sheet crear */}
       <Sheet open={showCreate} onOpenChange={setShowCreate}>
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-muted-foreground" />
               Nueva entrada
             </SheetTitle>
           </SheetHeader>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="py-4 space-y-5">
-            <div className="space-y-2">
-              <Label>Tipo</Label>
-              <Select
-                value={form.watch('type')}
-                onValueChange={(v) => form.setValue('type', v as 'income' | 'expense')}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="income">Ingreso</SelectItem>
-                  <SelectItem value="expense">Egreso</SelectItem>
-                </SelectContent>
-              </Select>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label>Tipo</Label>
+                <Select
+                  value={form.watch('type')}
+                  onValueChange={(v) => form.setValue('type', v as 'income' | 'expense')}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="income">Ingreso</SelectItem>
+                    <SelectItem value="expense">Egreso</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="description">Descripción</Label>
+                <Input id="description" className="h-8" {...form.register('description')} />
+                {form.formState.errors.description && (
+                  <p className="text-xs text-destructive">{form.formState.errors.description.message}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="amount_pesos">Monto ($)</Label>
+                <Input
+                  id="amount_pesos"
+                  type="number"
+                  step="0.01"
+                  min={0.01}
+                  className="h-8"
+                  {...form.register('amount_pesos', { valueAsNumber: true })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="date">Fecha</Label>
+                <Input id="date" type="date" className="h-8" {...form.register('date')} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Descripción</Label>
-              <Input id="description" {...form.register('description')} />
-              {form.formState.errors.description && (
-                <p className="text-xs text-destructive">{form.formState.errors.description.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="amount_pesos">Monto ($)</Label>
-              <Input
-                id="amount_pesos"
-                type="number"
-                step="0.01"
-                min={0.01}
-                {...form.register('amount_pesos', { valueAsNumber: true })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="date">Fecha</Label>
-              <Input id="date" type="date" {...form.register('date')} />
-            </div>
-            <SheetFooter className="gap-2 sm:gap-0">
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
+            <div className="px-6 py-4 border-t shrink-0 flex gap-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setShowCreate(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={createMutation.isPending}>
+              <Button type="submit" className="flex-1" disabled={createMutation.isPending}>
                 {createMutation.isPending ? 'Guardando...' : 'Guardar'}
               </Button>
-            </SheetFooter>
+            </div>
           </form>
         </SheetContent>
       </Sheet>

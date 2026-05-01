@@ -29,7 +29,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetFooter,
 } from '@/components/ui/sheet'
 import {
   Select,
@@ -322,15 +321,15 @@ export default function PaymentsPage() {
 
       {/* Sheet detalle pago */}
       <Sheet open={!!selectedPayment} onOpenChange={(open) => !open && setSelectedPayment(null)}>
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle className="flex items-center gap-2">
               <CreditCard className="h-5 w-5 text-muted-foreground" />
               Detalle del pago
             </SheetTitle>
           </SheetHeader>
           {selectedPayment && (
-            <div className="py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -381,65 +380,69 @@ export default function PaymentsPage() {
 
       {/* Sheet registrar pago manual */}
       <Sheet open={showCreate} onOpenChange={setShowCreate}>
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5 text-muted-foreground" />
               Registrar pago
             </SheetTitle>
           </SheetHeader>
-          <form onSubmit={form.handleSubmit(onCreateSubmit)} className="py-4 space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="order_id">ID de pedido</Label>
-              <Input
-                id="order_id"
-                placeholder="UUID del pedido"
-                {...form.register('order_id')}
-              />
+          <form onSubmit={form.handleSubmit(onCreateSubmit)} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="order_id">ID de pedido</Label>
+                <Input
+                  id="order_id"
+                  className="h-8"
+                  placeholder="UUID del pedido"
+                  {...form.register('order_id')}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="amount_pesos">Monto ($)</Label>
+                <Input
+                  id="amount_pesos"
+                  type="number"
+                  step="0.01"
+                  min={0.01}
+                  className="h-8"
+                  {...form.register('amount_pesos', { valueAsNumber: true })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Método de pago</Label>
+                <Select
+                  value={form.watch('method')}
+                  onValueChange={(v) => form.setValue('method', v as PaymentMethod)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(['cash', 'transfer', 'card', 'mp', 'other'] as PaymentMethod[]).map((m) => (
+                      <SelectItem key={m} value={m}>
+                        <span className="flex items-center gap-2">
+                          {METHOD_ICON[m]}
+                          {PAYMENT_METHOD_LABELS[m]}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="notes">Notas <span className="text-muted-foreground">(opcional)</span></Label>
+                <Input id="notes" className="h-8" {...form.register('notes')} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="amount_pesos">Monto ($)</Label>
-              <Input
-                id="amount_pesos"
-                type="number"
-                step="0.01"
-                min={0.01}
-                {...form.register('amount_pesos', { valueAsNumber: true })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Método de pago</Label>
-              <Select
-                value={form.watch('method')}
-                onValueChange={(v) => form.setValue('method', v as PaymentMethod)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(['cash', 'transfer', 'card', 'mp', 'other'] as PaymentMethod[]).map((m) => (
-                    <SelectItem key={m} value={m}>
-                      <span className="flex items-center gap-2">
-                        {METHOD_ICON[m]}
-                        {PAYMENT_METHOD_LABELS[m]}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notas <span className="text-muted-foreground">(opcional)</span></Label>
-              <Input id="notes" {...form.register('notes')} />
-            </div>
-            <SheetFooter className="gap-2 sm:gap-0">
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
+            <div className="px-6 py-4 border-t shrink-0 flex gap-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setShowCreate(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={createMutation.isPending}>
+              <Button type="submit" className="flex-1" disabled={createMutation.isPending}>
                 {createMutation.isPending ? 'Registrando...' : 'Registrar'}
               </Button>
-            </SheetFooter>
+            </div>
           </form>
         </SheetContent>
       </Sheet>

@@ -64,8 +64,8 @@ function CustomerDetailSheet({
 
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="flex flex-col p-0">
-        <SheetHeader className="px-5 pt-5 pb-4 border-b shrink-0">
+      <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+        <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
           <SheetTitle className="flex items-center gap-3">
             {c && <CustomerAvatar name={c.name} />}
             <span>{c?.name ?? 'Cargando...'}</span>

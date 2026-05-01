@@ -19,6 +19,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { NativeScroll } from '@/components/ui/native-scroll'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from '@/lib/validations/expense'
 
 export type EntityToolbarFilterPreset =
   | 'generic'
@@ -29,6 +30,7 @@ export type EntityToolbarFilterPreset =
   | 'stock'
   | 'envios'
   | 'finanzas'
+  | 'gastos'
   | 'banners'
   | 'tareas'
 
@@ -42,7 +44,42 @@ export type AppliedEntityFilters = {
   bannersActiveOnly?: boolean
   pedidosStatus?: string
   tareasStatus?: 'todas' | 'pendientes' | 'completadas'
+  stockStatus?: string
+  expenseCategory?: string
 }
+
+const STOCK_STATUS_OPTIONS = [
+  { id: 'all', label: 'Todos' },
+  { id: 'low', label: 'Bajo stock' },
+  { id: 'out', label: 'Sin stock' },
+  { id: 'tracked', label: 'Con seguimiento' },
+] as const
+
+function getPeriodDates(preset: string): { from: string; to: string } | null {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  const now = new Date()
+  const today = fmt(now)
+  switch (preset) {
+    case 'today': return { from: today, to: today }
+    case '7d': { const d = new Date(now); d.setDate(d.getDate() - 7); return { from: fmt(d), to: today } }
+    case '30d': { const d = new Date(now); d.setDate(d.getDate() - 30); return { from: fmt(d), to: today } }
+    case 'month': return {
+      from: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`,
+      to: fmt(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+    }
+    case 'year': return { from: `${now.getFullYear()}-01-01`, to: `${now.getFullYear()}-12-31` }
+    default: return null
+  }
+}
+
+const PERIOD_PRESETS = [
+  { id: 'today', label: 'Hoy' },
+  { id: '7d', label: '7 días' },
+  { id: '30d', label: '30 días' },
+  { id: 'month', label: 'Este mes' },
+  { id: 'year', label: 'Este año' },
+]
 
 function defaultDates() {
   const { start, end } = getCalendarMonthRange()
@@ -92,6 +129,8 @@ export function EntityToolbar({
   const [tareasStatus, setTareasStatus] = useState<'todas' | 'pendientes' | 'completadas'>(
     appliedFilters?.tareasStatus ?? 'todas'
   )
+  const [stockStatus, setStockStatus] = useState(appliedFilters?.stockStatus ?? 'all')
+  const [expenseCategory, setExpenseCategory] = useState(appliedFilters?.expenseCategory ?? '')
 
   function syncFromApplied() {
     setDateFrom(appliedFilters?.dateFrom ?? defaults.dateFrom)
@@ -103,6 +142,8 @@ export function EntityToolbar({
     if (appliedFilters?.bannersActiveOnly !== undefined) setBannersActiveOnly(appliedFilters.bannersActiveOnly)
     if (appliedFilters?.pedidosStatus !== undefined) setPedidosStatus(appliedFilters.pedidosStatus)
     if (appliedFilters?.tareasStatus) setTareasStatus(appliedFilters.tareasStatus)
+    if (appliedFilters?.stockStatus !== undefined) setStockStatus(appliedFilters.stockStatus)
+    if (appliedFilters?.expenseCategory !== undefined) setExpenseCategory(appliedFilters.expenseCategory)
   }
 
   const showFilterButton = filterPreset !== 'generic'
@@ -118,6 +159,8 @@ export function EntityToolbar({
     if (filterPreset === 'banners') base.bannersActiveOnly = bannersActiveOnly
     if (filterPreset === 'pedidos') base.pedidosStatus = pedidosStatus
     if (filterPreset === 'tareas') base.tareasStatus = tareasStatus
+    if (filterPreset === 'stock') base.stockStatus = stockStatus
+    if (filterPreset === 'gastos') { base.expenseCategory = expenseCategory }
     return base
   }
 
@@ -137,6 +180,8 @@ export function EntityToolbar({
     setBannersActiveOnly(false)
     setPedidosStatus('todos')
     setTareasStatus('todas')
+    setStockStatus('all')
+    setExpenseCategory('')
     onApplyFilters?.({
       dateFrom: d.dateFrom,
       dateTo: d.dateTo,
@@ -147,6 +192,8 @@ export function EntityToolbar({
       bannersActiveOnly: false,
       pedidosStatus: 'todos',
       tareasStatus: 'todas',
+      stockStatus: 'all',
+      expenseCategory: '',
     })
   }
 
@@ -239,6 +286,7 @@ export function EntityToolbar({
                 filterPreset === 'stock' ||
                 filterPreset === 'envios' ||
                 filterPreset === 'finanzas' ||
+                filterPreset === 'gastos' ||
                 filterPreset === 'banners') && (
                 <div className="space-y-2">
                   <p className="text-xs font-medium">Rango de fechas</p>
@@ -325,6 +373,34 @@ export function EntityToolbar({
                 </div>
               )}
 
+              {(filterPreset === 'finanzas' || filterPreset === 'gastos') && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium">Período rápido</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PERIOD_PRESETS.map((p) => {
+                      const dates = getPeriodDates(p.id)
+                      const isActive = dates ? dateFrom === dates.from && dateTo === dates.to : false
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            if (dates) { setDateFrom(dates.from); setDateTo(dates.to) }
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
+                            isActive
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'text-muted-foreground border-border bg-background hover:bg-muted'
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               {filterPreset === 'finanzas' && (
                 <div className="space-y-1.5">
                   <Label className="text-xs">Tipo de movimiento</Label>
@@ -338,6 +414,61 @@ export function EntityToolbar({
                       <SelectItem value="egreso">Egresos</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              )}
+
+              {filterPreset === 'stock' && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium">Estado de stock</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {STOCK_STATUS_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setStockStatus(opt.id)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
+                          stockStatus === opt.id
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'text-muted-foreground border-border bg-background hover:bg-muted'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {filterPreset === 'gastos' && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium">Categoría</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setExpenseCategory('')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
+                        expenseCategory === ''
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'text-muted-foreground border-border bg-background hover:bg-muted'
+                      }`}
+                    >
+                      Todas
+                    </button>
+                    {EXPENSE_CATEGORIES.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setExpenseCategory(c === expenseCategory ? '' : c)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
+                          expenseCategory === c
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'text-muted-foreground border-border bg-background hover:bg-muted'
+                        }`}
+                      >
+                        {EXPENSE_CATEGORY_LABELS[c]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -358,9 +489,11 @@ export function EntityToolbar({
                     {(
                       [
                         { id: 'todos', label: 'Todos' },
-                        { id: 'preparacion', label: 'En preparación' },
-                        { id: 'en_camino', label: 'En camino' },
-                        { id: 'entregado', label: 'Entregado' },
+                        { id: 'pending', label: 'Pendiente' },
+                        { id: 'confirmed', label: 'Confirmado' },
+                        { id: 'preparing', label: 'Preparando' },
+                        { id: 'delivered', label: 'Entregado' },
+                        { id: 'cancelled', label: 'Cancelado' },
                       ] as const
                     ).map((f) => (
                       <button

@@ -15,7 +15,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetFooter,
 } from '@/components/ui/sheet'
 import {
   Select,
@@ -334,28 +333,17 @@ export default function ExpensesPage() {
           placeholder="Buscar gastos..."
           searchValue={search}
           onSearchChange={setSearch}
-          filterPreset="finanzas"
+          filterPreset="gastos"
+          appliedFilters={{ dateFrom, dateTo, expenseCategory: categoryFilter }}
+          onApplyFilters={(f) => {
+            setDateFrom(f.dateFrom)
+            setDateTo(f.dateTo)
+            setCategoryFilter(f.expenseCategory ?? '')
+          }}
         />
       </div>
 
       <div className="px-4 sm:px-6 space-y-4">
-        {/* Date range */}
-        <div className="flex gap-1.5 flex-wrap items-center">
-          <Input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="w-32 h-7 text-xs"
-          />
-          <span className="text-xs text-muted-foreground">—</span>
-          <Input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="w-32 h-7 text-xs"
-          />
-        </div>
-
         {/* Summary */}
         {summary && (
           <Card>
@@ -387,32 +375,6 @@ export default function ExpensesPage() {
           </div>
         )}
 
-        {/* Category filter chips */}
-        <div className="flex gap-1.5 flex-wrap">
-          <button
-            onClick={() => setCategoryFilter('')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-              categoryFilter === ''
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'text-muted-foreground border-border bg-background hover:bg-muted'
-            }`}
-          >
-            Todos
-          </button>
-          {EXPENSE_CATEGORIES.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCategoryFilter(c === categoryFilter ? '' : c)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                categoryFilter === c
-                  ? CATEGORY_COLORS[c]
-                  : 'text-muted-foreground border-border bg-background hover:bg-muted'
-              }`}
-            >
-              {EXPENSE_CATEGORY_LABELS[c]}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Content */}
@@ -537,47 +499,51 @@ export default function ExpensesPage() {
 
       {/* Sheet crear gasto */}
       <Sheet open={showCreate} onOpenChange={setShowCreate}>
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5 text-muted-foreground" />
               Nuevo gasto
             </SheetTitle>
           </SheetHeader>
-          <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="py-4 space-y-0">
-            <ExpenseSheetFields form={createForm} storeId={store_id} />
-            <SheetFooter className="gap-2 sm:gap-0 mt-6">
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
+          <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <ExpenseSheetFields form={createForm} storeId={store_id} />
+            </div>
+            <div className="px-6 py-4 border-t shrink-0 flex gap-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setShowCreate(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={createMutation.isPending}>
+              <Button type="submit" className="flex-1" disabled={createMutation.isPending}>
                 {createMutation.isPending ? 'Guardando...' : 'Guardar'}
               </Button>
-            </SheetFooter>
+            </div>
           </form>
         </SheetContent>
       </Sheet>
 
       {/* Sheet editar gasto */}
       <Sheet open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5 text-muted-foreground" />
               Editar gasto
             </SheetTitle>
           </SheetHeader>
-          <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="py-4 space-y-0">
-            <ExpenseSheetFields form={editForm} storeId={store_id} />
-            <div className="mt-6 space-y-2">
-              <SheetFooter className="gap-2 sm:gap-0">
-                <Button type="button" variant="outline" onClick={() => setEditing(null)}>
+          <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <ExpenseSheetFields form={editForm} storeId={store_id} />
+            </div>
+            <div className="px-6 py-4 border-t shrink-0 space-y-2">
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setEditing(null)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={updateMutation.isPending}>
+                <Button type="submit" className="flex-1" disabled={updateMutation.isPending}>
                   {updateMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
                 </Button>
-              </SheetFooter>
+              </div>
               <Button
                 type="button"
                 variant="ghost"

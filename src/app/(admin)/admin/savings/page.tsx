@@ -15,7 +15,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetFooter,
 } from '@/components/ui/sheet'
 import {
   useSavingsAccounts,
@@ -248,48 +247,51 @@ export default function SavingsPage() {
 
       {/* Sheet para nueva cuenta */}
       <Sheet open={showNewAccount} onOpenChange={setShowNewAccount}>
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle className="flex items-center gap-2">
               <PiggyBank className="h-5 w-5 text-muted-foreground" />
               Nueva cuenta de ahorro
             </SheetTitle>
           </SheetHeader>
-          <form onSubmit={accountForm.handleSubmit(onSubmitAccount)} className="py-4 space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nombre</Label>
-              <Input id="name" {...accountForm.register('name')} placeholder="Ej: Fondo de emergencia" />
-              {accountForm.formState.errors.name && (
-                <p className="text-xs text-destructive">{accountForm.formState.errors.name.message}</p>
-              )}
+          <form onSubmit={accountForm.handleSubmit(onSubmitAccount)} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="name">Nombre</Label>
+                <Input id="name" className="h-8" {...accountForm.register('name')} placeholder="Ej: Fondo de emergencia" />
+                {accountForm.formState.errors.name && (
+                  <p className="text-xs text-destructive">{accountForm.formState.errors.name.message}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="target_pesos">Meta ($) — opcional</Label>
+                <Input
+                  id="target_pesos"
+                  type="number"
+                  step="0.01"
+                  min={0.01}
+                  placeholder="Ej: 50000"
+                  className="h-8"
+                  {...accountForm.register('target_pesos', { valueAsNumber: true })}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="target_pesos">Meta ($) — opcional</Label>
-              <Input
-                id="target_pesos"
-                type="number"
-                step="0.01"
-                min={0.01}
-                placeholder="Ej: 50000"
-                {...accountForm.register('target_pesos', { valueAsNumber: true })}
-              />
-            </div>
-            <SheetFooter className="gap-2 sm:gap-0">
-              <Button type="button" variant="outline" onClick={() => setShowNewAccount(false)}>
+            <div className="px-6 py-4 border-t shrink-0 flex gap-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setShowNewAccount(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={createAccountMutation.isPending}>
+              <Button type="submit" className="flex-1" disabled={createAccountMutation.isPending}>
                 {createAccountMutation.isPending ? 'Creando...' : 'Crear'}
               </Button>
-            </SheetFooter>
+            </div>
           </form>
         </SheetContent>
       </Sheet>
 
       {/* Sheet para movimiento */}
       <Sheet open={!!movementType} onOpenChange={(open) => !open && setMovementType(null)}>
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle className="flex items-center gap-2">
               {movementType === 'deposit' ? (
                 <>
@@ -304,29 +306,32 @@ export default function SavingsPage() {
               )}
             </SheetTitle>
           </SheetHeader>
-          <form onSubmit={movementForm.handleSubmit(onSubmitMovement)} className="py-4 space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="amount_pesos">Monto ($)</Label>
-              <Input
-                id="amount_pesos"
-                type="number"
-                step="0.01"
-                min={0.01}
-                {...movementForm.register('amount_pesos', { valueAsNumber: true })}
-              />
+          <form onSubmit={movementForm.handleSubmit(onSubmitMovement)} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="amount_pesos">Monto ($)</Label>
+                <Input
+                  id="amount_pesos"
+                  type="number"
+                  step="0.01"
+                  min={0.01}
+                  className="h-8"
+                  {...movementForm.register('amount_pesos', { valueAsNumber: true })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="mov_desc">Descripción (opcional)</Label>
+                <Input id="mov_desc" className="h-8" {...movementForm.register('description')} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="mov_desc">Descripción (opcional)</Label>
-              <Input id="mov_desc" {...movementForm.register('description')} />
-            </div>
-            <SheetFooter className="gap-2 sm:gap-0">
-              <Button type="button" variant="outline" onClick={() => setMovementType(null)}>
+            <div className="px-6 py-4 border-t shrink-0 flex gap-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setMovementType(null)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={createMovementMutation.isPending}>
+              <Button type="submit" className="flex-1" disabled={createMovementMutation.isPending}>
                 {createMovementMutation.isPending ? 'Guardando...' : 'Confirmar'}
               </Button>
-            </SheetFooter>
+            </div>
           </form>
         </SheetContent>
       </Sheet>

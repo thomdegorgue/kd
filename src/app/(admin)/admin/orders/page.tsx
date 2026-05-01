@@ -15,7 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { EntityToolbar } from '@/components/shared/entity-toolbar'
-import { OrderStatusBadge, ORDER_STATUS_OPTIONS } from '@/components/admin/order-status-badge'
+import { OrderStatusBadge } from '@/components/admin/order-status-badge'
 import dynamic from 'next/dynamic'
 
 const OrderSheet = dynamic(
@@ -95,28 +95,11 @@ export default function OrdersPage() {
         searchValue={search}
         onSearchChange={(v) => { setSearch(v); setPage(1) }}
         filterPreset="pedidos"
+        onApplyFilters={(f) => {
+          setStatusFilter(f.pedidosStatus === 'todos' ? '' : (f.pedidosStatus ?? ''))
+          setPage(1)
+        }}
       />
-
-      {/* Status tabs */}
-      <div className="flex gap-1 flex-wrap">
-        <Button
-          variant={statusFilter === '' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => { setStatusFilter(''); setPage(1) }}
-        >
-          Todos
-        </Button>
-        {ORDER_STATUS_OPTIONS.map((opt) => (
-          <Button
-            key={opt.value}
-            variant={statusFilter === opt.value ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => { setStatusFilter(opt.value); setPage(1) }}
-          >
-            {opt.label}
-          </Button>
-        ))}
-      </div>
 
       {isLoading ? (
         <div className="space-y-2">

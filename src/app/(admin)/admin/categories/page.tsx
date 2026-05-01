@@ -188,11 +188,11 @@ export default function CategoriesPage() {
 
       {/* Create / Edit sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle>{editingCategory ? 'Editar categoría' : 'Nueva categoría'}</SheetTitle>
           </SheetHeader>
-          <div className="mt-4">
+          <div className="flex-1 overflow-y-auto px-6 py-4">
             <CategoryForm
               defaultValues={editingCategory ? { id: editingCategory.id, name: editingCategory.name, is_active: editingCategory.is_active } : undefined}
               isPending={createMutation.isPending || updateMutation.isPending}

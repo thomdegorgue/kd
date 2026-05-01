@@ -13,7 +13,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetFooter,
 } from '@/components/ui/sheet'
 import {
   Table,
@@ -237,8 +236,8 @@ export default function WholesalePage() {
 
       {/* Sheet para editar precio */}
       <Sheet open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle className="flex items-center gap-2">
               <Boxes className="h-5 w-5 text-muted-foreground" />
               Precio mayorista
@@ -246,63 +245,61 @@ export default function WholesalePage() {
           </SheetHeader>
 
           {editing && (
-            <div className="py-4 space-y-6">
-              {/* Producto actual */}
-              <div className="rounded-lg border bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground font-medium mb-2">Producto</p>
-                <div className="flex items-center gap-3">
-                  {editing.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={editing.image_url}
-                      alt={editing.name}
-                      className="h-10 w-10 rounded object-cover"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
-                      <Package className="h-5 w-5 text-muted-foreground" />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground font-medium mb-2">Producto</p>
+                  <div className="flex items-center gap-3">
+                    {editing.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={editing.image_url}
+                        alt={editing.name}
+                        className="h-10 w-10 rounded object-cover"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
+                        <Package className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{editing.name}</p>
+                      <p className="text-xs text-muted-foreground">Precio público: {formatPrice(editing.price)}</p>
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{editing.name}</p>
-                    <p className="text-xs text-muted-foreground">Precio público: {formatPrice(editing.price)}</p>
                   </div>
                 </div>
-              </div>
-
-              {/* Form */}
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="price_pesos">Precio mayorista ($)</Label>
                   <Input
                     id="price_pesos"
                     type="number"
                     step="0.01"
                     min={0.01}
+                    className="h-8"
                     {...form.register('price_pesos', { valueAsNumber: true })}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="min_quantity">Cantidad mínima (opcional)</Label>
                   <Input
                     id="min_quantity"
                     type="number"
                     min={1}
                     placeholder="Ej: 10"
+                    className="h-8"
                     {...form.register('min_quantity', { valueAsNumber: true })}
                   />
                 </div>
-
-                <SheetFooter className="gap-2 sm:gap-0">
-                  <Button type="button" variant="outline" onClick={() => setEditing(null)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={setMutation.isPending}>
-                    {setMutation.isPending ? 'Guardando...' : 'Guardar'}
-                  </Button>
-                </SheetFooter>
-              </form>
-            </div>
+              </div>
+              <div className="px-6 py-4 border-t shrink-0 flex gap-2">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setEditing(null)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" className="flex-1" disabled={setMutation.isPending}>
+                  {setMutation.isPending ? 'Guardando...' : 'Guardar'}
+                </Button>
+              </div>
+            </form>
           )}
         </SheetContent>
       </Sheet>

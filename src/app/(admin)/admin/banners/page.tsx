@@ -292,14 +292,14 @@ export default function BannersPage() {
 
       {/* Create / Edit sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent>
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <SheetTitle className="flex items-center gap-2">
               <LayoutGrid className="h-5 w-5 text-muted-foreground" />
               {editingBanner ? 'Editar banner' : 'Nuevo banner'}
             </SheetTitle>
           </SheetHeader>
-          <div className="mt-4 space-y-4">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <div>
               <Label className="mb-2 block">Imagen (obligatoria)</Label>
               {store_id && (
@@ -377,19 +377,19 @@ export default function BannersPage() {
               />
             </div>
 
-            <div className="flex gap-2 pt-4">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setSheetOpen(false)}
-                disabled={isPending}
-              >
-                Cancelar
-              </Button>
-              <Button className="flex-1" onClick={handleSubmit} disabled={isPending || !imageUrl}>
-                {editingBanner ? 'Guardar cambios' : 'Crear banner'}
-              </Button>
-            </div>
+          </div>
+          <div className="px-6 py-4 border-t shrink-0 flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setSheetOpen(false)}
+              disabled={isPending}
+            >
+              Cancelar
+            </Button>
+            <Button className="flex-1" onClick={handleSubmit} disabled={isPending || !imageUrl}>
+              {editingBanner ? 'Guardar cambios' : 'Crear banner'}
+            </Button>
           </div>
         </SheetContent>
       </Sheet>
