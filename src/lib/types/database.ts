@@ -508,6 +508,7 @@ export type Database = {
           name: string | null
           phone: string | null
           email: string | null
+          notes: string | null
           created_at: string
           updated_at: string
         }
@@ -517,6 +518,7 @@ export type Database = {
           name?: string | null
           phone?: string | null
           email?: string | null
+          notes?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -528,7 +530,7 @@ export type Database = {
           store_id: string
           customer_id: string | null
           status: 'pending' | 'confirmed' | 'preparing' | 'delivered' | 'cancelled'
-          source: 'admin' | 'whatsapp' | 'mp_checkout'
+          source: 'admin' | 'whatsapp' | 'mp_checkout' | 'checkout'
           total: number
           notes: string | null
           metadata: Json
@@ -540,7 +542,7 @@ export type Database = {
           store_id: string
           customer_id?: string | null
           status?: 'pending' | 'confirmed' | 'preparing' | 'delivered' | 'cancelled'
-          source?: 'admin' | 'whatsapp' | 'mp_checkout'
+          source?: 'admin' | 'whatsapp' | 'mp_checkout' | 'checkout'
           total: number
           notes?: string | null
           metadata?: Json
@@ -706,6 +708,7 @@ export type Database = {
           balance: number
           goal_amount: number | null
           is_active: boolean
+          customer_id: string | null
           created_at: string
           updated_at: string
         }
@@ -716,6 +719,7 @@ export type Database = {
           balance?: number
           goal_amount?: number | null
           is_active?: boolean
+          customer_id?: string | null
           created_at?: string
           updated_at?: string
         }

@@ -313,6 +313,7 @@ CREATE TABLE IF NOT EXISTS customers (
   name TEXT,
   phone TEXT,
   email TEXT,
+  notes TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -408,6 +409,7 @@ CREATE TABLE IF NOT EXISTS savings_accounts (
   name TEXT NOT NULL,
   balance INTEGER NOT NULL DEFAULT 0,
   goal_amount INTEGER,
+  customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -564,6 +566,18 @@ BEGIN
     ALTER TABLE billing_webhook_log ADD COLUMN result TEXT;
   END IF;
 
+  -- customers: agregar columna notes
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'customers' AND column_name = 'notes') THEN
+    ALTER TABLE customers ADD COLUMN notes TEXT;
+  END IF;
+
+  -- savings_accounts: agregar customer_id (cuenta corriente vinculada a un cliente)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'savings_accounts' AND column_name = 'customer_id') THEN
+    ALTER TABLE savings_accounts ADD COLUMN customer_id UUID REFERENCES customers(id) ON DELETE SET NULL;
+  END IF;
+
   -- orders: ampliar el CHECK constraint de source para incluir 'checkout'
   -- En algunas DBs viejas el CHECK no incluye 'checkout'. Usamos DROP+CREATE (idempotente).
   BEGIN
@@ -659,6 +673,7 @@ CREATE INDEX IF NOT EXISTS idx_expenses_store_category ON expenses(store_id, cat
 CREATE INDEX IF NOT EXISTS idx_expenses_store_date ON expenses(store_id, date);
 CREATE INDEX IF NOT EXISTS idx_expenses_finance_entry_id ON expenses(finance_entry_id);
 CREATE INDEX IF NOT EXISTS idx_savings_accounts_store ON savings_accounts(store_id);
+CREATE INDEX IF NOT EXISTS idx_savings_accounts_customer ON savings_accounts(customer_id) WHERE customer_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_savings_movements_store_account ON savings_movements(store_id, savings_account_id);
 CREATE INDEX IF NOT EXISTS idx_savings_movements_finance_entry_id ON savings_movements(finance_entry_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_store ON tasks(store_id);
