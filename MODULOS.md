@@ -826,20 +826,22 @@ El CartDrawer actual solo tiene el flujo WhatsApp. Cuando la tienda tiene checko
 
 ### 7.7 Webhook MP: diferenciar suscripciones vs pagos de pedidos
 
-**Archivo:** `src/app/api/webhooks/mercadopago/route.ts`
+**Importante:** hay 2 webhooks separados (dominios separados):
+
+- **Suscripción (plataforma):** `src/app/api/webhooks/mercadopago/route.ts` (usa `MP_ACCESS_TOKEN` global y escribe en `billing_payments`)
+- **Pedidos (tienda):** `src/app/api/webhooks/mercadopago/orders/route.ts` (usa `payment_methods.config.access_token` de la tienda y escribe en `payments` + `orders`)
 
 El webhook actual maneja **pagos de suscripción** de la plataforma KitDigital. Los pagos de pedidos de e-commerce son un tipo diferente.
 
-- [ ] En el webhook, detectar el tipo de notificación:
-  - Si `data.id` corresponde a un payment de preferencia (checkout) → buscar en `payments` por `mp_payment_id` → actualizar `payments.status = 'approved'` y `orders.status = 'confirmed'`
-  - Si es suscripción → flujo actual (billing)
+- [ ] Para pedidos, no mezclar con el webhook de billing: se procesa en `mercadopago/orders`.
 
-La distinción se puede hacer por el `external_reference`:
-- Suscripciones: `external_reference = "${storeId}|monthly"` o `"|annual"`
-- Pedidos checkout: `external_reference = "order:${orderId}"`
+**Pedidos checkout (MP):** se usa `notification_url` por preferencia apuntando a:
+`/api/webhooks/mercadopago/orders?store=${storeId}`
 
-- [ ] Al crear la preferencia MP en `createMercadoPagoPreference`, pasar `external_reference: "order:${orderId}"`
-- [ ] En el webhook, parsear `external_reference`: si empieza con `"order:"` → es pago de pedido
+- [ ] En la preferencia MP de pedidos, pasar `external_reference: "order:${orderId}"`
+- [ ] En `mercadopago/orders`, al recibir `data.id`, obtener el payment con el access token de la tienda y:
+  - Si `approved` → `payments.status='approved'` y `orders.status='confirmed'`
+  - Persistir `payments.mp_payment_id`
 
 ### 7.8 Admin — Lógica unificada de "Confirmar pago"
 

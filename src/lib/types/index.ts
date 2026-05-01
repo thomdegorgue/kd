@@ -57,6 +57,7 @@ export type WebhookStatus = 'pending' | 'processed' | 'failed'
 export type ModuleName =
   | 'catalog'
   | 'cart'
+  | 'checkout'
   | 'products'
   | 'categories'
   | 'orders'

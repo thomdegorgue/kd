@@ -21,6 +21,7 @@ const MODULE_LABELS: Record<ModuleName, string> = {
   products: 'Productos',
   categories: 'Categorías',
   cart: 'Carrito',
+  checkout: 'Checkout online',
   orders: 'Pedidos',
   stock: 'Stock',
   payments: 'Pagos',

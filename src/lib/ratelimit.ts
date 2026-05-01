@@ -14,3 +14,10 @@ export const pdfLimiter = new Ratelimit({
   limiter: Ratelimit.slidingWindow(10, '60 s'),
   prefix: 'kd:pdf',
 })
+
+// Para checkout público (creación de pedidos): 10 req/60s por IP+store
+export const checkoutLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(10, '60 s'),
+  prefix: 'kd:checkout',
+})

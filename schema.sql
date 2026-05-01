@@ -160,6 +160,37 @@ CREATE TABLE IF NOT EXISTS billing_webhook_log (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- order_webhook_log: eventos de Mercado Pago para pedidos (tienda→cliente)
+-- Se separa de billing_webhook_log para no mezclar dominios.
+CREATE TABLE IF NOT EXISTS order_webhook_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  mp_event_id TEXT NOT NULL UNIQUE,
+  topic TEXT NOT NULL,
+  store_id UUID REFERENCES stores(id),
+  order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processed', 'failed')),
+  raw_payload JSONB NOT NULL,
+  error TEXT,
+  processing_time_ms INTEGER,
+  result TEXT,
+  processed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- payment_methods: configuración por tienda de métodos de cobro para checkout online
+CREATE TABLE IF NOT EXISTS payment_methods (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  type TEXT NOT NULL CHECK (type IN ('transfer', 'mp')),
+  name TEXT NOT NULL DEFAULT '',
+  instructions TEXT,
+  config JSONB NOT NULL DEFAULT '{}',
+  is_active BOOLEAN NOT NULL DEFAULT false,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
@@ -291,7 +322,7 @@ CREATE TABLE IF NOT EXISTS orders (
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   customer_id UUID REFERENCES customers(id),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'preparing', 'delivered', 'cancelled')),
-  source TEXT NOT NULL DEFAULT 'admin' CHECK (source IN ('admin', 'whatsapp', 'mp_checkout')),
+  source TEXT NOT NULL DEFAULT 'admin' CHECK (source IN ('admin', 'whatsapp', 'mp_checkout', 'checkout')),
   total INTEGER NOT NULL CHECK (total >= 0),
   notes TEXT,
   metadata JSONB NOT NULL DEFAULT '{}',
@@ -532,6 +563,24 @@ BEGIN
     WHERE table_name = 'billing_webhook_log' AND column_name = 'result') THEN
     ALTER TABLE billing_webhook_log ADD COLUMN result TEXT;
   END IF;
+
+  -- orders: ampliar el CHECK constraint de source para incluir 'checkout'
+  -- En algunas DBs viejas el CHECK no incluye 'checkout'. Usamos DROP+CREATE (idempotente).
+  BEGIN
+    ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_source_check;
+  EXCEPTION WHEN undefined_table THEN
+    -- orders todavía no existe (DB nueva en medio de ejecución)
+    NULL;
+  END;
+  BEGIN
+    ALTER TABLE orders ADD CONSTRAINT orders_source_check
+      CHECK (source IN ('admin', 'whatsapp', 'mp_checkout', 'checkout'));
+  EXCEPTION
+    WHEN duplicate_object THEN
+      NULL;
+    WHEN undefined_table THEN
+      NULL;
+  END;
 END $$;
 
 -- ============================================================
@@ -558,6 +607,13 @@ CREATE INDEX IF NOT EXISTS idx_billing_webhook_event ON billing_webhook_log(mp_e
 CREATE INDEX IF NOT EXISTS idx_billing_webhook_status ON billing_webhook_log(status);
 CREATE INDEX IF NOT EXISTS idx_billing_webhook_store ON billing_webhook_log(store_id);
 CREATE INDEX IF NOT EXISTS idx_billing_webhook_created ON billing_webhook_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_order_webhook_event ON order_webhook_log(mp_event_id);
+CREATE INDEX IF NOT EXISTS idx_order_webhook_status ON order_webhook_log(status);
+CREATE INDEX IF NOT EXISTS idx_order_webhook_store ON order_webhook_log(store_id);
+CREATE INDEX IF NOT EXISTS idx_order_webhook_order ON order_webhook_log(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_webhook_created ON order_webhook_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_payment_methods_store ON payment_methods(store_id);
+CREATE INDEX IF NOT EXISTS idx_payment_methods_store_active ON payment_methods(store_id, is_active);
 CREATE INDEX IF NOT EXISTS idx_products_store ON products(store_id);
 CREATE INDEX IF NOT EXISTS idx_products_store_active ON products(store_id, is_active);
 CREATE INDEX IF NOT EXISTS idx_products_store_featured ON products(store_id, is_featured);
@@ -650,6 +706,7 @@ BEGIN
   DROP TRIGGER IF EXISTS trg_customers_updated_at ON customers;
   DROP TRIGGER IF EXISTS trg_orders_updated_at ON orders;
   DROP TRIGGER IF EXISTS trg_payments_updated_at ON payments;
+  DROP TRIGGER IF EXISTS trg_payment_methods_updated_at ON payment_methods;
   DROP TRIGGER IF EXISTS trg_finance_entries_updated_at ON finance_entries;
   DROP TRIGGER IF EXISTS trg_expenses_updated_at ON expenses;
   DROP TRIGGER IF EXISTS trg_savings_accounts_updated_at ON savings_accounts;
@@ -686,6 +743,8 @@ CREATE TRIGGER trg_customers_updated_at BEFORE UPDATE ON customers
 CREATE TRIGGER trg_orders_updated_at BEFORE UPDATE ON orders
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_payments_updated_at BEFORE UPDATE ON payments
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_payment_methods_updated_at BEFORE UPDATE ON payment_methods
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_finance_entries_updated_at BEFORE UPDATE ON finance_entries
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -732,6 +791,8 @@ ALTER TABLE assistant_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE billing_payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE billing_webhook_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE order_webhook_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payment_methods ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
 -- POLICIES (drop masivo + recreate — idempotente)
@@ -750,7 +811,7 @@ BEGIN
       'customers','orders','order_items','payments',
       'finance_entries','expenses','savings_accounts','savings_movements',
       'tasks','assistant_sessions','assistant_messages','events',
-      'billing_payments','billing_webhook_log'
+      'billing_payments','billing_webhook_log','order_webhook_log','payment_methods'
     )
   LOOP
     EXECUTE format('DROP POLICY IF EXISTS %I ON %I', _r.policyname, _r.tablename);
@@ -976,6 +1037,23 @@ CREATE POLICY payments_insert ON payments FOR INSERT
 CREATE POLICY payments_update ON payments FOR UPDATE
   USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
     AND store_allows_writes(store_id));
+
+-- Payment methods (checkout)
+CREATE POLICY payment_methods_select ON payment_methods FOR SELECT
+  USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid()));
+CREATE POLICY payment_methods_insert ON payment_methods FOR INSERT
+  WITH CHECK (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
+    AND store_allows_writes(store_id));
+CREATE POLICY payment_methods_update ON payment_methods FOR UPDATE
+  USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
+    AND store_allows_writes(store_id));
+CREATE POLICY payment_methods_delete ON payment_methods FOR DELETE
+  USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
+    AND store_allows_writes(store_id));
+
+-- Order webhook log (solo lectura para miembros; escritura via service_role)
+CREATE POLICY order_webhook_log_select ON order_webhook_log FOR SELECT
+  USING (store_id IN (SELECT store_id FROM store_users WHERE user_id = auth.uid()));
 
 -- Finance entries
 CREATE POLICY finance_entries_select ON finance_entries FOR SELECT

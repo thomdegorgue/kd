@@ -38,6 +38,14 @@ Sus funciones se consolidan dentro de "Suscripción" (ex-Billing) como una nueva
 ### Módulo "Billing" → "Suscripción"
 Centraliza todo: plan activo, gestión de módulos (packs), historial de pagos de suscripción.
 
+### Separación de dominios de pago (OBLIGATORIO)
+Hay **dos sistemas de pagos completamente separados**:
+
+- **Suscripción de la plataforma (creador de tienda → KitDigital)**: se registra en `billing_payments` y se procesa con credenciales globales (`MP_ACCESS_TOKEN`) vía el webhook `src/app/api/webhooks/mercadopago/route.ts`.
+- **Pagos de pedidos e-commerce (cliente de tienda → tienda)**: se registra en `payments` (tabla de pagos de pedidos, ligada a `orders`) y se procesa con credenciales **por tienda** guardadas en `payment_methods.config` vía el webhook `src/app/api/webhooks/mercadopago/orders/route.ts`.
+
+Regla absoluta: **nunca mezclar** `billing_payments` con `payments`.
+
 ### Nuevo flujo: Checkout e-commerce
 Cuando al menos un método de pago está activo, el catálogo público ofrece checkout real (en vez de solo WhatsApp). El cliente pasa por un formulario multi-paso: carrito → datos → entrega → pago → confirmación.
 
