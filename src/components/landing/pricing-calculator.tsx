@@ -9,9 +9,9 @@ import { Badge } from '@/components/ui/badge'
 import { formatARS } from '@/lib/billing/calculator'
 import { PACKS, computePackTotal } from '@/lib/billing/packs'
 import type { PackId } from '@/lib/billing/packs'
+import { COMMERCIAL_TIERS, getSuggestedMonthlyCentsForCap } from '@/lib/billing/commercial-tiers'
 
-const TIERS = [100, 200, 300, 500, 1000, 2000] as const
-const PRICE_PER_100_PRODUCTS = 2000000
+const TIERS = COMMERCIAL_TIERS.map(t => t.max_products) as number[]
 
 const FAQ_ITEMS = [
   {
@@ -151,13 +151,13 @@ export function PricingCalculator() {
 
   const operationalPacks = activePacks.has('operations') && activePacks.has('finance') && activePacks.has('team')
   const packPricing = computePackTotal(Array.from(activePacks) as PackId[])
-  const baseTierPrice = Math.ceil(maxProducts / 100) * PRICE_PER_100_PRODUCTS
+  const baseTierPrice = getSuggestedMonthlyCentsForCap(maxProducts)
   const total = baseTierPrice + packPricing.total
 
   // Para el bundle tachado: precio sin descuento
   const totalWithoutDiscount = baseTierPrice + (packPricing.total + packPricing.bundleDiscount)
 
-  const tierIndex = TIERS.indexOf(maxProducts as typeof TIERS[number])
+  const tierIndex = TIERS.indexOf(maxProducts)
 
   function handleSliderChange(e: React.ChangeEvent<HTMLInputElement>) {
     const idx = Number(e.target.value)
@@ -212,6 +212,11 @@ export function PricingCalculator() {
               {maxProducts.toLocaleString('es-AR')}{' '}
               <span className="text-lg font-normal text-[#6e6e73]">productos</span>
             </p>
+            {maxProducts > 100 && (
+              <p className="text-xs text-[#6e6e73]">
+                El plan self-serve incluye hasta 100 productos. Para más capacidad, coordinás con soporte — el precio de referencia es {formatARS(getSuggestedMonthlyCentsForCap(maxProducts))}/mes.
+              </p>
+            )}
           </div>
         </div>
 

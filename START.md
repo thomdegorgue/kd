@@ -296,7 +296,7 @@ if (storeCheck?.mp_subscription_id) {
 
 ---
 
-### FASE 1 — Cupo 100 + tabla comercial + ampliación manual (≈ 6 h)
+### FASE 1 — Cupo 100 + tabla comercial + ampliación manual (≈ 6 h) ✅ COMPLETADA
 
 **Objetivo:** self-serve claro ($20k / hasta 100 productos); **sin** cambiar cobros MP automáticamente por volumen.
 

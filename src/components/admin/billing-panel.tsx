@@ -1,6 +1,6 @@
 'use client'
 
-import { Zap, CheckCircle, AlertTriangle, Clock, Loader2, ChevronRight } from 'lucide-react'
+import { Zap, CheckCircle, AlertTriangle, Clock, Loader2, ChevronRight, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,6 +21,7 @@ import { PackCard } from '@/components/admin/pack-card'
 import { ModuleToggleList } from '@/components/admin/module-toggle-list'
 import { PACKS, computePackTotal } from '@/lib/billing/packs'
 import { formatARS, getTierBaseCost } from '@/lib/billing/calculator'
+import { COMMERCIAL_TIERS } from '@/lib/billing/commercial-tiers'
 import {
   useBilling,
   useCancelSubscription,
@@ -138,8 +139,9 @@ export function BillingPanel() {
 
       {/* TABS */}
       <Tabs defaultValue="plan" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="plan">Mi plan</TabsTrigger>
+          <TabsTrigger value="capacidad">Capacidad</TabsTrigger>
           <TabsTrigger value="modulos">Módulos</TabsTrigger>
           <TabsTrigger value="historial">Historial</TabsTrigger>
         </TabsList>
@@ -195,6 +197,21 @@ export function BillingPanel() {
                   <div className="flex justify-between items-center pt-2">
                     <span className="font-semibold">Total mensual</span>
                     <span className="text-2xl font-bold">{formatARS(packPricing.total + getTierBaseCost(currentTier))}</span>
+                  </div>
+                  <Separator />
+                  <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Tu plan incluye hasta <span className="font-semibold text-foreground">{currentTier} productos</span> activos.
+                    </p>
+                    <a
+                      href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? ''}?text=${encodeURIComponent('Hola! Necesito ampliar el cupo de productos de mi tienda en KitDigital.')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      ¿Necesitás más productos? Escribinos
+                    </a>
                   </div>
                 </CardContent>
               </Card>
@@ -255,6 +272,49 @@ export function BillingPanel() {
               )}
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="capacidad" className="pt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Cupos y precios de referencia</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                El plan self-serve incluye hasta 100 productos por $20.000/mes. Para mayor capacidad, coordiná con soporte.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left pb-3 font-medium text-muted-foreground">Hasta N productos</th>
+                      <th className="text-right pb-3 font-medium text-muted-foreground">Precio/mes (ARS)</th>
+                      <th className="text-right pb-3 font-medium text-muted-foreground">Cómo activar</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {COMMERCIAL_TIERS.map((tier) => (
+                      <tr key={tier.max_products} className={tier.max_products === currentTier ? 'bg-primary/5' : ''}>
+                        <td className="py-3 font-medium">
+                          {tier.max_products}
+                          {tier.max_products === currentTier && (
+                            <span className="ml-2 text-xs text-primary font-normal">← tu plan</span>
+                          )}
+                        </td>
+                        <td className="py-3 text-right tabular-nums">{formatARS(tier.price_cents)}</td>
+                        <td className="py-3 text-right text-muted-foreground text-xs">
+                          {tier.max_products === 100 ? 'Self-serve' : 'Con soporte'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-muted-foreground mt-4">
+                Los precios de la tabla son de referencia. El cobro real corresponde al monto de tu suscripción vigente en Mercado Pago.
+              </p>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="modulos" className="pt-6">

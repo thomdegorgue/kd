@@ -132,6 +132,16 @@ export async function executor<T = unknown>(
       const current = await handler.limits.countQuery(store_id)
 
       if (current >= maxAllowed) {
+        if (limitField === 'max_products') {
+          const whatsapp = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER
+          const contactMsg = whatsapp
+            ? `Escribinos al ${whatsapp}`
+            : 'Contactá soporte en info@kitdigital.ar'
+          return makeError(
+            'PRODUCT_LIMIT_REACHED',
+            `Alcanzaste el límite de ${maxAllowed} productos de tu plan. ¿Necesitás más capacidad? ${contactMsg}`
+          )
+        }
         return makeError(
           'LIMIT_EXCEEDED',
           `Límite de ${limitField} alcanzado (${current}/${maxAllowed})`

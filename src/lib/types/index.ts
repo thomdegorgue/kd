@@ -88,6 +88,7 @@ export type ActionResult<T = unknown> =
 export type ErrorCode =
   | 'MODULE_INACTIVE'
   | 'LIMIT_EXCEEDED'
+  | 'PRODUCT_LIMIT_REACHED'
   | 'NOT_FOUND'
   | 'UNAUTHORIZED'
   | 'INVALID_INPUT'
