@@ -281,14 +281,15 @@ function BillingBanner() {
     )
   }
 
-  if (status === 'demo' && billing.trial_ends_at) {
+  if (status === 'demo') {
     return (
       <Link
-        href="/admin/billing"
-        className="flex items-center justify-center gap-2 bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 font-medium hover:bg-amber-100 transition-colors"
+        href="/onboarding/payment"
+        className="flex items-center justify-center gap-2 bg-primary/5 border-b border-primary/20 px-4 py-2 text-xs text-primary font-medium hover:bg-primary/10 transition-colors"
       >
         <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-        Estás en el período de prueba. Activá tu plan para seguir vendiendo →
+        Modo demostración — Tu tienda es de solo lectura.{' '}
+        <span className="underline underline-offset-2">Adquirí tu plan desde $20.000/mes →</span>
       </Link>
     )
   }

@@ -32,7 +32,8 @@ async function resolveSlug(request: NextRequest): Promise<string | null> {
       segments[0] === 'invite' ||
       segments[0] === 'auth' ||
       segments[0] === 'onboarding' ||
-      segments[0] === 'design'
+      segments[0] === 'design' ||
+      segments[0] === 'demo'
     ) {
       return null
     }
@@ -125,6 +126,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/auth') ||
     pathname.startsWith('/invite') ||
     pathname.startsWith('/design') ||
+    pathname.startsWith('/demo') ||
     pathname.startsWith('/api/')
   ) {
     return NextResponse.next()
@@ -210,12 +212,6 @@ export async function middleware(request: NextRequest) {
     }
 
     const store = storeUser.store
-
-    // Bloquear acceso al admin para tiendas sin pago activo
-    const billingStatus = store.billing_status ?? store.status
-    if (billingStatus === 'demo' || billingStatus === 'pending_payment') {
-      return NextResponse.redirect(new URL('/onboarding/payment', request.url))
-    }
 
     // Construir StoreContext e inyectarlo en headers
     const storeContext: StoreContext = {

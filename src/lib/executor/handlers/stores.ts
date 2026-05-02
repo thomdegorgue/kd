@@ -72,6 +72,7 @@ export async function createStore(input: CreateStoreInput): Promise<ActionResult
       modules,
       limits: { max_products: (plan.trial_max_products as number | null) ?? 100, max_orders: 100, ai_tokens: 0 },
       config: { onboarding: { completed: false } },
+      trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
     })
     .select('id, slug')
     .single()

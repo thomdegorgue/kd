@@ -1,7 +1,6 @@
 'use client'
 
 import { useActionState, useRef, useState } from 'react'
-import Link from 'next/link'
 import { Loader2, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -102,12 +101,12 @@ export function LogoStepClient({ storeId }: { storeId: string }) {
             </div>
 
             <div className="flex gap-3">
-              <Button render={<Link href="/onboarding/payment" />} variant="ghost" className="flex-1">
+              <Button type="submit" variant="ghost" className="flex-1" disabled={pending}>
                 Omitir
               </Button>
               <Button type="submit" className="flex-1" disabled={pending}>
                 {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Continuar
+                {pending ? 'Creando tu tienda…' : 'Continuar'}
               </Button>
             </div>
           </form>

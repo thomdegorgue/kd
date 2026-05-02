@@ -18,7 +18,7 @@ function makeError(
 
 // Statuses que permiten operaciones de escritura
 // Statuses que permiten solo lectura (GET, LIST)
-const READ_ONLY: StoreStatus[] = ['past_due']
+const READ_ONLY: StoreStatus[] = ['past_due', 'demo']
 // Nombres de acciones de solo lectura
 const READ_ACTION_PREFIXES = ['get_', 'list_', '__test_']
 

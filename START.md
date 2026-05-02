@@ -350,7 +350,7 @@ Checklist cuando un cliente pide más cupo:
 
 ---
 
-### FASE 2 — Flujo Demo + Onboarding IA (≈ 12 horas)
+### FASE 2 — Flujo Demo + Onboarding IA (≈ 12 horas) ✅ COMPLETADA
 
 **Objetivo:** el comerciante puede probar la plataforma sin pagar. Al completar el onboarding, OpenAI crea 1 producto + 1 categoría personalizados. La tienda queda en `/demo/{slug}` con efecto WOW.
 

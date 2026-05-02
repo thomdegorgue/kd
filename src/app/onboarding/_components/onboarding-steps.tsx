@@ -1,6 +1,6 @@
 'use client'
 
-const STEPS = ['Tu tienda', 'Diseño', 'Plan', '¡Listo!']
+const STEPS = ['Tu tienda', 'Diseño', '¡Listo!']
 
 export function OnboardingSteps({ current }: { current: number }) {
   const percent = Math.round((current / (STEPS.length - 1)) * 100)

@@ -7,6 +7,7 @@ import type { ActionResult } from '@/lib/types'
 import { z } from 'zod'
 import { createCheckoutPreference } from '@/lib/billing/mercadopago'
 import { calculateAnnualPrice, computeMonthlyTotal } from '@/lib/billing/calculator'
+import { generateOnboardingContent } from '@/lib/actions/ai-onboarding'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
@@ -43,6 +44,7 @@ function slugify(text: string): string {
 
 const step1Schema = z.object({
   name: z.string().min(2, 'Nombre mínimo 2 caracteres').max(100),
+  description: z.string().min(10, 'Contanos de qué trata tu negocio (mín. 10 caracteres)').max(500),
   whatsapp: z
     .string()
     .regex(/^\d{10,15}$/, 'WhatsApp: solo números (10-15 dígitos, sin +)')
@@ -56,6 +58,7 @@ export async function onboardingStep1(
 ): Promise<ActionResult> {
   const raw = {
     name: formData.get('name'),
+    description: formData.get('description'),
     whatsapp: formData.get('whatsapp') || undefined,
   }
   const parsed = step1Schema.safeParse(raw)
@@ -84,7 +87,7 @@ export async function onboardingStep1(
     }
   }
 
-  const update: Record<string, unknown> = { name: parsed.data.name, slug }
+  const update: Record<string, unknown> = { name: parsed.data.name, slug, description: parsed.data.description }
   if (parsed.data.whatsapp) update.whatsapp = parsed.data.whatsapp
 
   const { error } = await db.from('stores').update(update).eq('id', storeId)
@@ -105,12 +108,13 @@ export async function onboardingStep2(
   const storeId = await getOnboardingStoreId()
   if (!storeId) redirect('/auth/login')
 
+  const { data: store } = await db.from('stores').select('config, slug').eq('id', storeId).single()
+  const currentConfig = (store as { config?: Record<string, unknown>; slug?: string } | null)?.config ?? {}
+  const slug = (store as { slug?: string } | null)?.slug ?? storeId
+
   const update: Record<string, unknown> = {}
   if (logoUrl) update.logo_url = logoUrl
-
   if (primaryColor) {
-    const { data: store } = await db.from('stores').select('config').eq('id', storeId).single()
-    const currentConfig = (store as { config?: Record<string, unknown> } | null)?.config ?? {}
     update.config = { ...currentConfig, primary_color: primaryColor }
   }
 
@@ -119,7 +123,10 @@ export async function onboardingStep2(
     if (error) return { success: false, error: { code: 'SYSTEM_ERROR', message: error.message } }
   }
 
-  redirect('/onboarding/payment')
+  // Generar contenido IA (idempotente, fallback incluido, máx ~12s)
+  await generateOnboardingContent(storeId)
+
+  redirect(`/demo/${slug}`)
 }
 
 // ── step3: módulos ───────────────────────────────────────────

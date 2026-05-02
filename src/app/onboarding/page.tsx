@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { onboardingStep1 } from '@/lib/actions/onboarding'
 import { OnboardingSteps } from './_components/onboarding-steps'
@@ -17,7 +18,7 @@ function slugify(text: string) {
   return text
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9\s-]/g, '')
     .trim()
     .replace(/\s+/g, '-')
@@ -40,7 +41,7 @@ export default function OnboardingPage() {
         <CardHeader>
           <CardTitle>¿Cómo se llama tu negocio?</CardTitle>
           <CardDescription>
-            Esto va a ser la dirección de tu catálogo. Podés cambiarlo después.
+            Contanos un poco sobre lo que vendés para armar tu catálogo automáticamente.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -70,6 +71,21 @@ export default function OnboardingPage() {
                   </span>
                 </p>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">¿Qué vendés?</Label>
+              <Textarea
+                id="description"
+                name="description"
+                placeholder="Ej: Vendo ropa de mujer, principalmente vestidos y blusas de temporada. Trabajo con talles del S al XXL."
+                rows={3}
+                required
+              />
+              {fieldError('description') && <p className="text-xs text-destructive">{fieldError('description')}</p>}
+              <p className="text-xs text-muted-foreground">
+                Usamos esto para crear tu primer producto automáticamente.
+              </p>
             </div>
 
             <div className="space-y-2">
