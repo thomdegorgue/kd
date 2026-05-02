@@ -268,21 +268,21 @@ if (storeCheck?.mp_subscription_id) {
 
 **Objetivo:** el producto puede venderse sin bugs visibles.
 
-- [ ] **F0-1** Fix precio hero en `src/components/admin/billing-panel.tsx:118`
+- [x] **F0-1** Fix precio hero en `src/components/admin/billing-panel.tsx:118`
   - Reemplazar `max_products * 200000` por `Math.ceil(currentTier / 100) * 2_000_000`
   - Extraer helper `getTierBaseCost(maxProducts: number): number` en `calculator.ts` para no duplicar
 
-- [ ] **F0-2** Mover `checkout` al pack `operations` en `src/lib/billing/packs.ts`
+- [x] **F0-2** Mover `checkout` al pack `operations` en `src/lib/billing/packs.ts`
   - Agregar `'checkout'` al array `modules` del pack `operations`
   - Verificar que el executor y la UI de packs reflejan el cambio
 
-- [ ] **F0-3** Fix doble cobro mensual → anual (incluye “FASE 3” antigua)
+- [x] **F0-3** Fix doble cobro mensual → anual (incluye “FASE 3” antigua)
   - Modificar `createAnnualSubscription` en `src/lib/actions/billing.ts` (ver BUG-3 arriba)
   - Webhook `route.ts`, rama pago anual aprobado: si `stores.mp_subscription_id` sigue seteado, `cancelPreapproval` + limpiar columna
   - Opcional: `emitEvent` `billing_period_changed_to_annual` para auditoría
   - Verificar `changeTier` sigue cancelando preapproval previa; log si falla
 
-- [ ] **F0-4** Limpieza de archivos legacy
+- [x] **F0-4** Limpieza de archivos legacy
   - Eliminar `src/components/admin/admin-layout.tsx` (121 LOC, 0 imports reales)
   - Eliminar `src/components/admin/superadmin-layout.tsx` (0 imports)
   - Eliminar directorio `echo/` si existe (vacío)
@@ -290,7 +290,7 @@ if (storeCheck?.mp_subscription_id) {
   - Quitar `NEXT_PUBLIC_SLOTS_AVAILABLE` de `.env.example` (ya viene de DB)
   - Quitar `SUPERADMIN_ALLOWED_IPS` de README (no implementado en código)
 
-- [ ] **F0-5** Unificar precio base en UI (hero + resumen)
+- [x] **F0-5** Unificar precio base en UI (hero + resumen)
   - Extraer helper p. ej. `getSelfServeBaseMonthlyCents()` = `2_000_000` o leer `plans.price_per_100_products` mientras siga alineado a $20k/100
   - Usar en `billing-panel.tsx:118` y en la card de resumen (eliminar `max_products * 200000`)
 

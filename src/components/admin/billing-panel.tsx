@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PackCard } from '@/components/admin/pack-card'
 import { ModuleToggleList } from '@/components/admin/module-toggle-list'
 import { PACKS, computePackTotal } from '@/lib/billing/packs'
-import { formatARS } from '@/lib/billing/calculator'
+import { formatARS, getTierBaseCost } from '@/lib/billing/calculator'
 import {
   useBilling,
   useCancelSubscription,
@@ -115,7 +115,7 @@ export function BillingPanel() {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-1">Costo mensual</p>
-              <p className="text-4xl font-bold">{formatARS(packPricing.total + (billing.limits as Record<string, number>).max_products * 200000)}</p>
+              <p className="text-4xl font-bold">{formatARS(packPricing.total + getTierBaseCost(currentTier))}</p>
             </div>
             <div>
               <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-1">Próximo cobro</p>
@@ -177,7 +177,7 @@ export function BillingPanel() {
                 <CardContent className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Tier de productos ({currentTier})</span>
-                    <span className="font-medium">{formatARS((Math.ceil(currentTier / 100) * 2000000))}</span>
+                    <span className="font-medium">{formatARS(getTierBaseCost(currentTier))}</span>
                   </div>
                   {activePackIds.filter(p => p !== 'core').map(packId => (
                     <div key={packId} className="flex justify-between text-sm">
@@ -194,7 +194,7 @@ export function BillingPanel() {
                   <Separator />
                   <div className="flex justify-between items-center pt-2">
                     <span className="font-semibold">Total mensual</span>
-                    <span className="text-2xl font-bold">{formatARS(packPricing.total + (Math.ceil(currentTier / 100) * 2000000))}</span>
+                    <span className="text-2xl font-bold">{formatARS(packPricing.total + getTierBaseCost(currentTier))}</span>
                   </div>
                 </CardContent>
               </Card>

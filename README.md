@@ -16,7 +16,7 @@ SaaS multitenant modular para catálogos digitales + carrito WhatsApp, mobile-fi
 - Deploy: Vercel
 
 ## Navegación del Repo
-- Guía de saneamiento y pasos por fases: `fixes.md`
+- Guía maestra de desarrollo y fases: `START.md`
 - Schema idempotente para Supabase SQL Editor: `schema.sql`
 
 ## Comandos útiles
@@ -44,7 +44,6 @@ pnpm lint
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash |
 | `OPENAI_API_KEY` | OpenAI |
 | `RESEND_API_KEY` | Resend (email transaccional) |
-| `SUPERADMIN_ALLOWED_IPS` | Opcional: IPs permitidas para `/superadmin/*` (lista separada por comas) |
 | `NEXT_PUBLIC_APP_URL` | App |
 | `NEXT_PUBLIC_APP_DOMAIN` | App (ej: kitdigital.ar) |
 
@@ -57,7 +56,7 @@ pnpm lint
 - **Panel de gestión**: Panel
 
 ## Estado Actual
-Ver `fixes.md` para el plan de trabajo actualizado.
+Ver `START.md` para el plan de trabajo actualizado.
 
 ## Licencia
 

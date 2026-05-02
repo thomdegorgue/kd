@@ -243,12 +243,21 @@ export async function createAnnualSubscription(
     // Guardar tier deseado para que el webhook lo aplique al confirmar
     const { data: storeData } = await db
       .from('stores')
-      .select('limits, config')
+      .select('limits, config, mp_subscription_id')
       .eq('id', ctx.store_id)
       .single()
 
     const currentLimits = (storeData?.limits as Record<string, number>) ?? {}
     const currentConfig = (storeData?.config as Record<string, unknown>) ?? {}
+    const existingSubId = (storeData as { mp_subscription_id?: string | null })?.mp_subscription_id
+
+    // Cancelar preapproval mensual activa antes de crear el checkout anual
+    if (existingSubId) {
+      await cancelPreapproval(existingSubId).catch((e) =>
+        console.warn('[billing] No se pudo cancelar preapproval al migrar a anual:', e)
+      )
+      await db.from('stores').update({ mp_subscription_id: null }).eq('id', ctx.store_id)
+    }
 
     await db
       .from('stores')

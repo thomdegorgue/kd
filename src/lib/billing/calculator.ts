@@ -121,3 +121,8 @@ export function formatARS(centavos: number): string {
 export function centavosToARS(centavos: number): number {
   return centavos / 100
 }
+
+/** Costo base del tier self-serve en centavos ARS. $20.000/mes por hasta 100 productos. */
+export function getTierBaseCost(maxProducts: number): number {
+  return Math.ceil(maxProducts / 100) * 2_000_000
+}

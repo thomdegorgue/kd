@@ -38,7 +38,7 @@ WHERE n.nspname = 'public'
   )
 ORDER BY c.relname;
 
--- Policies críticas de escritura esperadas (según fixes.md)
+-- Policies críticas de escritura esperadas
 SELECT schemaname, tablename, policyname, roles, cmd
 FROM pg_policies
 WHERE schemaname = 'public'

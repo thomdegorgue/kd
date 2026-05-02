@@ -27,7 +27,7 @@ export const PACKS: readonly Pack[] = [
     id: 'operations',
     label: 'Operaciones Pro',
     description: 'Stock, envíos con tracking, variantes (talles/colores) y registro de pagos.',
-    modules: ['stock', 'shipping', 'variants', 'payments'],
+    modules: ['stock', 'shipping', 'variants', 'payments', 'checkout'],
     price_cents: 1_000_000, // $10.000
     is_paid: true,
     is_featured: false,

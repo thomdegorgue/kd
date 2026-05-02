@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
 import { verifyWebhookSignature } from '@/lib/billing/verify-signature'
-import { getPreapproval, getPayment } from '@/lib/billing/mercadopago'
+import { getPreapproval, getPayment, cancelPreapproval } from '@/lib/billing/mercadopago'
 import { ANNUAL_INCLUDED_PRO_MODULES } from '@/lib/billing/calculator'
 import { packsToModules, type PackId } from '@/lib/billing/packs'
 import { sendEmail } from '@/lib/email/resend'
@@ -240,7 +240,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
                 const { data: storeData } = await db
                   .from('stores')
-                  .select('modules')
+                  .select('modules, mp_subscription_id')
                   .eq('id', storeId)
                   .single()
 
@@ -249,10 +249,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                   currentModules[m] = true
                 }
 
+                // Defensa de race: cancelar preapproval mensual si aún queda activa
+                const remainingSubId = (storeData as { mp_subscription_id?: string | null })?.mp_subscription_id
+                if (remainingSubId) {
+                  await cancelPreapproval(remainingSubId).catch((e) =>
+                    console.warn('[webhook] No se pudo cancelar preapproval huérfana al activar anual:', e)
+                  )
+                }
+
                 await db.from('stores').update({
                   billing_status: 'active',
                   billing_period: 'annual',
                   annual_paid_until: paidUntil.toISOString().slice(0, 10),
+                  mp_subscription_id: null,
                   modules: currentModules,
                   last_billing_failure_at: null,
                 }).eq('id', storeId)
