@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Search,
   Plus,
@@ -13,6 +13,9 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Truck,
+  ChevronsUpDown,
+  Check,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,11 +29,15 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { Command, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useProducts } from '@/lib/hooks/use-products'
 import { useCreateSale, useDailySalesSummary, useSalesHistory } from '@/lib/hooks/use-sales'
 import { useSavingsAccounts } from '@/lib/hooks/use-savings'
+import { useCustomers, useCreateCustomer } from '@/lib/hooks/use-customers'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import { useCurrency } from '@/lib/hooks/use-currency'
+import { cn } from '@/lib/utils'
 import type { SalePaymentMethod, CreateSaleInput } from '@/lib/validations/sale'
 
 // ── Types ────────────────────────────────────────────────────
@@ -451,7 +458,16 @@ export default function VentasPage() {
   // Customer
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
   const [showCustomer, setShowCustomer] = useState(false)
+  const [customerSearchOpen, setCustomerSearchOpen] = useState(false)
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('')
+
+  // Shipping
+  const [showShipping, setShowShipping] = useState(false)
+  const [shippingAddress, setShippingAddress] = useState('')
+  const [deliveryDate, setDeliveryDate] = useState('')
+  const [shippingNotes, setShippingNotes] = useState('')
 
   // Payment
   const [paymentMethod, setPaymentMethod] = useState<SalePaymentMethod>('cash')
@@ -462,8 +478,15 @@ export default function VentasPage() {
   const [successSale, setSuccessSale] = useState<SaleResult | null>(null)
 
   const debouncedSearch = useDebounce(searchQuery, 300)
+  const debouncedCustomerSearch = useDebounce(customerSearchQuery, 300)
   const { mutate: createSale, isPending } = useCreateSale()
+  const { mutateAsync: createCustomerAsync, isPending: isCreatingCustomer } = useCreateCustomer()
   const { data: savingsAccounts } = useSavingsAccounts()
+  const { data: customersData } = useCustomers({ search: debouncedCustomerSearch, pageSize: 5 })
+
+  const customers = useMemo(() => {
+    return ((customersData?.items ?? []) as { id: string; name: string; phone: string | null; savings_accounts?: { id: string; name: string }[] }[])
+  }, [customersData])
 
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0)
   const discountAmount =
@@ -505,14 +528,26 @@ export default function VentasPage() {
     setDiscountValue(0)
     setCustomerName('')
     setCustomerPhone('')
+    setSelectedCustomerId(null)
     setNotes('')
     setPaymentMethod('cash')
     setSavingsAccountId('')
     setShowCustomer(false)
+    setShowShipping(false)
+    setShippingAddress('')
+    setDeliveryDate('')
+    setShippingNotes('')
+    setCustomerSearchQuery('')
   }, [])
 
   const handleConfirm = () => {
     if (cart.length === 0) return
+
+    const shippingPart = shippingAddress.trim()
+      ? `Envío: ${shippingAddress}${deliveryDate ? ` · Entrega: ${deliveryDate}` : ''}${shippingNotes ? ` · ${shippingNotes}` : ''}`
+      : ''
+
+    const combinedNotes = [notes.trim(), shippingPart].filter(Boolean).join(' | ')
 
     const input: CreateSaleInput = {
       items: cart.map((item) => ({
@@ -526,8 +561,9 @@ export default function VentasPage() {
       discount_amount: discountAmount,
       ...(customerName.trim() ? { customer_name: customerName.trim() } : {}),
       ...(customerPhone.trim() ? { customer_phone: customerPhone.trim() } : {}),
+      ...(selectedCustomerId ? { customer_id: selectedCustomerId } : {}),
       ...(paymentMethod === 'savings' && savingsAccountId ? { savings_account_id: savingsAccountId } : {}),
-      ...(notes.trim() ? { notes: notes.trim() } : {}),
+      ...(combinedNotes ? { notes: combinedNotes } : {}),
     }
 
     createSale(input, {
@@ -647,16 +683,149 @@ export default function VentasPage() {
         </button>
         {showCustomer && (
           <div className="px-4 pb-4 space-y-2 border-t pt-3">
-            <Input
-              placeholder="Nombre del cliente"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              className="h-8 text-sm"
-            />
+            {/* Customer autocomplete */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Nombre</Label>
+              <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
+                <PopoverTrigger>
+                  <button
+                    className="w-full h-8 px-3 py-2 text-sm border border-input rounded-md bg-background hover:bg-accent text-foreground flex items-center justify-between"
+                  >
+                    {customerName || 'Buscar cliente...'}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[250px] p-0" align="start">
+                  <Command>
+                    <div className="p-2 border-b">
+                      <Input
+                        placeholder="Buscar cliente..."
+                        value={customerSearchQuery}
+                        onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                        className="h-8"
+                      />
+                    </div>
+                    <CommandEmpty>
+                      {customerSearchQuery.trim()
+                        ? 'Sin coincidencias'
+                        : 'Escribí para buscar clientes existentes'}
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {customers.map((customer) => (
+                        <CommandItem
+                          key={customer.id}
+                          value={customer.name}
+                          onSelect={() => {
+                            setCustomerName(customer.name)
+                            setCustomerPhone(customer.phone || '')
+                            setSelectedCustomerId(customer.id)
+                            // Auto-select linked savings account
+                            const linked = customer.savings_accounts?.[0]
+                            if (linked && paymentMethod === 'savings') {
+                              setSavingsAccountId(linked.id)
+                            }
+                            setCustomerSearchOpen(false)
+                            setCustomerSearchQuery('')
+                          }}
+                          className="text-xs h-7"
+                        >
+                          <Check
+                            className={cn(
+                              'mr-2 h-3 w-3',
+                              selectedCustomerId === customer.id ? 'opacity-100' : 'opacity-0',
+                            )}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="truncate">{customer.name}</p>
+                            {customer.phone && (
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                {customer.phone}
+                              </p>
+                            )}
+                          </div>
+                        </CommandItem>
+                      ))}
+                      {customerSearchQuery.trim() && customers.every(c => c.name.toLowerCase() !== customerSearchQuery.trim().toLowerCase()) && (
+                        <CommandItem
+                          value={`__create__${customerSearchQuery}`}
+                          onSelect={async () => {
+                            const newCustomer = await createCustomerAsync({
+                              name: customerSearchQuery.trim(),
+                              phone: customerPhone.trim() || undefined,
+                            })
+                            setCustomerName(newCustomer.name)
+                            setSelectedCustomerId(newCustomer.id)
+                            setCustomerSearchOpen(false)
+                            setCustomerSearchQuery('')
+                          }}
+                          className="text-xs h-7"
+                          disabled={isCreatingCustomer}
+                        >
+                          <Plus className="mr-2 h-3 w-3" />
+                          Crear &quot;{customerSearchQuery.trim()}&quot;
+                        </CommandItem>
+                      )}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
             <Input
               placeholder="Teléfono (opcional)"
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Shipping (collapsible) */}
+      <div className="rounded-lg border">
+        <button
+          type="button"
+          onClick={() => setShowShipping((v) => !v)}
+          className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium"
+        >
+          <span className="flex items-center gap-2">
+            <Truck className="h-4 w-4 text-muted-foreground" />
+            Envío
+          </span>
+          <span className="flex items-center gap-2">
+            {shippingAddress && (
+              <span className="text-xs text-muted-foreground font-normal truncate max-w-[140px]">
+                {shippingAddress}
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground font-normal">Opcional</span>
+            {showShipping ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+          </span>
+        </button>
+        {showShipping && (
+          <div className="px-4 pb-4 space-y-2 border-t pt-3">
+            <Input
+              placeholder="Dirección de entrega"
+              value={shippingAddress}
+              onChange={(e) => setShippingAddress(e.target.value)}
+              className="h-8 text-sm"
+            />
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Fecha de entrega (opcional)</label>
+              <Input
+                type="date"
+                value={deliveryDate}
+                onChange={(e) => setDeliveryDate(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+            <Input
+              placeholder="Notas de envío (opcional)"
+              value={shippingNotes}
+              onChange={(e) => setShippingNotes(e.target.value)}
               className="h-8 text-sm"
             />
           </div>

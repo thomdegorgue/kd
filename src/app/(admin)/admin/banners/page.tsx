@@ -115,12 +115,11 @@ function SortableItem({
             <p className="text-sm font-semibold truncate">{banner.title || '(sin título)'}</p>
             {banner.subtitle && <p className="text-xs text-muted-foreground line-clamp-1">{banner.subtitle}</p>}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
             <Switch
               checked={banner.is_active}
-              onCheckedChange={() => onEdit() /* abre sheet para editar; toggle vive ahí */}
+              onCheckedChange={() => onEdit()}
               aria-label="Editar estado"
-              className="opacity-0 pointer-events-none"
             />
           </div>
         </div>
@@ -156,6 +155,9 @@ export default function BannersPage() {
   )
 
   const items = (banners ?? []) as BannerRow[]
+  const filtered = items.filter((b) =>
+    !search.trim() || b.title?.toLowerCase().includes(search.toLowerCase())
+  )
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -260,7 +262,7 @@ export default function BannersPage() {
               </div>
             ))}
           </div>
-        ) : items.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <EmptyState
             icon={<LayoutGrid className="h-12 w-12" />}
             title="Sin banners"
@@ -274,9 +276,9 @@ export default function BannersPage() {
           />
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={items.map((b) => b.id)} strategy={rectSortingStrategy}>
+            <SortableContext items={filtered.map((b) => b.id)} strategy={rectSortingStrategy}>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {items.map((banner) => (
+                {filtered.map((banner) => (
                   <SortableItem
                     key={banner.id}
                     banner={banner}

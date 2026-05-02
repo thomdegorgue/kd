@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { MessageCircle, CheckCircle2, Circle, XCircle, Search, Trash2, Plus } from 'lucide-react'
+import { MessageCircle, CheckCircle2, Circle, XCircle, Search, Trash2, Plus, Copy, Link2 } from 'lucide-react'
 import {
   Sheet,
   SheetContent,
@@ -28,10 +28,12 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useOrder, useUpdateOrderStatus, useCancelOrder, useCreateOrder } from '@/lib/hooks/use-orders'
 import { useCurrency } from '@/lib/hooks/use-currency'
+import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import type { OrderStatus } from '@/lib/types'
 import { useProducts } from '@/lib/hooks/use-products'
 import { useDebounce } from '@/lib/hooks/use-debounce'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -60,6 +62,7 @@ type OrderSheetProps = {
 
 export function OrderSheet({ id, open, onOpenChange }: OrderSheetProps) {
   const router = useRouter()
+  const { slug } = useAdminContext()
   const isCreate = !id
   const { data: order, isLoading } = useOrder(id ?? '')
   const updateStatus = useUpdateOrderStatus()
@@ -432,6 +435,43 @@ export function OrderSheet({ id, open, onOpenChange }: OrderSheetProps) {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* Tracking link */}
+        {!isLoading && id && (
+          <div className="px-6 py-3 border-t shrink-0">
+            <div className="flex items-center gap-2">
+              <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground flex-1 truncate min-w-0">
+                {`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/${slug}/tracking/${id}`}
+              </span>
+              <button
+                type="button"
+                aria-label="Copiar link de seguimiento"
+                onClick={() => {
+                  const url = `${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/${slug}/tracking/${id}`
+                  navigator.clipboard.writeText(url)
+                  toast.success('Link copiado')
+                }}
+                className="shrink-0 p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </button>
+              {customer?.phone && (
+                <a
+                  href={`https://wa.me/${customer.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
+                    `Hola ${customer.name}, podés seguir tu pedido aquí: ${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/${slug}/tracking/${id}`
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Enviar link por WhatsApp"
+                  className="shrink-0 p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <MessageCircle className="h-3.5 w-3.5 text-green-600" />
+                </a>
+              )}
+            </div>
           </div>
         )}
 

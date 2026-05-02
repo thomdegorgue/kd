@@ -1,6 +1,6 @@
 import { registerHandler } from '../registry'
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
-import { createExpenseSchema, updateExpenseSchema } from '@/lib/validations/expense'
+import { createExpenseSchema, updateExpenseSchema, DEFAULT_EXPENSE_CATEGORIES } from '@/lib/validations/expense'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
@@ -166,5 +166,79 @@ registerHandler({
 
     if (error) throw new Error(error.message)
     return { deleted: true }
+  },
+})
+
+// ── get_expense_categories ──────────────────────────────────
+
+registerHandler({
+  name: 'get_expense_categories',
+  requires: ['expenses'],
+  permissions: ['owner', 'admin', 'collaborator'],
+  event_type: null,
+  invalidates: [],
+  validate: () => ({ valid: true }),
+  execute: async (input, context) => {
+    const { data, error } = await db
+      .from('stores')
+      .select('config')
+      .eq('id', context.store_id)
+      .single()
+
+    if (error) throw new Error(error.message)
+    if (!data) throw new Error('Tienda no encontrada')
+
+    const config = data.config ?? {}
+    let categories = config.expense_categories as string[] | undefined
+
+    // Inicializar con categorías por defecto si no existen
+    if (!categories || !Array.isArray(categories)) {
+      categories = Array.from(DEFAULT_EXPENSE_CATEGORIES)
+    }
+
+    return { expense_categories: categories }
+  },
+})
+
+// ── update_expense_categories ────────────────────────────────
+
+registerHandler({
+  name: 'update_expense_categories',
+  requires: ['expenses'],
+  permissions: ['owner', 'admin'],
+  event_type: null,
+  invalidates: ['expense_categories:{store_id}'],
+  validate: (input) => {
+    const { categories } = input as { categories?: unknown }
+    if (!Array.isArray(categories)) {
+      return { valid: false, code: 'INVALID_INPUT', message: 'categories debe ser un array' }
+    }
+    if (!categories.every((c) => typeof c === 'string' && c.length > 0)) {
+      return { valid: false, code: 'INVALID_INPUT', message: 'Todas las categorías deben ser strings no vacíos' }
+    }
+    return { valid: true }
+  },
+  execute: async (input, context) => {
+    const { categories } = input as { categories: string[] }
+    const deduped = Array.from(new Set(categories))
+
+    const { data, error } = await db
+      .from('stores')
+      .select('config')
+      .eq('id', context.store_id)
+      .single()
+
+    if (error) throw new Error(error.message)
+
+    const config = data?.config ?? {}
+    const updated = await db
+      .from('stores')
+      .update({ config: { ...config, expense_categories: deduped } })
+      .eq('id', context.store_id)
+      .select()
+      .single()
+
+    if (updated.error) throw new Error(updated.error.message)
+    return { expense_categories: deduped }
   },
 })

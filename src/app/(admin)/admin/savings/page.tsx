@@ -67,7 +67,7 @@ export default function SavingsPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null)
 
   const { data: accounts = [], isLoading } = useSavingsAccounts()
-  const { data: movements = [] } = useSavingsMovements(selectedAccountId ?? undefined)
+  const { data: movements = [] } = useSavingsMovements(selectedAccountId || undefined)
   const createAccountMutation = useCreateSavingsAccount()
   const createMovementMutation = useCreateSavingsMovement()
   const { formatPrice } = useCurrency()

@@ -40,3 +40,11 @@ export async function updateExpense(input: UpdateExpenseInput) {
 export async function deleteExpense(id: string) {
   return executeAction<{ deleted: boolean }>('delete_expense', { id })
 }
+
+export async function getExpenseCategories() {
+  return executeAction<{ expense_categories: string[] }>('get_expense_categories', {})
+}
+
+export async function updateExpenseCategories(categories: string[]) {
+  return executeAction<{ expense_categories: string[] }>('update_expense_categories', { categories })
+}

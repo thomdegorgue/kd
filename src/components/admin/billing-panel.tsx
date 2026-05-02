@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PackCard } from '@/components/admin/pack-card'
+import { ModuleToggleList } from '@/components/admin/module-toggle-list'
 import { PACKS, computePackTotal } from '@/lib/billing/packs'
 import { formatARS } from '@/lib/billing/calculator'
 import {
@@ -136,13 +137,14 @@ export function BillingPanel() {
       </div>
 
       {/* TABS */}
-      <Tabs defaultValue="packs" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="packs">Packs</TabsTrigger>
+      <Tabs defaultValue="plan" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="plan">Mi plan</TabsTrigger>
+          <TabsTrigger value="modulos">Módulos</TabsTrigger>
           <TabsTrigger value="historial">Historial</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="packs" className="space-y-6 pt-6">
+        <TabsContent value="plan" className="space-y-6 pt-6">
           {/* PACKS GRID */}
           <div>
             <h3 className="text-lg font-semibold mb-4">Elige tus módulos</h3>
@@ -253,6 +255,10 @@ export function BillingPanel() {
               )}
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="modulos" className="pt-6">
+          <ModuleToggleList />
         </TabsContent>
 
         <TabsContent value="historial" className="pt-6">

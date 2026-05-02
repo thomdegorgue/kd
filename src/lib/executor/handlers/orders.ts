@@ -29,13 +29,14 @@ registerHandler({
   invalidates: [],
   validate: () => ({ valid: true }),
   execute: async (input, context) => {
-    const { page = 1, pageSize = 50, status, date_from, date_to, search } = input as {
+    const { page = 1, pageSize = 50, status, date_from, date_to, search, customer_id } = input as {
       page?: number
       pageSize?: number
       status?: string
       date_from?: string
       date_to?: string
       search?: string
+      customer_id?: string
     }
 
     const from = (page - 1) * pageSize
@@ -59,6 +60,9 @@ registerHandler({
     }
     if (search) {
       query = query.ilike('customer_name', `%${search}%`)
+    }
+    if (customer_id) {
+      query = query.eq('customer_id', customer_id)
     }
 
     const { data, error, count } = await query
@@ -413,13 +417,13 @@ registerHandler({
       customerId = (newCust as { id: string }).id
     }
 
-    // 4. Insertar order (source='admin', status='confirmed')
+    // 4. Insertar order — status 'pending' si es fiado (savings), 'confirmed' si es pago inmediato
     const { data: order, error: orderError } = await db
       .from('orders')
       .insert({
         store_id: context.store_id,
         customer_id: customerId,
-        status: 'confirmed',
+        status: validated.payment_method === 'savings' ? 'pending' : 'confirmed',
         source: 'admin',
         total,
         notes: validated.notes ?? null,

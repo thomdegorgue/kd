@@ -86,6 +86,35 @@ registerHandler({
   },
 })
 
+// ── create_customer ─────────────────────────────────────────
+
+registerHandler({
+  name: 'create_customer',
+  requires: [],
+  permissions: ['owner', 'admin'],
+  event_type: null,
+  invalidates: ['customers:{store_id}'],
+  validate: (input) => {
+    const { name } = input as { name?: string }
+    if (!name?.trim()) return { valid: false, code: 'INVALID_INPUT', message: 'El nombre es requerido' }
+    return { valid: true }
+  },
+  execute: async (input, context) => {
+    const { name, phone } = input as { name: string; phone?: string }
+    const { data, error } = await db
+      .from('customers')
+      .insert({
+        store_id: context.store_id,
+        name: name.trim(),
+        phone: phone?.trim() ?? null,
+      })
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    return data
+  },
+})
+
 // ── update_customer ─────────────────────────────────────────
 
 registerHandler({

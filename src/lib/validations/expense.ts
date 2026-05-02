@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
-export const EXPENSE_CATEGORIES = [
+// Categorías por defecto (para inicializar stores.config.expense_categories)
+export const DEFAULT_EXPENSE_CATEGORIES = [
   'supplies',
   'rent',
   'services',
@@ -31,7 +32,7 @@ export const RECURRENCE_PERIOD_LABELS: Record<RecurrencePeriod, string> = {
 
 export const createExpenseSchema = z.object({
   amount: z.number().int().min(1, 'El monto debe ser mayor a 0'),
-  category: z.enum(EXPENSE_CATEGORIES),
+  category: z.string().min(1, 'Categoría requerida'),
   description: z.string().min(1, 'La descripción es obligatoria').max(200),
   supplier: z.string().max(100).optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida (YYYY-MM-DD)'),
@@ -45,7 +46,7 @@ export type CreateExpenseInput = z.infer<typeof createExpenseSchema>
 export const updateExpenseSchema = z.object({
   id: z.string().uuid(),
   amount: z.number().int().min(1).optional(),
-  category: z.enum(EXPENSE_CATEGORIES).optional(),
+  category: z.string().min(1).optional(),
   description: z.string().min(1).max(200).optional(),
   supplier: z.string().max(100).optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

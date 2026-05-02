@@ -23,6 +23,8 @@ DELETE FROM events;
 --      customers → orders → order_items, shipments, payments,
 --      finance_entries → expenses,
 --      savings_accounts → savings_movements,
+--      payment_methods,
+--      order_webhook_log,
 --      tasks, assistant_sessions → assistant_messages
 DELETE FROM stores;
 

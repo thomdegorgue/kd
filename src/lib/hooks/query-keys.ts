@@ -45,6 +45,7 @@ export const queryKeys = {
     filters ? ['expenses', storeId, filters] as const : ['expenses', storeId] as const,
   expensesSummary: (storeId: string, dateFrom?: string, dateTo?: string) =>
     ['expenses-summary', storeId, dateFrom, dateTo] as const,
+  expenseCategories: (storeId: string) => ['expense-categories', storeId] as const,
 
   // Tasks
   tasks: (storeId: string, filters?: Record<string, unknown>) =>

@@ -24,3 +24,7 @@ export async function getCustomer(id: string) {
 export async function updateCustomer(input: { id: string; notes?: string | null }) {
   return executeAction<Record<string, unknown>>('update_customer', input)
 }
+
+export async function createCustomer(input: { name: string; phone?: string }) {
+  return executeAction<Record<string, unknown>>('create_customer', input)
+}

@@ -23,6 +23,7 @@ const OrderSheet = dynamic(
   { ssr: false },
 )
 import { useOrders } from '@/lib/hooks/use-orders'
+import { useCustomers } from '@/lib/hooks/use-customers'
 import { useCurrency } from '@/lib/hooks/use-currency'
 import { useDebounce } from '@/lib/hooks/use-debounce'
 import type { OrderStatus } from '@/lib/types'
@@ -35,6 +36,7 @@ export default function OrdersPage() {
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [customerIdFilter, setCustomerIdFilter] = useState<string>('')
   const [page, setPage] = useState(1)
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -42,9 +44,18 @@ export default function OrdersPage() {
   const debouncedSearch = useDebounce(search, 300)
 
   const { data, isLoading } = useOrders(
-    { page, pageSize: 50, status: statusFilter || undefined, search: debouncedSearch || undefined },
+    {
+      page,
+      pageSize: 50,
+      status: statusFilter || undefined,
+      search: debouncedSearch || undefined,
+      customer_id: customerIdFilter || undefined,
+    },
     { pollingMs: 30_000 },
   )
+  const { data: customersData } = useCustomers({ pageSize: 100 })
+  const customerOptions = ((customersData?.items ?? []) as { id: string; name: string; phone: string | null }[])
+    .map((c) => ({ id: c.id, name: c.name, phone: c.phone }))
   const { formatPrice } = useCurrency()
 
   const orders = data?.items ?? []
@@ -78,30 +89,37 @@ export default function OrdersPage() {
   const requestedOrderId = urlEdit ?? null
 
   return (
-    <div className="p-4 sm:p-6 space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Pedidos</h2>
-          <p className="text-sm text-muted-foreground">{total} pedidos</p>
+    <div className="space-y-6">
+      <div className="px-4 sm:px-6 pt-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold">Pedidos</h2>
+            <p className="text-sm text-muted-foreground">{total} pedidos</p>
+          </div>
+          <Link href="/admin/orders?new=1" className={buttonVariants({ size: 'sm' })}>
+            <Plus className="h-4 w-4 mr-1" />
+            Nuevo
+          </Link>
         </div>
-        <Link href="/admin/orders?new=1" className={buttonVariants({ size: 'sm' })}>
-          <Plus className="h-4 w-4 mr-1" />
-          Nuevo
-        </Link>
       </div>
 
-      <EntityToolbar
-        placeholder="Buscar pedidos..."
-        searchValue={search}
-        onSearchChange={(v) => { setSearch(v); setPage(1) }}
-        filterPreset="pedidos"
-        onApplyFilters={(f) => {
-          setStatusFilter(f.pedidosStatus === 'todos' ? '' : (f.pedidosStatus ?? ''))
-          setPage(1)
-        }}
-      />
+      <div className="px-4 sm:px-6">
+        <EntityToolbar
+          placeholder="Buscar pedidos..."
+          searchValue={search}
+          onSearchChange={(v) => { setSearch(v); setPage(1) }}
+          filterPreset="pedidos"
+          customerOptions={customerOptions}
+          onApplyFilters={(f) => {
+            setStatusFilter(f.pedidosStatus === 'todos' ? '' : (f.pedidosStatus ?? ''))
+            setCustomerIdFilter(f.customerId ?? '')
+            setPage(1)
+          }}
+        />
+      </div>
 
-      {isLoading ? (
+      <div className="px-4 sm:px-6 pb-6">
+        {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-12 w-full" />
@@ -224,6 +242,7 @@ export default function OrdersPage() {
           )}
         </>
       )}
+      </div>
 
       <OrderSheet
         id={requestedSheetOpen ? requestedOrderId : selectedOrderId}

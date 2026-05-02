@@ -32,6 +32,7 @@ import {
 import { toast } from 'sonner'
 import { useBilling } from '@/lib/hooks/use-billing'
 import { useStoreConfig } from '@/lib/hooks/use-store-config'
+import { usePendingOrdersCount } from '@/lib/hooks/use-orders'
 import { signOut } from '@/lib/actions/auth'
 
 import { PanelShell, type PanelNavGroup } from '@/components/shared/panel-shell'
@@ -88,7 +89,7 @@ function useActiveKey(): string {
   return 'dashboard'
 }
 
-function buildNav(modules: Partial<Record<ModuleName, boolean>>): PanelNavGroup[] {
+function buildNav(modules: Partial<Record<ModuleName, boolean>>, pendingOrders?: number): PanelNavGroup[] {
   const mod = (name: ModuleName) => modules[name] === true
 
   return [
@@ -97,7 +98,15 @@ function buildNav(modules: Partial<Record<ModuleName, boolean>>): PanelNavGroup[
       items: [
         { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/admin' },
         { key: 'ventas', label: 'Ventas', icon: ShoppingBag, href: '/admin/ventas' },
-        { key: 'orders', label: 'Pedidos', icon: ShoppingCart, href: '/admin/orders' },
+        {
+          key: 'orders',
+          label: 'Pedidos',
+          icon: ShoppingCart,
+          href: '/admin/orders',
+          badge: pendingOrders && pendingOrders > 0
+            ? String(pendingOrders > 99 ? '99+' : pendingOrders)
+            : undefined,
+        },
         { key: 'customers', label: 'Clientes', icon: Users, href: '/admin/customers' },
       ],
     },
@@ -329,7 +338,7 @@ function AdminTopbar({
 // COMPONENTE PRINCIPAL
 // ============================================================
 
-export function AdminShell({
+function AdminShellInner({
   storeContext,
   children,
 }: {
@@ -340,7 +349,8 @@ export function AdminShell({
   const queryClient = useQueryClient()
   const storeId = storeContext.store_id
 
-  const nav = useMemo(() => buildNav(storeContext.modules), [storeContext.modules])
+  const { data: pendingCount = 0 } = usePendingOrdersCount()
+  const nav = useMemo(() => buildNav(storeContext.modules, pendingCount), [storeContext.modules, pendingCount])
 
   // Supabase Realtime — 1 canal unificado para orders, payments y stock
   useEffect(() => {
@@ -383,21 +393,33 @@ export function AdminShell({
   }, [storeId, queryClient])
 
   return (
+    <PanelShell
+      nav={nav}
+      activeKey={activeKey}
+      renderSidebarHeader={() => <StoreSidebarHeader storeContext={storeContext} />}
+      renderSidebarFooter={() => <StoreSidebarFooter slug={storeContext.slug} />}
+      renderTopbar={({ openMobile }) => (
+        <AdminTopbar
+          openMobile={openMobile}
+          slug={storeContext.slug}
+        />
+      )}
+    >
+      {children}
+    </PanelShell>
+  )
+}
+
+export function AdminShell({
+  storeContext,
+  children,
+}: {
+  storeContext: StoreContext
+  children: React.ReactNode
+}) {
+  return (
     <AdminContext.Provider value={storeContext}>
-      <PanelShell
-        nav={nav}
-        activeKey={activeKey}
-        renderSidebarHeader={() => <StoreSidebarHeader storeContext={storeContext} />}
-        renderSidebarFooter={() => <StoreSidebarFooter slug={storeContext.slug} />}
-        renderTopbar={({ openMobile }) => (
-          <AdminTopbar
-            openMobile={openMobile}
-            slug={storeContext.slug}
-          />
-        )}
-      >
-        {children}
-      </PanelShell>
+      <AdminShellInner storeContext={storeContext}>{children}</AdminShellInner>
     </AdminContext.Provider>
   )
 }

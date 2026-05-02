@@ -10,6 +10,7 @@ export type OrderFilters = {
   date_from?: string
   date_to?: string
   search?: string
+  customer_id?: string
 }
 
 export type OrderListResult = {

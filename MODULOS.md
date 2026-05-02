@@ -1212,7 +1212,7 @@ setShippingNotes('')
 
 **Archivo:** `src/app/(admin)/admin/banners/page.tsx`
 
-- [ ] Filtrar banners con `search`:
+- [x] Filtrar banners con `search`:
 
 ```tsx
 const filtered = (items as BannerRow[]).filter((b) =>
@@ -1223,22 +1223,22 @@ const filtered = (items as BannerRow[]).filter((b) =>
 
 ### 11.2 Banners — Switch invisible en tarjeta
 
-- [ ] En `SortableItem`, verificar que el Switch del banner sea interactivo
-- [ ] Si hay conflicto con el drag, usar `e.stopPropagation()` en el `onClick` del Switch
+- [x] En `SortableItem`, verificar que el Switch del banner sea interactivo
+- [x] Si hay conflicto con el drag, usar `e.stopPropagation()` en el `onClick` del Switch
 
 ### 11.3 Finance — Botón "Exportar" sin acción
 
-- [ ] Conectar al menos un toast: `toast.message('Próximamente', { description: 'La exportación estará disponible pronto.' })`
-- [ ] O implementar exportación CSV básica usando `papaparse` (ya instalado): exportar `filtered` como CSV con columnas descripción, tipo, monto, fecha
+- [x] Conectar al menos un toast: `toast.message('Próximamente', { description: 'La exportación estará disponible pronto.' })`
+- [x] O implementar exportación CSV básica usando `papaparse` (ya instalado): exportar `filtered` como CSV con columnas descripción, tipo, monto, fecha
 
 ### 11.4 Savings — Query con string vacío
 
 **Archivo:** `src/app/(admin)/admin/savings/page.tsx`
 
-- [ ] Asegurar que `useSavingsMovements` no dispara query si `accountId` es `''`:
+- [x] Asegurar que `useSavingsMovements` no dispara query si `accountId` es `''`:
 
 ```tsx
-const { data: movements = [] } = useSavingsMovements(selectedAccountId ?? undefined)
+const { data: movements = [] } = useSavingsMovements(selectedAccountId || undefined)
 // Y en el hook: enabled: Boolean(accountId)
 ```
 
@@ -1246,7 +1246,7 @@ const { data: movements = [] } = useSavingsMovements(selectedAccountId ?? undefi
 
 **Archivos:** `src/app/(admin)/admin/orders/page.tsx` y `src/app/(admin)/admin/products/page.tsx`
 
-- [ ] Ambas usan `p-4 sm:p-6 space-y-4` en el wrapper raíz. Alinear al patrón estándar:
+- [x] Ambas usan `p-4 sm:p-6 space-y-4` en el wrapper raíz. Alinear al patrón estándar:
 
 ```tsx
 // Wrapper:
@@ -1260,13 +1260,13 @@ const { data: movements = [] } = useSavingsMovements(selectedAccountId ?? undefi
 
 **Archivo:** `src/app/(admin)/admin/page.tsx`
 
-- [ ] El stat "sin stock" usa el ícono `Users` — cambiar a `Package` o `Boxes`
+- [x] El stat "sin stock" usa el ícono `Users` — cambiar a `Package` o `Boxes`
 
 ### 11.7 Shipping — Búsqueda client-side sobre datos paginados
 
 **Archivo:** `src/app/(admin)/admin/shipping/page.tsx`
 
-- [ ] El `search` filtra solo los items de la página cargada. Pasar `search` como parámetro al hook `useShipments` para filtrar server-side si el handler lo soporta; si no, agregar soporte en el handler `list_shipments`
+- [x] El `search` filtra solo los items de la página cargada. Pasar `search` como parámetro al hook `useShipments` para filtrar server-side si el handler lo soporta; si no, agregar soporte en el handler `list_shipments`
 
 ---
 
@@ -1280,8 +1280,8 @@ Después de analizar toda la sinergia del sistema, estas son las mejoras adicion
 
 **Archivo:** `src/components/admin/admin-shell.tsx`
 
-- [ ] Agregar un `usePendingOrdersCount()` hook (TanStack Query, refresca cada 60s) que consulta `orders?status=pending&store_id=...` y devuelve el count
-- [ ] En el ítem de nav "Pedidos", mostrar un `<span>` con el conteo si > 0:
+- [x] Agregar un `usePendingOrdersCount()` hook (TanStack Query, refresca cada 60s) que consulta `orders?status=pending&store_id=...` y devuelve el count
+- [x] En el ítem de nav "Pedidos", mostrar un `<span>` con el conteo si > 0:
 
 ```tsx
 // En buildNav, el ítem de Pedidos:
@@ -1294,7 +1294,7 @@ Después de analizar toda la sinergia del sistema, estas son las mejoras adicion
 }
 ```
 
-- [ ] En el componente que renderiza cada ítem de nav, agregar:
+- [x] En el componente que renderiza cada ítem de nav, agregar:
 ```tsx
 {item.badge && (
   <span className="ml-auto text-[10px] font-semibold bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
@@ -1309,9 +1309,8 @@ Después de analizar toda la sinergia del sistema, estas son las mejoras adicion
 
 **Archivo:** `src/app/(admin)/admin/ventas/page.tsx` + handler `create_sale`
 
-- [ ] Cuando el método de cobro seleccionado en el POS es `account` (cuenta corriente) y hay un `selectedCustomerId`:
-  - El handler `create_sale` debe: (1) crear el pedido con `status: 'pending'`, (2) buscar la cuenta de ahorro del cliente, (3) registrar un movimiento de **cargo** (`withdrawal`) en la cuenta por el monto total de la venta
-  - Description del movimiento: `Pedido #${order.id.slice(-6).toUpperCase()}`
+- [x] Cuando el método de cobro seleccionado en el POS es `savings` (cuenta corriente): handler crea pedido con `status: 'pending'` y registra withdrawal en la cuenta
+- [x] En ventas page: al seleccionar cliente con cuenta vinculada y método savings, auto-selecciona la cuenta
 - [ ] En el `confirmOrderPayment(orderId)` de 7.8, si el método era `account`: registrar el movimiento de **abono** correspondiente en la cuenta
 
 Esto cierra el loop: el fiado se registra en la cuenta automáticamente.
@@ -1319,11 +1318,12 @@ Esto cierra el loop: el fiado se registra en la cuenta automáticamente.
 ### 12.4 Filtro por cliente en pedidos y en cuentas
 
 **Módulo Pedidos:**
-- [ ] En preset `'pedidos'` del toolbar, agregar buscador de cliente (autocomplete de `useCustomers`) → `customer_id` en `AppliedEntityFilters`
-- [ ] Conectar al hook `useOrders({ customer_id: filters.customerId })`
+- [x] En preset `'pedidos'` del toolbar, agregar selector de cliente → `customer_id` en `AppliedEntityFilters`
+- [x] Conectar al hook `useOrders({ customer_id: filters.customerId })`
+- [x] Handler `list_orders` acepta `customer_id` como filtro
 
 **Módulo Cuentas:**
-- [ ] En preset `'cuentas'` del toolbar (si no existe, crear), agregar filtro por cliente (mismo buscador)
+- [x] Preset `'cuenta'` del toolbar también tiene el filtro de cliente (mismo Select)
 
 ### 12.5 Carrito: cuándo se limpia
 
@@ -1342,15 +1342,15 @@ Esto cierra el loop: el fiado se registra en la cuenta automáticamente.
 
 **Problema:** Hoy si el cliente no existe, el POS guarda el nombre como string libre pero no crea un registro en `customers`.
 
-- [ ] En el POS, si el admin tipea un nombre que no matchea ningún cliente existente, mostrar opción "Crear cliente [nombre]" al final de las sugerencias
-- [ ] Al seleccionar "Crear", crear el cliente en `customers` con el nombre (y teléfono si está cargado) antes de procesar la venta
-- [ ] La venta se vincula con `customer_id` del cliente recién creado
+- [x] En el POS, si el admin tipea un nombre que no matchea ningún cliente existente, mostrar opción `Crear "[nombre]"` al final de las sugerencias
+- [x] Al seleccionar "Crear", crear el cliente en `customers` → `create_customer` handler + action + hook
+- [x] La venta se vincula con `customer_id` del cliente recién creado
 
 ### 12.9 OrderSheet: estados completos + página de seguimiento para el cliente
 
 #### Estados del pedido en OrderSheet
 
-- [ ] En `OrderSheet`, los botones de cambio de estado deben reflejar el flujo real:
+- [x] El OrderSheet ya tiene el flujo de estados completo con barra de progreso y botones de avance/cancelar
   - Si `pending` → botón "Confirmar pago" (ver 7.8) + botón "Cancelar"
   - Si `confirmed` → botón "Marcar en preparación" + botón "Cancelar"
   - Si `preparing` → botón "Marcar como entregado"
@@ -1408,7 +1408,7 @@ En dev: `http://localhost:3000/[slug]/tracking/[orderId]` — ver si la ruta act
 
 #### Link de seguimiento en OrderSheet
 
-- [ ] En el footer del `OrderSheet`, debajo de los botones de acción, agregar:
+- [x] En el footer del `OrderSheet`, link de tracking copiable + botón WhatsApp para enviar el link al cliente
 
 ```tsx
 {/* Link de seguimiento */}
@@ -1447,9 +1447,9 @@ const trackingUrl = `${process.env.NEXT_PUBLIC_APP_URL}/${store.slug}/tracking/$
 // o con subdominio en producción: `https://${store.slug}.kitdigital.ar/tracking/${order.id}`
 ```
 
-- [ ] Importar `Copy` de lucide-react en `order-sheet.tsx`
-- [ ] El link de tracking debe funcionar sin autenticación (página pública)
-- [ ] La tracking page no devuelve datos sensibles: solo estado, items, total y nombre del cliente
+- [x] Importar `Copy` de lucide-react en `order-sheet.tsx`
+- [x] La tracking page funciona sin autenticación: `src/app/(public)/[slug]/tracking/[orderId]/page.tsx`
+- [x] La tracking page no devuelve datos sensibles: solo estado, items, total y nombre del cliente
 
 ---
 

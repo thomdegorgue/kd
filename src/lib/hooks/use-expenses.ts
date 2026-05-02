@@ -8,6 +8,8 @@ import {
   createExpense,
   updateExpense,
   deleteExpense,
+  getExpenseCategories,
+  updateExpenseCategories,
   type ExpenseFilters,
 } from '@/lib/actions/expenses'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
@@ -95,6 +97,38 @@ export function useDeleteExpense() {
       queryClient.invalidateQueries({ queryKey: queryKeys.expenses(store_id) })
       queryClient.invalidateQueries({ queryKey: queryKeys.expensesSummary(store_id) })
       toast.success('Gasto eliminado')
+    },
+    onError: (error) => toast.error(error.message),
+  })
+}
+
+export function useExpenseCategories() {
+  const { store_id } = useAdminContext()
+
+  return useQuery({
+    queryKey: queryKeys.expenseCategories(store_id),
+    queryFn: async () => {
+      const result = await getExpenseCategories()
+      if (!result.success) throw new Error(result.error.message)
+      return result.data.expense_categories
+    },
+    staleTime: staleTimes.expenses,
+    gcTime: gcTimes.expenses,
+  })
+}
+
+export function useAddExpenseCategory() {
+  const queryClient = useQueryClient()
+  const { store_id } = useAdminContext()
+
+  return useMutation({
+    mutationFn: async (categories: string[]) => {
+      const result = await updateExpenseCategories(categories)
+      if (!result.success) throw new Error(result.error.message)
+      return result.data.expense_categories
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenseCategories(store_id) })
     },
     onError: (error) => toast.error(error.message),
   })

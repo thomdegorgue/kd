@@ -51,11 +51,12 @@ import {
   useCreateExpense,
   useUpdateExpense,
   useDeleteExpense,
+  useExpenseCategories,
+  useAddExpenseCategory,
 } from '@/lib/hooks/use-expenses'
 import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import { z } from 'zod'
 import {
-  EXPENSE_CATEGORIES,
   EXPENSE_CATEGORY_LABELS,
   RECURRENCE_PERIODS,
   RECURRENCE_PERIOD_LABELS,
@@ -63,6 +64,7 @@ import {
 } from '@/lib/validations/expense'
 import { useCurrency } from '@/lib/hooks/use-currency'
 import type { ModuleName } from '@/lib/types'
+import { ExpenseCategoryCombobox } from '@/components/admin/expense-category-combobox'
 
 const CATEGORY_COLORS: Record<string, string> = {
   supplies: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -76,7 +78,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const expenseFormSchema = z.object({
   amount_pesos: z.number().min(0.01, 'Monto requerido'),
-  category: z.enum(EXPENSE_CATEGORIES),
+  category: z.string().min(1, 'Categoría requerida'),
   description: z.string().min(1, 'Requerido').max(200),
   date: z.string().min(1),
   receipt_url: z.string().url().optional().or(z.literal('')),
@@ -95,37 +97,25 @@ const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISO
 function ExpenseSheetFields({
   form,
   storeId,
+  categories,
+  onAddCategory,
 }: {
   form: ReturnType<typeof useForm<ExpenseFormInput>>
   storeId: string
+  categories: string[]
+  onAddCategory: (cats: string[]) => void
 }) {
   const isRecurring = form.watch('is_recurring')
   const receiptUrl = form.watch('receipt_url') as string | undefined
 
   return (
     <div className="space-y-5">
-      <div className="space-y-2">
-        <Label>Categoría</Label>
-        <div className="flex flex-wrap gap-2">
-          {EXPENSE_CATEGORIES.map((c) => {
-            const selected = form.watch('category') === c
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => form.setValue('category', c)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                  selected
-                    ? CATEGORY_COLORS[c]
-                    : 'text-muted-foreground border-border bg-background hover:bg-muted'
-                }`}
-              >
-                {EXPENSE_CATEGORY_LABELS[c]}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      <ExpenseCategoryCombobox
+        value={form.watch('category')}
+        onChange={(cat) => form.setValue('category', cat)}
+        categories={categories}
+        onAddCategory={onAddCategory}
+      />
       <div className="space-y-2">
         <Label htmlFor="description">Descripción</Label>
         <Input id="description" {...form.register('description')} />
@@ -229,9 +219,11 @@ export default function ExpensesPage() {
     date_to: dateTo,
   })
   const { data: summary } = useExpensesSummary(dateFrom, dateTo)
+  const { data: categories = [] } = useExpenseCategories()
   const createMutation = useCreateExpense()
   const updateMutation = useUpdateExpense()
   const deleteMutation = useDeleteExpense()
+  const addCategoryMutation = useAddExpenseCategory()
   const { formatPrice } = useCurrency()
 
   const filtered = useMemo(() => {
@@ -248,7 +240,7 @@ export default function ExpensesPage() {
   const createForm = useForm<ExpenseFormInput>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
-      category: 'other',
+      category: categories.length > 0 ? categories[0] : '',
       description: '',
       date: today.toISOString().slice(0, 10),
       is_recurring: false,
@@ -263,7 +255,7 @@ export default function ExpensesPage() {
     setEditing(e as EditingExpense)
     editForm.reset({
       amount_pesos: (e.amount as number) / 100,
-      category: e.category as typeof EXPENSE_CATEGORIES[number],
+      category: e.category as string,
       description: e.description as string,
       date: e.date as string,
       receipt_url: (e.receipt_url as string | null) ?? '',
@@ -340,6 +332,7 @@ export default function ExpensesPage() {
             setDateTo(f.dateTo)
             setCategoryFilter(f.expenseCategory ?? '')
           }}
+          expenseCategories={categories}
         />
       </div>
 
@@ -508,7 +501,12 @@ export default function ExpensesPage() {
           </SheetHeader>
           <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="flex flex-col flex-1 min-h-0">
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              <ExpenseSheetFields form={createForm} storeId={store_id} />
+              <ExpenseSheetFields
+                form={createForm}
+                storeId={store_id}
+                categories={categories}
+                onAddCategory={(cats) => addCategoryMutation.mutate(cats)}
+              />
             </div>
             <div className="px-6 py-4 border-t shrink-0 flex gap-2">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setShowCreate(false)}>
@@ -533,7 +531,12 @@ export default function ExpensesPage() {
           </SheetHeader>
           <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="flex flex-col flex-1 min-h-0">
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              <ExpenseSheetFields form={editForm} storeId={store_id} />
+              <ExpenseSheetFields
+                form={editForm}
+                storeId={store_id}
+                categories={categories}
+                onAddCategory={(cats) => addCategoryMutation.mutate(cats)}
+              />
             </div>
             <div className="px-6 py-4 border-t shrink-0 space-y-2">
               <div className="flex gap-2">

@@ -140,74 +140,74 @@ Estructura estándar de una página de módulo:
 ## Orden de ejecución (resumen)
 
 ### Fase 0 — Bug crítico (5 min)
-- [ ] Fix `created_by` en tasks handler → `src/lib/executor/handlers/tasks.ts`
+- [X] Fix `created_by` en tasks handler → `src/lib/executor/handlers/tasks.ts`
 
 ### Fase 1 — Global: Shell y navegación
-- [ ] Topbar: oculto en desktop, nombre de tienda en mobile, solo icono catálogo
-- [ ] Nav: eliminar "Módulos", renombrar "Billing"→"Suscripción", "Pagos"→"Métodos de pago", "Ahorros"→"Cuentas"
+- [X] Topbar: oculto en desktop, nombre de tienda en mobile, solo icono catálogo
+- [X] Nav: eliminar "Módulos", renombrar "Billing"→"Suscripción", "Pagos"→"Métodos de pago", "Ahorros"→"Cuentas"
 
 ### Fase 2 — Global: Sistema de sheets
-- [ ] Estandarizar todos los sheets al patrón del product-sheet
+- [X] Estandarizar todos los sheets al patrón del product-sheet
 
 ### Fase 3 — Global: Filtros inline → dentro del botón filtro
-- [ ] Stock, Finance, Orders, Expenses (mover chips al filter sheet)
+- [X] Stock, Finance, Orders, Expenses (mover chips al filter sheet)
 
 ### Fase 4 — Mobile-first
-- [ ] Productos: agregar vista de cards mobile
+- [X] Productos: agregar vista de cards mobile
 
 ### Fase 5 — Migraciones de DB (ejecutar antes de fases 6, 7, 9)
-- [ ] `customer_id` en `savings_accounts`
-- [ ] `notes` en `customers`
-- [ ] source `'checkout'` en `orders`
-- [ ] Nueva tabla `payment_methods`
-- [ ] `ModuleName` += `'checkout'`
-- [ ] `pnpm types:db`
+- [X] `customer_id` en `savings_accounts`
+- [X] `notes` en `customers`
+- [X] source `'checkout'` en `orders`
+- [X] Nueva tabla `payment_methods`
+- [X] `ModuleName` += `'checkout'`
+- [X] `pnpm types:db`
 
 ### Fase 6 — Clientes + Cuentas de clientes
-- [ ] Rediseño conceptual del módulo "Cuentas" (ex-Ahorros)
-- [ ] Integración en detalle del cliente (tabs Pedidos, Cuenta)
+- [X] Rediseño conceptual del módulo "Cuentas" (ex-Ahorros)
+- [X] Integración en detalle del cliente (tabs Pedidos, Cuenta)
 
 ### Fase 7 — Métodos de pago + Checkout e-commerce
-- [ ] Reescribir `/admin/payments` como configurador de métodos
-- [ ] Handlers y actions para `payment_methods`
-- [ ] Nueva página pública `/[slug]/checkout` + success
-- [ ] Modificar `CartDrawer` para ofrecer checkout real
-- [ ] Webhook MP: distinguir suscripciones vs pagos de pedidos
-- [ ] `OrderSheet`: confirmar pago manual (transferencia)
+- [X] Reescribir `/admin/payments` como configurador de métodos
+- [X] Handlers y actions para `payment_methods`
+- [X] Nueva página pública `/[slug]/checkout` + success
+- [X] Modificar `CartDrawer` para ofrecer checkout real
+- [X] Webhook MP: distinguir suscripciones vs pagos de pedidos
+- [X] `OrderSheet`: confirmar pago manual (transferencia)
 
 ### Fase 8 — Suscripción: Billing + Módulos unificados
-- [ ] Tab "Módulos" dentro de `BillingPanel`
-- [ ] Redirect de `/admin/settings/modules` → `/admin/billing`
+- [x] Tab "Módulos" dentro de `BillingPanel`
+- [x] Redirect de `/admin/settings/modules` → `/admin/billing`
 
 ### Fase 9 — Gastos: categorías dinámicas
-- [ ] Categorías en `stores.config.expense_categories`
-- [ ] Combobox con creación inline en el sheet de nuevo gasto
+- [x] Categorías en `stores.config.expense_categories`
+- [x] Combobox con creación inline en el sheet de nuevo gasto
 
 ### Fase 10 — Ventas: mejoras POS
-- [ ] Autocomplete de cliente + sección Envío colapsable
+- [x] Autocomplete de cliente + sección Envío colapsable
 
 ### Fase 11 — Bugs secundarios y pulido
-- [ ] Banners, Finance, Shipping, Dashboard, headers
+- [x] Banners, Finance, Shipping, Dashboard, headers
 
 ### Fase 12 — Mejoras proactivas aprobadas
-- [ ] Badge pedidos pendientes en sidebar
-- [ ] POS fiado → savings account automático
-- [ ] Filtro por cliente en Pedidos y Cuentas
-- [ ] Carrito: regla de limpieza correcta (WhatsApp vs checkout)
-- [ ] WhatsApp siempre visible en Configuración
-- [ ] Crear cliente desde POS sin salir
-- [ ] OrderSheet: estados completos + tracking page pública con link copiable + botón WhatsApp
+- [x] Badge pedidos pendientes en sidebar
+- [x] POS fiado → savings account automático (status pending + auto-select cuenta)
+- [x] Filtro por cliente en Pedidos y Cuentas (toolbar + handler)
+- [x] Carrito: regla de limpieza correcta (WhatsApp vs checkout)
+- [x] WhatsApp siempre visible en Configuración (ya OK — no condicional)
+- [x] Crear cliente desde POS sin salir
+- [x] OrderSheet: tracking page pública + link copiable + botón WhatsApp
 
 ### Fase 13 — Sincronización final de schema.sql y clear.sql
 > Ejecutar AL FINAL de todo, después de todas las migraciones aplicadas.
-- [ ] Promover `payment_methods` a definición permanente en schema.sql
-- [ ] Actualizar `savings_accounts` y `customers` inline con nuevas columnas
-- [ ] Actualizar constraint `orders.source` con `'checkout'`
-- [ ] Agregar índices, RLS y trigger de `payment_methods`
-- [ ] Actualizar comentario de cascadas en `clear.sql`
-- [ ] Re-ejecutar `schema.sql` completo en Supabase (verificar idempotencia)
-- [ ] `pnpm types:db` — regenerar tipos TypeScript
-- [ ] `pnpm build` — verificar sin errores
+- [x] Promover `payment_methods` a definición permanente en schema.sql
+- [x] Actualizar `savings_accounts` y `customers` inline con nuevas columnas
+- [x] Actualizar constraint `orders.source` con `'checkout'`
+- [x] Agregar índices, RLS y trigger de `payment_methods`
+- [x] Actualizar comentario de cascadas en `clear.sql`
+- [x] Re-ejecutar `schema.sql` completo en Supabase (verificar idempotencia)
+- [x] `pnpm types:db` — regenerar tipos TypeScript
+- [x] `pnpm build` — verificar sin errores
 
 ---
 

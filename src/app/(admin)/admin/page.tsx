@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Package, ShoppingCart, Users, DollarSign, ArrowRight, Share2, Settings, Plus, ExternalLink } from 'lucide-react'
+import { Package, ShoppingCart, Boxes, DollarSign, ArrowRight, Share2, Settings, Plus, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -140,7 +140,7 @@ export default function AdminDashboardPage() {
             <StatCard
               title="Sin stock"
               value={modules.stock ? String(data?.out_of_stock ?? 0) : '—'}
-              icon={Users}
+              icon={Boxes}
               loading={isLoading}
             />
           </div>

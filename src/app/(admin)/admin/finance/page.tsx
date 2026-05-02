@@ -63,6 +63,7 @@ import { useAdminContext } from '@/lib/hooks/use-admin-context'
 import { z } from 'zod'
 import { FINANCE_TYPE_LABELS } from '@/lib/validations/finance'
 import { useCurrency } from '@/lib/hooks/use-currency'
+import { toast } from 'sonner'
 import type { ModuleName } from '@/lib/types'
 
 const financeFormSchema = z.object({
@@ -132,6 +133,34 @@ export default function FinancePage() {
     setShowCreate(false)
   }
 
+  function handleExport() {
+    if (filtered.length === 0) {
+      toast.message('Sin datos para exportar', { description: 'No hay entradas en el período seleccionado.' })
+      return
+    }
+    const csv = [
+      ['Descripción', 'Tipo', 'Monto', 'Fecha'].join(','),
+      ...(filtered as Record<string, unknown>[]).map((e) =>
+        [
+          `"${String(e.description ?? '').replace(/"/g, '""')}"`,
+          String(e.type ?? ''),
+          String(e.amount ?? '0'),
+          String(e.date ?? ''),
+        ].join(',')
+      ),
+    ].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `finanzas-${dateFrom}-${dateTo}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast.success('Exportado correctamente')
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -147,7 +176,7 @@ export default function FinancePage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="gap-2 hidden sm:flex">
+            <Button variant="outline" size="sm" className="gap-2 hidden sm:flex" onClick={handleExport}>
               <FileDown className="h-3.5 w-3.5" />
               Exportar
             </Button>

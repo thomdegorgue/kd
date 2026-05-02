@@ -19,7 +19,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { NativeScroll } from '@/components/ui/native-scroll'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from '@/lib/validations/expense'
+import { EXPENSE_CATEGORY_LABELS } from '@/lib/validations/expense'
 
 export type EntityToolbarFilterPreset =
   | 'generic'
@@ -46,6 +46,7 @@ export type AppliedEntityFilters = {
   tareasStatus?: 'todas' | 'pendientes' | 'completadas'
   stockStatus?: string
   expenseCategory?: string
+  customerId?: string
 }
 
 const STOCK_STATUS_OPTIONS = [
@@ -95,6 +96,10 @@ type EntityToolbarProps = {
   appliedFilters?: Partial<AppliedEntityFilters>
   /** Categorías dinámicas (para presets productos/stock) */
   categories?: { id: string; label: string }[]
+  /** Categorías de gastos dinámicas */
+  expenseCategories?: string[]
+  /** Opciones de clientes para filtro (presets pedidos/cuenta) */
+  customerOptions?: { id: string; name: string; phone?: string | null }[]
 }
 
 export function EntityToolbar({
@@ -105,6 +110,8 @@ export function EntityToolbar({
   onApplyFilters,
   appliedFilters,
   categories: categoriesProp,
+  expenseCategories = [],
+  customerOptions = [],
 }: EntityToolbarProps) {
   const [filterOpen, setFilterOpen] = useState(false)
   const defaults = useMemo(() => defaultDates(), [])
@@ -131,6 +138,7 @@ export function EntityToolbar({
   )
   const [stockStatus, setStockStatus] = useState(appliedFilters?.stockStatus ?? 'all')
   const [expenseCategory, setExpenseCategory] = useState(appliedFilters?.expenseCategory ?? '')
+  const [customerId, setCustomerId] = useState(appliedFilters?.customerId ?? '')
 
   function syncFromApplied() {
     setDateFrom(appliedFilters?.dateFrom ?? defaults.dateFrom)
@@ -144,6 +152,7 @@ export function EntityToolbar({
     if (appliedFilters?.tareasStatus) setTareasStatus(appliedFilters.tareasStatus)
     if (appliedFilters?.stockStatus !== undefined) setStockStatus(appliedFilters.stockStatus)
     if (appliedFilters?.expenseCategory !== undefined) setExpenseCategory(appliedFilters.expenseCategory)
+    if (appliedFilters?.customerId !== undefined) setCustomerId(appliedFilters.customerId)
   }
 
   const showFilterButton = filterPreset !== 'generic'
@@ -161,6 +170,7 @@ export function EntityToolbar({
     if (filterPreset === 'tareas') base.tareasStatus = tareasStatus
     if (filterPreset === 'stock') base.stockStatus = stockStatus
     if (filterPreset === 'gastos') { base.expenseCategory = expenseCategory }
+    if (filterPreset === 'pedidos' || filterPreset === 'cuenta') { base.customerId = customerId || undefined }
     return base
   }
 
@@ -182,6 +192,7 @@ export function EntityToolbar({
     setTareasStatus('todas')
     setStockStatus('all')
     setExpenseCategory('')
+    setCustomerId('')
     onApplyFilters?.({
       dateFrom: d.dateFrom,
       dateTo: d.dateTo,
@@ -194,6 +205,7 @@ export function EntityToolbar({
       tareasStatus: 'todas',
       stockStatus: 'all',
       expenseCategory: '',
+      customerId: undefined,
     })
   }
 
@@ -454,7 +466,7 @@ export function EntityToolbar({
                     >
                       Todas
                     </button>
-                    {EXPENSE_CATEGORIES.map((c) => (
+                    {expenseCategories.map((c) => (
                       <button
                         key={c}
                         type="button"
@@ -465,7 +477,7 @@ export function EntityToolbar({
                             : 'text-muted-foreground border-border bg-background hover:bg-muted'
                         }`}
                       >
-                        {EXPENSE_CATEGORY_LABELS[c]}
+                        {EXPENSE_CATEGORY_LABELS[c] ?? c}
                       </button>
                     ))}
                   </div>
@@ -479,6 +491,25 @@ export function EntityToolbar({
                     <p className="text-2xs text-muted-foreground">Oculta los pausados en la lista</p>
                   </div>
                   <Switch checked={bannersActiveOnly} onCheckedChange={setBannersActiveOnly} />
+                </div>
+              )}
+
+              {(filterPreset === 'pedidos' || filterPreset === 'cuenta') && customerOptions.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Cliente</Label>
+                  <Select value={customerId || 'todos'} onValueChange={(v) => v && setCustomerId(v === 'todos' ? '' : v)}>
+                    <SelectTrigger className="h-9 text-xs w-full min-w-0">
+                      <SelectValue placeholder="Todos los clientes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos los clientes</SelectItem>
+                      {customerOptions.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}{c.phone ? ` · ${c.phone}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
 

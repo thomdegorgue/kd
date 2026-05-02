@@ -84,6 +84,22 @@ export function useUpdateOrderStatus() {
   })
 }
 
+export function usePendingOrdersCount() {
+  const { store_id } = useAdminContext()
+
+  return useQuery({
+    queryKey: queryKeys.orders(store_id, { status: 'pending', pageSize: 1 }),
+    queryFn: async () => {
+      const result = await listOrders({ status: 'pending', pageSize: 1 })
+      if (!result.success) return 0
+      return result.data.total
+    },
+    staleTime: staleTimes.orders,
+    gcTime: gcTimes.orders,
+    refetchInterval: 60_000,
+  })
+}
+
 export function useCancelOrder() {
   const queryClient = useQueryClient()
   const { store_id } = useAdminContext()
