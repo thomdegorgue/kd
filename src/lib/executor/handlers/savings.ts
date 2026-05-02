@@ -32,16 +32,16 @@ registerHandler({
 
     const { data: movements, error: mErr } = await db
       .from('savings_movements')
-      .select('account_id, type, amount')
-      .in('account_id', accountIds)
+      .select('savings_account_id, type, amount')
+      .in('savings_account_id', accountIds)
       .eq('store_id', context.store_id)
 
     if (mErr) throw new Error(mErr.message)
 
     const balanceMap = new Map<string, number>()
-    for (const m of (movements as { account_id: string; type: string; amount: number }[] ?? [])) {
-      const current = balanceMap.get(m.account_id) ?? 0
-      balanceMap.set(m.account_id, m.type === 'deposit' ? current + m.amount : current - m.amount)
+    for (const m of (movements as { savings_account_id: string; type: string; amount: number }[] ?? [])) {
+      const current = balanceMap.get(m.savings_account_id) ?? 0
+      balanceMap.set(m.savings_account_id, m.type === 'deposit' ? current + m.amount : current - m.amount)
     }
 
     const customerIds = (accounts as { customer_id: string | null }[])
@@ -149,9 +149,9 @@ registerHandler({
     const { data, error } = await db
       .from('savings_movements')
       .select('*')
-      .eq('account_id', account_id)
+      .eq('savings_account_id', account_id)
       .eq('store_id', context.store_id)
-      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
 
     if (error) throw new Error(error.message)
     return data ?? []
@@ -182,7 +182,7 @@ registerHandler({
       const { data: movements } = await db
         .from('savings_movements')
         .select('type, amount')
-        .eq('account_id', validated.account_id)
+        .eq('savings_account_id', validated.account_id)
         .eq('store_id', context.store_id)
 
       let balance = 0
@@ -198,9 +198,11 @@ registerHandler({
     const { data, error } = await db
       .from('savings_movements')
       .insert({
-        ...validated,
+        savings_account_id: validated.account_id,
         store_id: context.store_id,
-        date: validated.date ?? new Date().toISOString().slice(0, 10),
+        type: validated.type,
+        amount: validated.amount,
+        description: validated.description ?? null,
       })
       .select()
       .single()

@@ -1,9 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
-import { buttonVariants } from '@/components/ui/button'
+import { ArrowLeft, Plus, Wallet } from 'lucide-react'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -17,12 +18,15 @@ import {
 import { OrderStatusBadge } from '@/components/admin/order-status-badge'
 import { useCustomer } from '@/lib/hooks/use-customers'
 import { useCurrency } from '@/lib/hooks/use-currency'
+import { useCreateSavingsAccount, useSavingsMovements } from '@/lib/hooks/use-savings'
 import type { OrderStatus } from '@/lib/types'
 
 export default function CustomerDetailPage() {
   const params = useParams<{ id: string }>()
   const { data: customer, isLoading } = useCustomer(params.id)
   const { formatPrice } = useCurrency()
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false)
+  const { mutateAsync: createSavingsAccount } = useCreateSavingsAccount()
 
   if (isLoading) {
     return (
@@ -48,7 +52,10 @@ export default function CustomerDetailPage() {
     email: string | null
     created_at: string
     orders: { id: string; status: OrderStatus; total: number; created_at: string }[]
+    savings_account: { id: string; name: string } | null
   }
+
+  const { data: movements } = useSavingsMovements(c.savings_account?.id)
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -82,6 +89,67 @@ export default function CustomerDetailPage() {
               <span className="text-muted-foreground">Pedidos</span>
               <span>{c.orders.length}</span>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Savings account card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm">Cuenta de ahorro</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            {c.savings_account ? (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Nombre</span>
+                  <span>{c.savings_account.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Saldo</span>
+                  <span className="font-semibold">
+                    {formatPrice(
+                      (movements as { type: 'deposit' | 'withdrawal'; amount: number }[] ?? []).reduce(
+                        (acc, m) => acc + (m.type === 'deposit' ? m.amount : -m.amount),
+                        0,
+                      ),
+                    )}
+                  </span>
+                </div>
+                <Link
+                  href="/admin/savings"
+                  className="text-xs text-primary hover:underline block text-right"
+                >
+                  Ver en Cuentas →
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground">Este cliente no tiene cuenta de ahorro</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  disabled={isCreatingAccount}
+                  onClick={async () => {
+                    setIsCreatingAccount(true)
+                    try {
+                      await createSavingsAccount({
+                        name: c.name,
+                        customer_id: c.id,
+                      })
+                    } finally {
+                      setIsCreatingAccount(false)
+                    }
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  {isCreatingAccount ? 'Creando...' : 'Crear cuenta'}
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -378,7 +378,7 @@ registerHandler({
       }
     }
 
-    // 2. Validar saldo de cuenta de ahorro (si aplica)
+    // 2. Validar saldo de cuenta de ahorro (solo si se pasó explícitamente savings_account_id)
     if (validated.payment_method === 'savings' && validated.savings_account_id) {
       const { data: movs, error: mErr } = await db
         .from('savings_movements')
@@ -402,7 +402,13 @@ registerHandler({
 
     // 3. Resolver customer
     let customerId: string | null = validated.customer_id ?? null
-    if (!customerId && validated.customer_name) {
+    if (customerId && validated.customer_phone?.trim()) {
+      await db
+        .from('customers')
+        .update({ phone: validated.customer_phone.trim() })
+        .eq('id', customerId)
+        .eq('store_id', context.store_id)
+    } else if (!customerId && validated.customer_name) {
       const { data: newCust, error: custError } = await db
         .from('customers')
         .insert({
@@ -470,11 +476,46 @@ registerHandler({
       if (payError) throw new Error(payError.message)
     }
 
-    // 7. Si savings: movimiento de retiro
-    if (validated.payment_method === 'savings' && validated.savings_account_id && validated.payment_amount > 0) {
+    // 7. Si savings: obtener o crear cuenta, registrar movimiento
+    if (validated.payment_method === 'savings' && validated.payment_amount > 0) {
+      let accountId = validated.savings_account_id ?? null
+
+      if (!accountId && customerId) {
+        const { data: existing } = await db
+          .from('savings_accounts')
+          .select('id')
+          .eq('store_id', context.store_id)
+          .eq('customer_id', customerId)
+          .limit(1)
+          .maybeSingle()
+
+        if (existing) {
+          accountId = (existing as { id: string }).id
+        } else {
+          const { data: newAcc, error: accErr } = await db
+            .from('savings_accounts')
+            .insert({
+              store_id: context.store_id,
+              name: validated.customer_name ?? 'Cuenta de cliente',
+              customer_id: customerId,
+            })
+            .select('id')
+            .single()
+          if (accErr) throw new Error(accErr.message)
+          accountId = (newAcc as { id: string }).id
+        }
+      }
+
+      if (!accountId) {
+        throw Object.assign(
+          new Error('Debes seleccionar un cliente para usar cuenta de ahorro'),
+          { code: 'INVALID_INPUT' },
+        )
+      }
+
       const { error: sErr } = await db.from('savings_movements').insert({
         store_id: context.store_id,
-        savings_account_id: validated.savings_account_id,
+        savings_account_id: accountId,
         type: 'withdrawal',
         amount: validated.payment_amount,
         description: `Venta #${orderId.slice(0, 8)}`,
