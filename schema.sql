@@ -36,10 +36,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION store_allows_writes(sid UUID) RETURNS BOOLEAN AS $$
-  SELECT status IN ('demo', 'active') FROM stores WHERE id = sid
-$$ LANGUAGE SQL STABLE SECURITY DEFINER;
-
 -- ============================================================
 -- TABLAS (CREATE TABLE IF NOT EXISTS — nunca falla si ya existe)
 -- ============================================================
@@ -107,6 +103,10 @@ CREATE TABLE IF NOT EXISTS stores (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE OR REPLACE FUNCTION store_allows_writes(sid UUID) RETURNS BOOLEAN AS $$
+  SELECT status IN ('demo', 'active') FROM stores WHERE id = sid
+$$ LANGUAGE SQL STABLE SECURITY DEFINER;
+
 CREATE TABLE IF NOT EXISTS store_users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
@@ -151,23 +151,6 @@ CREATE TABLE IF NOT EXISTS billing_webhook_log (
   mp_event_id TEXT NOT NULL UNIQUE,
   topic TEXT NOT NULL,
   store_id UUID REFERENCES stores(id),
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processed', 'failed')),
-  raw_payload JSONB NOT NULL,
-  error TEXT,
-  processing_time_ms INTEGER,
-  result TEXT,
-  processed_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- order_webhook_log: eventos de Mercado Pago para pedidos (tienda→cliente)
--- Se separa de billing_webhook_log para no mezclar dominios.
-CREATE TABLE IF NOT EXISTS order_webhook_log (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  mp_event_id TEXT NOT NULL UNIQUE,
-  topic TEXT NOT NULL,
-  store_id UUID REFERENCES stores(id),
-  order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processed', 'failed')),
   raw_payload JSONB NOT NULL,
   error TEXT,
@@ -329,6 +312,24 @@ CREATE TABLE IF NOT EXISTS orders (
   metadata JSONB NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- order_webhook_log: eventos de Mercado Pago para pedidos (tienda→cliente)
+-- Se separa de billing_webhook_log para no mezclar dominios.
+-- Debe ir después de `orders` por la FK order_id.
+CREATE TABLE IF NOT EXISTS order_webhook_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  mp_event_id TEXT NOT NULL UNIQUE,
+  topic TEXT NOT NULL,
+  store_id UUID REFERENCES stores(id),
+  order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processed', 'failed')),
+  raw_payload JSONB NOT NULL,
+  error TEXT,
+  processing_time_ms INTEGER,
+  result TEXT,
+  processed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS order_items (
