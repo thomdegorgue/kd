@@ -1,5 +1,6 @@
 import { registerHandler } from '../registry'
 import { supabaseServiceRole } from '@/lib/supabase/service-role'
+import { encryptPaymentConfig, decryptPaymentConfig } from '@/lib/crypto/payment-tokens'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseServiceRole as any
@@ -21,7 +22,11 @@ registerHandler({
       .order('sort_order', { ascending: true })
 
     if (error) throw new Error(error.message)
-    return data ?? []
+    // Desencriptar access_token antes de devolver al cliente
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((row: any) =>
+      row.config ? { ...row, config: decryptPaymentConfig(row.config as Record<string, unknown>) } : row
+    )
   },
 })
 
@@ -59,7 +64,7 @@ registerHandler({
       store_id: context.store_id,
       type,
       name: name ?? (type === 'transfer' ? 'Transferencia bancaria' : 'Mercado Pago'),
-      config: config ?? {},
+      config: encryptPaymentConfig(config ?? {}),
       instructions: instructions ?? null,
     }
 
@@ -71,7 +76,8 @@ registerHandler({
         .select()
         .single()
       if (error) throw new Error(error.message)
-      return data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return data ? { ...(data as any), config: decryptPaymentConfig((data as any).config ?? {}) } : data
     } else {
       const { data, error } = await db
         .from('payment_methods')
@@ -79,7 +85,8 @@ registerHandler({
         .select()
         .single()
       if (error) throw new Error(error.message)
-      return data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return data ? { ...(data as any), config: decryptPaymentConfig((data as any).config ?? {}) } : data
     }
   },
 })

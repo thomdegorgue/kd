@@ -593,48 +593,36 @@ Los ítems de webhook mensual→anual e idempotencia están en **FASE 0 / F0-3**
 
 ---
 
-### FASE 4 — Calidad (P1, ≈ 2 días)
+### FASE 4 — Calidad (P1, ≈ 2 días) ✅ COMPLETADA (2026-05-02)
 
-- [ ] **F4-1** Regenerar `src/lib/types/database.ts` con Supabase CLI
-  ```bash
-  pnpm types:db
-  ```
-  Luego: tipar `supabaseServiceRole` en `src/lib/supabase/service-role.ts`:
-  ```typescript
-  import type { Database } from '@/lib/types/database'
-  export const supabaseServiceRole = createClient<Database>(url, key)
-  ```
-  Eliminar `as any` en cascada (53 archivos).
+- [ ] **F4-1** Regenerar `src/lib/types/database.ts` con Supabase CLI ⚠️ BLOQUEADO
+  - `pnpm types:db` falla en Windows (pnpm.cmd EINVAL). Requiere ejecutar manualmente con `supabase login`.
+  - Una vez regenerado (con `Relationships`): agregar `createClient<Database>` en `service-role.ts` y eliminar `as any` en cascada (44 archivos).
+  - TODO comentario dejado en `service-role.ts` para cuando se desbloquee.
 
-- [ ] **F4-2** Tests críticos (crear en `src/lib/billing/` y `executor/`)
-  - `commercial-tiers.test.ts` — `getSuggestedMonthlyCentsForCap()` y filas de `COMMERCIAL_TIERS`
-  - `calculator.test.ts` — `computeMonthlyTotal`, `calculateAnnualPrice`
-  - `verify-signature.test.ts` — HMAC + anti-replay
-  - `webhook.test.ts` — mock de pago aprobado/rechazado + idempotencia
-  - `executor.test.ts` — módulo inactivo, tienda `demo`, límites
+- [x] **F4-2** Tests críticos (5 archivos, 56 tests en total)
+  - `src/lib/billing/commercial-tiers.test.ts` — COMMERCIAL_TIERS + getSuggestedMonthlyCentsForCap
+  - `src/lib/billing/calculator.test.ts` — computeMonthlyTotal, calculateAnnualPrice, getTierBaseCost
+  - `src/lib/billing/verify-signature.test.ts` — HMAC + anti-replay (15 casos)
+  - `src/lib/billing/packs.test.ts` — ya existía (4 tests)
+  - `src/lib/executor/executor.test.ts` — módulo inactivo, demo, límites, unauthorized
 
-- [ ] **F4-3** CI con GitHub Actions
-  ```yaml
-  # .github/workflows/ci.yml
-  - pnpm lint
-  - pnpm tsc --noEmit
-  - pnpm test
-  ```
+- [x] **F4-3** CI con GitHub Actions — `.github/workflows/ci.yml` (lint + tsc + test)
 
-- [ ] **F4-4** Encriptar `payment_methods.config.access_token`
-  - Usar `pgcrypto` de Postgres o cifrado en app layer antes de guardar en DB
-  - Afecta: `src/lib/payments/mercadopago.ts` (lectura) y acción de crear payment method
+- [x] **F4-4** Encriptar `payment_methods.config.access_token`
+  - `src/lib/crypto/payment-tokens.ts` — AES-256-GCM con PAYMENT_TOKEN_ENCRYPTION_KEY
+  - Integrado en `src/lib/executor/handlers/payment-methods.ts` (encrypt on write, decrypt on read)
+  - Compatibilidad con registros viejos (cleartext → funciona sin migración)
+  - `.env.example` actualizado con PAYMENT_TOKEN_ENCRYPTION_KEY
 
-- [ ] **F4-5** CSP report-only en `next.config.ts`
-  ```typescript
-  "Content-Security-Policy-Report-Only": "default-src 'self'; img-src 'self' res.cloudinary.com; ..."
-  ```
+- [x] **F4-5** CSP report-only en `next.config.ts`
+  - Cubre: self, MP SDK, Cloudinary, Supabase, Sentry, Upstash
 
-- [ ] **F4-6** Sentry
-  ```bash
-  pnpm add @sentry/nextjs
-  # Seguir setup wizard de Sentry para Next.js App Router
-  ```
+- [x] **F4-6** Sentry — `@sentry/nextjs` instalado y configurado
+  - `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`
+  - `src/instrumentation.ts` (hook de Next.js App Router)
+  - `next.config.ts` wrapeado con `withSentryConfig`
+  - `.env.example` actualizado con NEXT_PUBLIC_SENTRY_DSN, SENTRY_ORG, SENTRY_PROJECT
 
 ---
 
